@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in — FIG</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+(function(){try{var t=localStorage.getItem('fig_theme');
+if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches)t='light';
+if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();
+</script>
+<link rel="stylesheet" href="/static/dash.css">
+<style>
+  .signin{min-height:100vh;display:grid;place-items:center;padding:24px}
+  .signin-card{width:min(400px,100%);border:1px solid var(--border);border-radius:var(--r-lg);
+    background:var(--surface);padding:30px}
+  .signin-card .brand{margin-bottom:22px}
+  .signin-card h1{font-size:21px;margin-bottom:7px}
+  .signin-card p.sub{color:var(--muted);font-size:13.5px;margin-bottom:22px}
+  .field{display:block;margin-bottom:12px}
+  .field span{display:block;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.15em;
+    text-transform:uppercase;color:var(--muted-2);margin-bottom:6px}
+  .field input{width:100%}
+  .signin-card .btn{width:100%;justify-content:center;margin-top:6px}
+  .alt{display:flex;align-items:center;gap:10px;margin:18px 0 14px;color:var(--muted-2);
+    font-family:var(--f-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase}
+  .alt:before,.alt:after{content:"";flex:1;height:1px;background:var(--border)}
+  .msg{margin-top:16px;padding:11px 13px;border-radius:var(--r-sm);font-size:13px;
+    border:1px solid var(--border-2);display:none}
+  .msg.on{display:block}
+  .msg.bad{border-color:color-mix(in srgb,var(--bad) 45%,transparent);color:var(--bad)}
+  .msg.ok{border-color:color-mix(in srgb,var(--ok) 45%,transparent);color:var(--ok)}
+  .foot{margin-top:20px;font-size:11.5px;color:var(--muted-2);line-height:1.6}
+</style>
+</head>
+<body>
+<div class="signin">
+  <div class="signin-card">
+    <div class="brand"><i></i>FIG</div>
+    <h1>Sign in</h1>
+    <p class="sub">Your sites, and what to change about them.</p>
+
+    {% if not auth_ready %}
+      <div class="msg bad on">
+        Supabase Auth is not configured. Set <span class="mono">SUPABASE_URL</span> and
+        <span class="mono">SUPABASE_ANON_KEY</span> in <span class="mono">.env</span>.
+      </div>
+    {% else %}
+    <form id="pw">
+      <label class="field"><span>Email</span>
+        <input type="email" id="email" autocomplete="username" required placeholder="you@company.com"></label>
+      <label class="field"><span>Password</span>
+        <input type="password" id="password" autocomplete="current-password" placeholder="••••••••"></label>
+      <button class="btn btn-solid" type="submit" id="go">Sign in</button>
+    </form>
+
+    <div class="alt">or</div>
+    <button class="btn" type="button" id="magic">Email me a sign-in link</button>
+
+    <div class="msg" id="msg"></div>
+
+    <p class="foot">
+      No account yet? Create the user in Supabase &rarr; Authentication &rarr; Users,
+      or use the sign-in link above if email sending is set up on the project.
+    </p>
+    {% endif %}
+  </div>
+</div>
+
+{% if auth_ready %}
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// The anon key is meant to be public and carries no privileges of its own.
+// The service-role key stays on the server and never appears here.
+const sb = createClient({{ supabase_url | tojson }}, {{ supabase_anon_key | tojson }});
+const msg = document.getElementById('msg');
+const show = (text, kind) => { msg.textContent = text; msg.className = 'msg on ' + kind; };
+
+// Hand the access token to our backend exactly once. It verifies with
+// Supabase and sets its own HttpOnly cookie; the token is never stored here.
+async function establish(session) {
+  const r = await fetch('/auth/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ access_token: session.access_token }),
+  });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) { show(body.detail || 'Could not complete sign-in.', 'bad'); return; }
+  await sb.auth.signOut();          // our cookie is the session from here on
+  location.href = body.next || '/app';
+}
+
+document.getElementById('pw').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('go');
+  btn.disabled = true; show('Checking…', '');
+  const { data, error } = await sb.auth.signInWithPassword({
+    email: document.getElementById('email').value.trim(),
+    password: document.getElementById('password').value,
+  });
+  btn.disabled = false;
+  if (error) { show(error.message, 'bad'); return; }
+  await establish(data.session);
+});
+
+document.getElementById('magic').addEventListener('click', async () => {
+  const email = document.getElementById('email').value.trim();
+  if (!email) { show('Enter your email first.', 'bad'); return; }
+  const { error } = await sb.auth.signInWithOtp({
+    email, options: { emailRedirectTo: location.origin + '/login' },
+  });
+  show(error ? error.message : 'Check your email for the link.', error ? 'bad' : 'ok');
+});
+
+// Coming back from a magic link: the token arrives in the URL fragment.
+const { data: { session } } = await sb.auth.getSession();
+if (session) { show('Signing you in…', ''); await establish(session); }
+</script>
+{% endif %}
+</body>
+</html>

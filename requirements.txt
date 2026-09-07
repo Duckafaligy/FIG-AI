@@ -5,6 +5,8 @@ lxml                 # the XML parser sitemap discovery uses
 requests
 sqlalchemy
 jinja2
+itsdangerous        # signs the dashboard session cookie
+httpx               # verifies Supabase access tokens
 python-multipart     # form posts from the dashboard
 anthropic            # only used by app/ai_explain.py
 supabase             # Auth, not yet wired up

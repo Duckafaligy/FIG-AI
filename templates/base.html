@@ -21,7 +21,9 @@ if(t==='light')document.documentElement.setAttribute('data-theme','light');}catc
 {% if dev_no_auth %}
 <div class="devbar"><div class="wrap">
   Open without sign-in — every request resolves to <b>{{ account.name }}</b>.
-  Set <b>FIG_DEV_NO_AUTH=0</b> before this is reachable by anyone else.
+  Set <b>FIG_DEV_NO_AUTH=0</b> to require a real sign-in
+  (<a href="/login" style="color:inherit;text-decoration:underline">try it</a>)
+  before this is reachable by anyone else.
 </div></div>
 {% endif %}
 
@@ -35,7 +37,11 @@ if(t==='light')document.documentElement.setAttribute('data-theme','light');}catc
     <a href="/docs">API</a>
   </nav>
   <div class="top-right">
-    <span class="acct"><b>{{ account.name }}</b> · {{ account.kind }}</span>
+    <span class="acct">
+      <b>{{ account.name }}</b> · {{ account.kind }}
+      {% if user %}<br><span style="opacity:.75">{{ user.email }}</span>{% endif %}
+    </span>
+    {% if user %}<a class="btn btn-sm" href="/logout">Sign out</a>{% endif %}
     <div class="theme" role="group" aria-label="Colour theme">
       <button type="button" data-set="dark" aria-pressed="true" title="Dark">
         <svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>

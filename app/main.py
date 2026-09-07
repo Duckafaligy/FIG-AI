@@ -15,6 +15,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -23,7 +24,7 @@ from app import config
 from app.api import hostname_of, router as api_router
 from app.auth import require_account
 from app.billing import router as billing_router
-from app.dashboard import router as dashboard_router
+from app.dashboard import NeedsSignIn, router as dashboard_router
 from app.db import IS_SQLITE, get_session, init_db
 from app.jobs import queue_depth, start_workers, stop_workers
 from app.models import Account, Site
@@ -43,6 +44,12 @@ async def lifespan(_app: FastAPI):
              "sqlite" if IS_SQLITE else "postgres")
     if config.DEV_NO_AUTH:
         log.warning("FIG_DEV_NO_AUTH=1 - the dashboard is open with no sign-in")
+    elif not config.AUTH_READY:
+        log.error("sign-in is required but Supabase Auth is not configured "
+                  "(set SUPABASE_URL and SUPABASE_ANON_KEY) - nobody can get in")
+    if config.SESSION_EPHEMERAL:
+        log.warning("FIG_SESSION_SECRET is unset - sessions are signed with a "
+                    "per-process key, so a restart signs everyone out")
     yield
     stop_workers()
 
@@ -58,6 +65,24 @@ app = FastAPI(
     ),
     lifespan=lifespan,
 )
+
+# Signed, HttpOnly cookie. The Supabase access token is never put in it --
+# only our own User id, resolved server-side on each request.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=config.SESSION_SECRET,
+    session_cookie="fig_session",
+    max_age=config.SESSION_MAX_AGE,
+    same_site="lax",
+    https_only=config.PUBLIC_URL.startswith("https://"),
+)
+
+
+@app.exception_handler(NeedsSignIn)
+async def _needs_sign_in(request, _exc):
+    """A signed-out browser gets the login page, not a 401 rendered as text."""
+    return RedirectResponse("/login", status_code=303)
+
 
 app.mount("/static", StaticFiles(directory=str(config.ROOT / "static")), name="static")
 app.include_router(api_router)

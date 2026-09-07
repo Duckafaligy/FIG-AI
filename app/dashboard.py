@@ -11,15 +11,16 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Body, Depends, Form, HTTPException, Request
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import config
 from app.api import estate_report, hostname_of
-from app.auth import current_account, mint_key
+from app.auth import (current_account, end_session, link_user, mint_key,
+                      session_user, start_session, verify_access_token)
 from app.billing import price_quote, sync_quantity
 from app.db import get_session
 from app.jobs import enqueue_estate, enqueue_scan, queue_depth
@@ -33,10 +34,15 @@ LAYER_META = [(k, LAYER_LABEL[k], LAYER_SUB[k])
               for k in ("craft", "structure", "search", "answers")]
 
 
-def _account(session: Session) -> Account:
-    account = current_account(session)
+class NeedsSignIn(Exception):
+    """Raised by _account and turned into a redirect by the handler in
+    main.py, so a signed-out browser lands on /login rather than on a 401."""
+
+
+def _account(request: Request, session: Session) -> Account:
+    account = current_account(request, session)
     if account is None:
-        raise HTTPException(401, "sign in required (FIG_DEV_NO_AUTH is off)")
+        raise NeedsSignIn()
     return account
 
 
@@ -50,6 +56,7 @@ def _ctx(request: Request, session: Session, account: Account, page: str) -> dic
         # applies to anything the end client is shown.
         "brand": account.brand_name if account.white_label else "FIG",
         "public_url": config.PUBLIC_URL,
+        "user": session_user(request, session),
     }
 
 
@@ -58,7 +65,7 @@ def _ctx(request: Request, session: Session, account: Account, page: str) -> dic
 
 @router.get("/app")
 def estate(request: Request, session: Session = Depends(get_session)):
-    account = _account(session)
+    account = _account(request, session)
     report = estate_report(account=account, session=session)
     counts = {"clean": 0, "check": 0, "fix": 0, "none": 0}
     for row in report["rows"]:
@@ -71,9 +78,9 @@ def estate(request: Request, session: Session = Depends(get_session)):
 
 
 @router.post("/app/sites")
-def add_site_form(hostname: str = Form(...), client_name: str = Form(default=""),
+def add_site_form(request: Request, hostname: str = Form(...), client_name: str = Form(default=""),
                   session: Session = Depends(get_session)):
-    account = _account(session)
+    account = _account(request, session)
     host = hostname_of(hostname)
     site = session.scalars(
         select(Site).where(Site.account_id == account.id, Site.hostname == host)
@@ -91,16 +98,16 @@ def add_site_form(hostname: str = Form(...), client_name: str = Form(default="")
 
 
 @router.post("/app/scan-estate")
-def scan_estate_form(session: Session = Depends(get_session)):
-    account = _account(session)
+def scan_estate_form(request: Request, session: Session = Depends(get_session)):
+    account = _account(request, session)
     enqueue_estate(session, account.id, trigger="manual")
     session.commit()
     return RedirectResponse("/app/queue", status_code=303)
 
 
 @router.post("/app/sites/{site_id}/scan")
-def scan_site_form(site_id: str, session: Session = Depends(get_session)):
-    account = _account(session)
+def scan_site_form(request: Request, site_id: str, session: Session = Depends(get_session)):
+    account = _account(request, session)
     site = session.get(Site, site_id)
     if site is None or site.account_id != account.id:
         raise HTTPException(404, "no such site")
@@ -114,7 +121,7 @@ def scan_site_form(site_id: str, session: Session = Depends(get_session)):
 
 @router.get("/app/sites/{site_id}")
 def site_detail(site_id: str, request: Request, session: Session = Depends(get_session)):
-    account = _account(session)
+    account = _account(request, session)
     site = session.get(Site, site_id)
     if site is None or site.account_id != account.id:
         raise HTTPException(404, "no such site")
@@ -167,7 +174,7 @@ def site_detail(site_id: str, request: Request, session: Session = Depends(get_s
 
 @router.get("/app/queue")
 def queue_view(request: Request, session: Session = Depends(get_session)):
-    account = _account(session)
+    account = _account(request, session)
     site_ids = [s.id for s in account.sites]
     rows = session.scalars(
         select(Scan).where(Scan.site_id.in_(site_ids))
@@ -197,7 +204,7 @@ def queue_view(request: Request, session: Session = Depends(get_session)):
 
 @router.get("/app/keys")
 def keys_view(request: Request, session: Session = Depends(get_session), new: str = ""):
-    account = _account(session)
+    account = _account(request, session)
     keys = session.scalars(
         select(ApiKey).where(ApiKey.account_id == account.id)
         .order_by(ApiKey.created_at.desc())
@@ -208,8 +215,8 @@ def keys_view(request: Request, session: Session = Depends(get_session), new: st
 
 
 @router.post("/app/keys")
-def create_key(session: Session = Depends(get_session)):
-    account = _account(session)
+def create_key(request: Request, session: Session = Depends(get_session)):
+    account = _account(request, session)
     _row, plaintext = mint_key(session, account, label="dashboard")
     session.commit()
     # Shown once, then never again — only the hash is kept.
@@ -217,8 +224,8 @@ def create_key(session: Session = Depends(get_session)):
 
 
 @router.post("/app/keys/{key_id}/revoke")
-def revoke_key(key_id: str, session: Session = Depends(get_session)):
-    account = _account(session)
+def revoke_key(request: Request, key_id: str, session: Session = Depends(get_session)):
+    account = _account(request, session)
     key = session.get(ApiKey, key_id)
     if key is None or key.account_id != account.id:
         raise HTTPException(404, "no such key")
@@ -233,7 +240,7 @@ def revoke_key(key_id: str, session: Session = Depends(get_session)):
 @router.get("/app/billing")
 def billing_view(request: Request, session: Session = Depends(get_session),
                  checkout: str = "", msg: str = ""):
-    account = _account(session)
+    account = _account(request, session)
     quote = price_quote(max(account.billable_sites(), account.site_floor, 1))
     quote["billable_sites"] = account.billable_sites()
     quote["site_floor"] = account.site_floor
@@ -246,9 +253,9 @@ def billing_view(request: Request, session: Session = Depends(get_session),
 
 
 @router.post("/app/billing/checkout")
-def billing_checkout(session: Session = Depends(get_session)):
+def billing_checkout(request: Request, session: Session = Depends(get_session)):
     from app.billing import checkout as make_checkout
-    account = _account(session)
+    account = _account(request, session)
     try:
         result = make_checkout(account=account, session=session)
     except HTTPException as exc:
@@ -257,11 +264,52 @@ def billing_checkout(session: Session = Depends(get_session)):
 
 
 @router.post("/app/billing/sync")
-def billing_sync(session: Session = Depends(get_session)):
-    account = _account(session)
+def billing_sync(request: Request, session: Session = Depends(get_session)):
+    account = _account(request, session)
     try:
         result = sync_quantity(session, account)
     except HTTPException as exc:
         return RedirectResponse(f"/app/billing?msg={exc.detail}", status_code=303)
     note = f"quantity now {result['quantity']}" if result.get("synced") else result.get("reason", "")
     return RedirectResponse(f"/app/billing?msg={note}", status_code=303)
+
+
+# --- sign in / out ------------------------------------------------------
+
+
+@router.get("/login")
+def login_page(request: Request, session: Session = Depends(get_session)):
+    if current_account(request, session) is not None:
+        return RedirectResponse("/app", status_code=303)
+    return templates.TemplateResponse("login.html", {
+        "request": request,
+        "auth_ready": config.AUTH_READY,
+        "supabase_url": config.SUPABASE_URL,
+        # public by design; the service-role key never reaches a browser
+        "supabase_anon_key": config.SUPABASE_ANON_KEY,
+    })
+
+
+@router.post("/auth/session")
+async def establish_session(request: Request, payload: dict = Body(...),
+                            session: Session = Depends(get_session)):
+    """Trade a verified Supabase access token for our own session cookie.
+
+    The token is checked with Supabase, used to find or create the User and
+    Account, and then discarded -- we never store it, and it never touches
+    JavaScript on any page of ours after this call.
+    """
+    token = (payload or {}).get("access_token")
+    if not token:
+        raise HTTPException(400, "access_token is required")
+    supabase_user = await verify_access_token(token)
+    user = link_user(session, supabase_user)
+    start_session(request, user)
+    return JSONResponse({"ok": True, "next": "/app", "email": user.email})
+
+
+@router.get("/logout")
+@router.post("/logout")
+def logout(request: Request):
+    end_session(request)
+    return RedirectResponse("/login", status_code=303)

@@ -26,10 +26,28 @@ DATABASE_URL = (os.environ.get("FIG_DATABASE_URL")
 
 # --- auth -------------------------------------------------------------
 # While this is on, the dashboard opens straight onto the demo account with
-# no sign-in. It is what makes the thing visitable today. Turn it off before
-# anything is public.
+# no sign-in at all. Convenient locally; an open admin panel in public.
 DEV_NO_AUTH = os.environ.get("FIG_DEV_NO_AUTH", "1") == "1"
 DEMO_ACCOUNT_SLUG = "northgate"
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
+# Safe to send to the browser: it is the key the Supabase JS client uses, and
+# it carries no privileges of its own. The service-role key never leaves here.
+SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
+AUTH_READY = bool(SUPABASE_URL and SUPABASE_ANON_KEY)
+
+# The email that inherits the seeded account on first sign-in. Anyone else
+# signing in gets an account of their own.
+OWNER_EMAIL = os.environ.get("FIG_OWNER_EMAIL", "").strip().lower()
+
+# Signs the session cookie. Generated per-process if unset, which means every
+# restart signs everyone out -- fine locally, not fine in production.
+SESSION_SECRET = os.environ.get("FIG_SESSION_SECRET", "")
+SESSION_EPHEMERAL = not SESSION_SECRET
+if not SESSION_SECRET:
+    import secrets as _secrets
+    SESSION_SECRET = _secrets.token_urlsafe(48)
+SESSION_MAX_AGE = int(os.environ.get("FIG_SESSION_MAX_AGE", str(14 * 24 * 3600)))
 
 # --- crawling ---------------------------------------------------------
 USER_AGENT = os.environ.get(

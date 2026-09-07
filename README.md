@@ -20,9 +20,36 @@ python -m app.seed --reset      # fills the demo agency with 22 client sites
 uvicorn app.main:app --reload
 ```
 
-Then open **http://127.0.0.1:8000/app**. There is no sign-in yet: while
-`FIG_DEV_NO_AUTH=1` every request resolves to the seeded demo account.
-**Set it to 0 before this is reachable by anyone else.**
+Then open **http://127.0.0.1:8000/app**. While `FIG_DEV_NO_AUTH=1` every
+request resolves to the seeded demo account with no sign-in — convenient
+locally, an open admin panel in public. **Set it to 0 before this is
+reachable by anyone else.**
+
+## Sign-in
+
+Supabase Auth, with the verification done server-side:
+
+1. The browser signs in with the Supabase JS client on `/login` — password or
+   an emailed link — and gets an access token.
+2. It POSTs that token to `/auth/session` exactly once.
+3. The server checks it against `GET /auth/v1/user`, finds or creates the
+   `User` and its `Account`, then sets its own signed HttpOnly cookie and
+   calls `signOut()` in the browser.
+
+The access token is never stored, and after that call it never touches
+JavaScript on any page of ours. Checking with Supabase rather than verifying
+the JWT locally means there is no third copy of a signing secret to look
+after, and a token revoked upstream stops working here immediately.
+
+`FIG_OWNER_EMAIL` inherits the seeded account on first sign-in. Anyone else
+signing in gets an empty account of their own rather than landing inside
+somebody else's client list.
+
+To create the first user: Supabase → Authentication → Users → Add user, with
+"auto confirm" on. No email delivery needed.
+
+API keys are a separate path and are unaffected — a partner's server holds a
+`fig_live_…` key and never signs in.
 
 - Dashboard — `/app`
 - API — `/v1`, schema at `/docs`
