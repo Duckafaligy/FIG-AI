@@ -104,6 +104,9 @@
       });
       clearTimeout(FIG.theme._t);
       FIG.theme._t = setTimeout(function () { root.classList.remove('theme-anim'); }, 400);
+      // Scroll-driven sections compute some values from the active theme, so
+      // they need a nudge to recompute rather than waiting for the next scroll.
+      try { window.dispatchEvent(new Event('scroll')); } catch (e) {}
     },
     current: function () {
       return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';

@@ -1291,7 +1291,13 @@
             o = f; s = 0.86 + f * 0.14; dy = (1 - f) * 8;
           } else {                            // already shown: sit back
             var depth = t - ti;
-            o = depth === 1 ? 0.46 : 0.26;
+            // Receding by opacity reads differently on the two grounds: 26%
+            // of a light card on black is still a card, 26% of a dark card on
+            // white is a smudge. The floors are raised on light so a receded
+            // widget stays legible instead of looking half-broken.
+            var light = document.documentElement.getAttribute('data-theme') === 'light';
+            if (light) { o = depth === 1 ? 0.74 : 0.56; }
+            else       { o = depth === 1 ? 0.46 : 0.26; }
             s = depth === 1 ? 0.84 : 0.74;
             dy = 0;
           }

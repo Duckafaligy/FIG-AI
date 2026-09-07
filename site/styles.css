@@ -79,6 +79,8 @@
 }
 
 /* --- surfaces: opaque, not translucent stacks --- */
+:root[data-theme="light"] .tier-card{
+  box-shadow:0 2px 6px rgb(15 23 42 / .07),0 22px 60px rgb(15 23 42 / .12)}
 :root[data-theme="light"] .wgt,
 :root[data-theme="light"] .tier-card,
 :root[data-theme="light"] .cbox,
@@ -1474,8 +1476,10 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
   backdrop-filter:blur(14px);
   box-shadow:0 40px 110px rgba(0,0,0,.72), inset 0 1px 0 rgb(var(--ink) / .08)}
 /* the gradient sits behind the card, not on it */
-.tier-card:before{content:"";position:absolute;inset:-34px;border-radius:10px;z-index:-1;
-  background:var(--grad);opacity:.22;filter:blur(46px);pointer-events:none}
+/* The blurred gradient that used to sit behind this card put colour directly
+   under the thing people are reading, and on white it turned the whole area
+   milky. The card carries its own edge instead. */
+.tier-card{box-shadow:0 2px 6px rgb(9 12 18 / .3),0 24px 70px rgb(9 12 18 / .34)}
 .tier-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
   margin-bottom:12px}
 
