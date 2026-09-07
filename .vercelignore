@@ -1,0 +1,14 @@
+# Only site/ is deployed. Everything below is the backend, which runs as a
+# persistent process on Railway/Render -- it cannot run on serverless, and
+# uploading it just slows the deploy down.
+app/
+templates/
+static/
+scripts/
+frontend/
+*.py
+requirements.txt
+Procfile
+supabase_schema.sql
+fig.db*
+CLAUDE.md
