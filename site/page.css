@@ -133,8 +133,10 @@ table.pr-tiers td:first-child{font-family:var(--f-mono)}
   border:1px solid var(--border-2);color:var(--text);font-size:14px;font-weight:600;
   transition:background .18s,border-color .18s,transform .18s}
 .pr-cta:hover{background:var(--surface-2);transform:translateY(-1px);border-color:var(--border-2)}
-.pr-cta-solid{background:var(--pure);color:var(--on-accent);border-color:transparent}
-.pr-cta-solid:hover{background:var(--pure);filter:brightness(.93)}
+.pr-cta-solid{background:var(--brand);color:#fff;border-color:transparent;
+  box-shadow:0 1px 2px rgb(15 23 42 / .12),
+             0 8px 22px color-mix(in srgb,var(--brand) 30%,transparent)}
+.pr-cta-solid:hover{background:var(--brand-2)}
 .pr-list{list-style:none;margin:20px 0 0;padding:18px 0 0;border-top:1px solid var(--border);
   display:flex;flex-direction:column;gap:9px}
 .pr-list li{position:relative;padding-left:20px;font-size:13.5px;line-height:1.55;color:var(--muted)}
@@ -148,7 +150,7 @@ table.pr-tiers td:first-child{font-family:var(--f-mono)}
 /* .pg-body a sets a link colour for the whole article, which beat .pr-cta-solid
    on specificity and left white text on a white button. */
 .pg-body .pr-cta{border-bottom:0}
-.pg-body .pr-cta-solid{color:var(--on-accent)}
+.pg-body .pr-cta-solid{color:#fff}
 .pg-body .pr-cta:hover{border-color:var(--border-2)}
 .pg-body .pr-cta-solid:hover{border-color:transparent}
 .pr-p{flex-wrap:wrap}

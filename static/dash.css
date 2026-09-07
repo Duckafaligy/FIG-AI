@@ -313,32 +313,59 @@ tr.hidden{display:none}
 .chg.gone li i{color:var(--ok)} .chg.came li i{color:var(--bad)}
 .chg .none{color:var(--muted-2);font-size:12.5px}
 
-/* --- group of findings by check --- */
-.fgroup{border:1px solid var(--border);border-radius:var(--r-lg);background:var(--bg-2);
-  margin-bottom:10px;overflow:hidden;box-shadow:var(--shadow)}
-.fgroup summary{list-style:none;cursor:pointer;padding:15px 18px;display:grid;
-  grid-template-columns:1fr auto;gap:14px;align-items:center}
+/* --- findings, grouped by what is wrong rather than by which site --- */
+.fgroup summary{list-style:none;cursor:pointer;padding:18px 20px;display:grid;
+  grid-template-columns:auto 1fr auto auto;gap:16px;align-items:center}
 .fgroup summary::-webkit-details-marker{display:none}
-.fgroup summary:hover{background:var(--surface-2)}
-.fgroup summary b{font-size:14.5px}
-.fgroup summary .sub{display:block;font-size:12.5px;color:var(--muted);margin-top:4px}
-.fgroup summary .cnt{font-family:var(--f-mono);font-size:11.5px;color:var(--muted-2);
-  white-space:nowrap}
-.fgroup .inner{padding:0 18px 16px;border-top:1px solid var(--border)}
-.fgroup .inner .fix{margin:14px 0 0;font-size:13.5px;color:var(--text)}
+.fgroup summary:hover{background:var(--surface)}
+.fg-rank{font-family:var(--f-mono);font-size:11px;color:var(--muted-2);min-width:14px}
+.fg-main{min-width:0}
+.fg-top{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.fg-top b{font-size:15px;letter-spacing:-.015em}
+.fg-main .sub{display:block;font-size:13px;line-height:1.55;color:var(--muted);margin-top:5px;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.fg-right{text-align:right;min-width:74px}
+.fg-n{display:block;font-family:var(--f-display);font-size:21px;font-weight:700;
+  letter-spacing:-.035em;line-height:1}
+.fg-l{display:block;font-family:var(--f-mono);font-size:9px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--muted-2);margin-top:3px}
+.fg-impact{display:block;height:3px;border-radius:9999px;background:var(--surface-2);
+  margin-top:8px;overflow:hidden}
+.fg-impact i{display:block;height:100%;border-radius:9999px;background:var(--grad)}
+.fg-caret{width:15px;height:15px;fill:none;stroke:var(--muted-2);stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round;transition:transform .2s var(--ease)}
+.fgroup[open] .fg-caret{transform:rotate(180deg)}
+
+.fgroup .inner{padding:2px 20px 18px 50px;border-top:1px solid var(--border)}
+.fgroup .inner .fix{margin:16px 0 0;font-size:13.5px;line-height:1.6;color:var(--text)}
 .fgroup .inner .fix span{font-family:var(--f-mono);font-size:9px;letter-spacing:.14em;
   text-transform:uppercase;color:var(--cool);margin-right:8px}
-.fgroup .hits{margin:14px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:1px}
-.fgroup .hits li{display:grid;grid-template-columns:190px 1fr;gap:14px;padding:9px 0;
+.fg-hits-h{margin-top:18px;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted-2)}
+.fgroup .hits{margin:8px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:1px}
+.fgroup .hits li{display:grid;grid-template-columns:210px 1fr;gap:16px;padding:10px 0;
   border-top:1px solid var(--border);font-size:13px;color:var(--muted)}
 .fgroup .hits li a{font-weight:600;color:var(--text)}
+.fgroup .hits li a:hover{color:var(--brand)}
 .fgroup .hits li .pg{font-family:var(--f-mono);font-size:11px;color:var(--muted-2);
-  display:block;margin-top:2px}
+  display:block;margin-top:2px;overflow:hidden;text-overflow:ellipsis}
+
+/* layer tags, so a list of findings is scannable by which job it belongs to */
+.tag{font-family:var(--f-mono);font-size:9px;letter-spacing:.13em;text-transform:uppercase;
+  padding:3px 8px;border-radius:9999px;border:1px solid var(--border-2);color:var(--muted-2)}
+.tag-craft{color:#C58BE0;border-color:color-mix(in srgb,#C58BE0 40%,transparent)}
+.tag-structure{color:var(--warm);border-color:color-mix(in srgb,var(--warm) 40%,transparent)}
+.tag-search{color:var(--cool);border-color:color-mix(in srgb,var(--cool) 40%,transparent)}
+.tag-answers{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
 
 @media (max-width:900px){
   .hero-row{grid-template-columns:1fr}
   .changes{grid-template-columns:1fr}
   .fgroup .hits li{grid-template-columns:1fr}
+  .fgroup summary{grid-template-columns:auto 1fr;row-gap:10px}
+  .fg-right{grid-column:2;text-align:left}
+  .fg-caret{display:none}
+  .fgroup .inner{padding-left:20px}
 }
 
 

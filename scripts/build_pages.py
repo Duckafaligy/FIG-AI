@@ -17,7 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
-V = "5"          # cache-buster for the shared stylesheets
+V = "7"          # cache-buster for the shared stylesheets
 
 # Every canonical URL and contact address on the site comes from here. There
 # are no hardcoded domains anywhere else, so moving to a real domain is:

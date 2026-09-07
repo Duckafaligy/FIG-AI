@@ -10,9 +10,7 @@
       one site at a time — they fix one problem everywhere it appears, and this is the
       list to work down.</p>
   </div>
-  {% if f.selected %}
-  <a class="btn" href="/app/findings">Show everything</a>
-  {% endif %}
+  {% if f.selected %}<a class="btn" href="/app/findings">Show everything</a>{% endif %}
 </div>
 
 {% if f.groups %}
@@ -26,21 +24,34 @@
 
 <div id="fgroups">
 {% for g in f.groups %}
+{% set worst = f.groups[0].impact %}
 <details class="fgroup" data-layer="{{ g.layer }}"
          data-name="{{ (g.label ~ ' ' ~ g.layer_label)|lower }}"
-         {% if f.selected or loop.index <= 2 %}open{% endif %}>
+         {% if f.selected or loop.index == 1 %}open{% endif %}>
   <summary>
-    <span>
-      <b>{{ g.label }}</b>
-      <span class="sev {{ g.severity }}" style="margin-left:9px">{{ g.severity }}</span>
-      <span class="where" style="margin-left:8px">{{ g.layer_label }}</span>
+    <span class="fg-rank">{{ loop.index }}</span>
+    <span class="fg-main">
+      <span class="fg-top">
+        <b>{{ g.label }}</b>
+        <span class="sev {{ g.severity }}">{{ g.severity }}</span>
+        <span class="tag tag-{{ g.layer }}">{{ g.layer_label }}</span>
+      </span>
       <span class="sub">{{ g.why or g.fix }}</span>
     </span>
-    <span class="cnt">{{ g.site_count }} site{{ '' if g.site_count == 1 else 's' }} ·
-      {{ g.instances|length }} occurrence{{ '' if g.instances|length == 1 else 's' }}</span>
+    <span class="fg-right">
+      <span class="fg-n">{{ g.site_count }}</span>
+      <span class="fg-l">site{{ '' if g.site_count == 1 else 's' }}</span>
+      <span class="fg-impact" title="Severity × sites affected">
+        <i style="width:{{ (g.impact / worst * 100)|round(0) }}%"></i></span>
+    </span>
+    <svg class="fg-caret" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
   </summary>
   <div class="inner">
     {% if g.fix %}<p class="fix"><span>fix</span>{{ g.fix }}</p>{% endif %}
+    <div class="fg-hits-h">
+      <span>{{ g.instances|length }} occurrence{{ '' if g.instances|length == 1 else 's' }}
+        across {{ g.site_count }} site{{ '' if g.site_count == 1 else 's' }}</span>
+    </div>
     <ul class="hits">
       {% for i in g.instances[:40] %}
       <li>
@@ -53,7 +64,7 @@
       {% endfor %}
     </ul>
     {% if g.instances|length > 40 %}
-    <p class="note">and {{ g.instances|length - 40 }} more</p>
+      <p class="note">and {{ g.instances|length - 40 }} more</p>
     {% endif %}
   </div>
 </details>
@@ -62,8 +73,8 @@
 {% else %}
 <div class="empty">
   <b>Nothing to show yet</b>
-  Findings appear here once at least one site has been read.
-  <a href="/app" style="color:var(--text)">Go to the estate</a>.
+  Findings appear here once at least one site has been audited.
+  <div style="margin-top:16px"><a class="btn btn-solid" href="/app/sites">Go to sites</a></div>
 </div>
 {% endif %}
 {% endblock %}
@@ -82,8 +93,7 @@
     });
   }
   if (q) q.addEventListener('input', apply);
-  document.querySelectorAll('[data-layer]').forEach(function (b) {
-    if (!b.classList.contains('chip')) return;
+  document.querySelectorAll('.chip[data-layer]').forEach(function (b) {
     b.addEventListener('click', function () {
       document.querySelectorAll('.chip[data-layer]').forEach(function (o) { o.classList.remove('on'); });
       b.classList.add('on');
