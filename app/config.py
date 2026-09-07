@@ -49,6 +49,20 @@ if not SESSION_SECRET:
     SESSION_SECRET = _secrets.token_urlsafe(48)
 SESSION_MAX_AGE = int(os.environ.get("FIG_SESSION_MAX_AGE", str(14 * 24 * 3600)))
 
+# Where the marketing site is served from. The demo runs on that origin and
+# calls this API cross-origin, so it has to be allowed explicitly.
+SITE_ORIGINS = [o.strip() for o in os.environ.get(
+    "FIG_SITE_ORIGINS",
+    "http://127.0.0.1:8123,http://localhost:8123",
+).split(",") if o.strip()]
+
+# --- limits -----------------------------------------------------------
+# The public read crawls real sites and calls Claude. Both cost something and
+# neither should be freely loopable.
+PUBLIC_SCANS_PER_DAY = int(os.environ.get("FIG_PUBLIC_SCANS_PER_DAY", "3"))
+PUBLIC_SCANS_PER_HOUR_IP = int(os.environ.get("FIG_PUBLIC_SCANS_PER_HOUR_IP", "10"))
+PUBLIC_SCAN_MAX_PAGES = int(os.environ.get("FIG_PUBLIC_SCAN_MAX_PAGES", "6"))
+
 # --- crawling ---------------------------------------------------------
 USER_AGENT = os.environ.get(
     "FIG_USER_AGENT",

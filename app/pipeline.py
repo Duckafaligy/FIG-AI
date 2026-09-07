@@ -111,6 +111,7 @@ def run_scan(session: Session, scan_id: str, max_pages: int = MAX_PAGES_PER_SCAN
 
     site.last_scanned_at = scan.finished_at
     session.commit()
+    _record_public(session, scan, all_flags)
     log.info("scan %s done: %s pages, score %s", scan.id, len(signals), scan.score)
     return scan
 
@@ -142,3 +143,25 @@ def _explain(flags: list[Flag]) -> list[Flag]:
 def _path(url: str) -> str:
     from urllib.parse import urlparse
     return urlparse(url).path or "/"
+
+
+def _record_public(session: Session, scan: Scan, flags: list[Flag]) -> None:
+    """Fill in the public feed row, if this scan came from the free read.
+
+    Done here rather than when the result is fetched, so a read still shows up
+    after the visitor has closed the tab.
+    """
+    from sqlalchemy import select
+    from app.models import PublicRead
+
+    row = session.scalars(
+        select(PublicRead).where(PublicRead.scan_id == scan.id)).first()
+    if row is None:
+        return
+    row.score = scan.score
+    row.pages = scan.pages_crawled
+    top = max(flags, key=lambda f: f.weight, default=None)
+    if top is not None:
+        row.top_check = top.check
+        row.top_layer = top.layer
+    session.commit()

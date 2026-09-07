@@ -96,3 +96,28 @@
   .dm-input{width:100%;flex:1 1 100%;padding:6px 0}
   .dm-btn{width:100%}
 }
+
+/* ---- the free read, wired to the API ---- */
+.dm-share{display:flex;gap:9px;align-items:flex-start;max-width:600px;
+  margin:14px auto 0;font-size:12.5px;line-height:1.5;color:var(--muted-2);
+  text-align:left;cursor:pointer}
+.dm-share input{margin-top:2px;accent-color:var(--warm);flex:none}
+.dm-share a{color:var(--text);border-bottom:1px solid var(--border-2)}
+
+.dm-layers{display:flex;flex-direction:column;gap:12px;padding:16px 18px;
+  border-radius:var(--r-lg);border:1px solid var(--border);background:var(--surface)}
+.dm-bar-t{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.dm-bar-t span{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted-2)}
+.dm-bar-t b{font-family:var(--f-display);font-size:15px;letter-spacing:-.02em;color:var(--text)}
+.dm-bar-track{height:4px;border-radius:9999px;background:var(--surface-2);overflow:hidden}
+.dm-bar-fill{height:100%;border-radius:9999px;background:var(--grad);
+  transition:width .8s var(--ease)}
+.dm-bar-s{font-size:11px;color:var(--muted-2);margin-top:5px}
+
+.dm-log-line.bad{color:var(--bad)}
+.dm-ev{list-style:none;margin:10px 0 0;padding:0;display:flex;gap:6px;flex-wrap:wrap}
+.dm-ev li{font-family:var(--f-mono);font-size:11px;color:var(--muted-2);
+  border:1px solid var(--border);border-radius:var(--r-sm);padding:3px 7px;
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dm-where{font-family:var(--f-mono);font-size:10.5px;color:var(--muted-2);margin-top:9px}

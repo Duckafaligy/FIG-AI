@@ -18,7 +18,9 @@
 }catch(e){}})();
 </script>
 <link rel="stylesheet" href="styles.css?v=1788750048">
+<link rel="stylesheet" href="page.css?v=3">
 <link rel="stylesheet" href="demo.css?v=1788750048">
+<script src="config.js?v=3"></script>
 <script src="device.js?v=1788750048" defer></script>
 </head>
 <body class="demo-body">
@@ -44,7 +46,7 @@
     <p class="dm-eyebrow mono">Free demo &middot; one read per device</p>
     <h1 class="dm-title">Is your site written for people, or assembled?</h1>
     <p class="dm-sub">
-      This is the educational half of FIG. It looks at the patterns that make a page
+      FIG reads your site the way a crawler does. It looks at the patterns that make a page
       read as machine-made &mdash; the copy, the type scale, the palette, the layout
       habits &mdash; and for each one it tells you what the pattern is, why it lands
       flat, and what to change. No score without a reason.
@@ -56,6 +58,12 @@
              aria-label="The site to read" spellcheck="false">
       <button class="btn21 btn21-solid dm-btn" id="demoBtn" type="submit"><span>Read this site</span></button>
     </form>
+
+    <label class="dm-share">
+      <input type="checkbox" id="demoShare">
+      <span>Show this domain on <a href="history.html">recent reads</a>.
+        Off by default &mdash; nobody else&rsquo;s site gets named there.</span>
+    </label>
 
     <div class="dm-gate" id="demoGate" hidden>
       <p class="dm-gate-t" id="demoGateText">This device has already used its free scan.</p>
@@ -81,6 +89,7 @@
           <p class="dm-target mono" id="demoTarget">&mdash;</p>
           <p class="dm-count" id="demoCount">&mdash;</p>
         </div>
+        <div class="dm-layers" id="demoLayers"></div>
         <div class="dm-logbox">
           <div class="dm-log-h mono">read log</div>
           <div class="dm-log mono" id="demoLog"></div>
@@ -118,7 +127,7 @@
   <div class="wrap foot-bar">
     <span class="mono foot-left">&copy; 2026 FIG &middot; Built for people who publish on the web</span>
     <span class="foot-right">
-      <a href="index.html">Home</a><i>&middot;</i><a href="#">Privacy</a><i>&middot;</i><a href="#">Cookies</a>
+      <a href="index.html">Home</a><i>&middot;</i><a href="privacy.html">Privacy</a><i>&middot;</i><a href="cookies.html">Cookies</a>
     </span>
   </div>
 </footer>

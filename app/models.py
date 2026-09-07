@@ -279,3 +279,33 @@ class User(Base):
     supabase_uid = Column(String, unique=True, nullable=True)
     role = Column(String, nullable=False, default="owner")
     created_at = Column(DateTime, default=_now)
+
+
+class PublicRead(Base):
+    """One free read from the marketing site, and its row in the public feed.
+
+    Anonymous unless `show_hostname` is set by the person who ran it. The
+    project rule is explicit that there is no public leaderboard naming real
+    sites, so a domain someone else pointed this at never appears here.
+
+    device_hash and ip_hash are one-way and exist only to cap the free read.
+    Neither the raw cookie nor the IP is stored.
+    """
+
+    __tablename__ = "public_reads"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    scan_id = Column(String, ForeignKey("scans.id"), nullable=False, index=True)
+
+    hostname = Column(String, nullable=False)
+    show_hostname = Column(Boolean, nullable=False, default=False)
+
+    score = Column(Integer, nullable=True)
+    pages = Column(Integer, nullable=True)
+    top_check = Column(String, nullable=True)
+    top_layer = Column(String, nullable=True)
+
+    device_hash = Column(String, nullable=False, index=True)
+    ip_hash = Column(String, nullable=False, index=True)
+
+    created_at = Column(DateTime, default=_now, index=True)

@@ -1,13 +1,11 @@
-/* FIG demo — the educational half of the product.
-   One scan per device. It reads a page for the patterns that make a site read
-   as machine-made: repeated eyebrow numbering, default palettes, a flat type
-   scale, uniform card treatments, filler copy.
+/* FIG demo — the free read.
 
-   The findings are illustrative: a browser cannot fetch another origin, so this
-   walks a scripted read of the URL you give it. Wiring it to app/scraper.py +
-   app/rules/checks.py is what makes it real. Language stays probabilistic on
-   purpose -- this tells you what a pattern is and how to change it, it never
-   claims a page "is" AI-written.
+   This calls the real API. It queues a crawl of the URL you give it, polls
+   until it lands, and renders what the rules engine actually found: four
+   layer scores and every finding with its why and its fix.
+
+   Language stays probabilistic on purpose. This tells you what a pattern is
+   and how to change it; it never claims a page "is" AI-written.
 */
 (function () {
   'use strict';
@@ -15,64 +13,22 @@
   var $ = function (s, r) { return (r || document).querySelector(s); };
 
   var form = $('#demoForm'), input = $('#demoUrl'), btn = $('#demoBtn');
+  var share = $('#demoShare');
   var gate = $('#demoGate'), stage = $('#demoStage'), log = $('#demoLog');
   var scoreEl = $('#demoScore'), ringEl = $('#demoRing'), targetEl = $('#demoTarget');
   var listEl = $('#demoFindings'), countEl = $('#demoCount'), lessonEl = $('#demoLesson');
+  var layersEl = $('#demoLayers');
   if (!form) return;
 
-  var CHECKS = [
-    { id: 'eyebrow', label: 'Numbered eyebrow labels',
-      lead: '01 / 02 / 03 above section headings',
-      why: 'Numbering every section is a layout habit that generators lean on because it fills space without deciding what matters. Readers skip it.',
-      fix: 'Drop the numbers. If the order matters, say so in the heading itself.' },
-    { id: 'uniform', label: 'One card treatment everywhere',
-      lead: 'the same radius and shadow on every block',
-      why: 'When every card carries an identical corner radius and drop shadow, nothing sits forward or back, so the page reads flat no matter how much is on it.',
-      fix: 'Give one tier of card a heavier surface and let the rest sit quieter.' },
-    { id: 'palette', label: 'Untouched default palette',
-      lead: 'stock indigo / violet, straight from the framework',
-      why: 'Framework defaults are recognisable precisely because nobody changed them. It is the quickest tell that a theme was accepted rather than chosen.',
-      fix: 'Shift the hue and lightness away from the default, even slightly.' },
-    { id: 'type', label: 'Flat type scale',
-      lead: 'headings within a few px of body text',
-      why: 'A hierarchy that barely changes size gives a reader nothing to land on. The eye needs a clear first stop.',
-      fix: 'Widen the gap: body down, headings up, and cut a level if you have four.' },
-    { id: 'copy', label: 'Filler marketing phrasing',
-      lead: '"elevate", "seamless", "unlock", "supercharge"',
-      why: 'These verbs describe no product in particular, which is why they turn up everywhere. A model reading the page learns nothing it can repeat back.',
-      fix: 'Replace each with the specific thing it does, in your own words.' },
-    { id: 'icons', label: 'Over-used icon set',
-      lead: 'Sparkles, ArrowRight, Zap, CheckCircle',
-      why: 'The same four glyphs carry most generated pages. They are not wrong, they are just invisible from familiarity.',
-      fix: 'Keep them if they earn it, but let at least one visual be specific to you.' },
-    { id: 'spacing', label: 'Uniform vertical rhythm',
-      lead: 'identical padding on every section',
-      why: 'Equal spacing everywhere removes grouping. Things that belong together should sit closer than things that do not.',
-      fix: 'Tighten space inside a group, open it up between groups.' },
-    { id: 'alt', label: 'Images without alt text',
-      lead: 'decorative and meaningful images treated the same',
-      why: 'A crawler reads alt text. Empty alt on a meaningful image removes it from what a model can learn about you.',
-      fix: 'Describe the meaningful ones; mark the decorative ones empty on purpose.' }
+  var LAYERS = [
+    ['craft', 'Craft', 'how it reads'],
+    ['structure', 'Structure', 'what sits where'],
+    ['search', 'Search', 'what a crawler reaches'],
+    ['answers', 'Answers', 'what a model can quote']
   ];
 
-  function hash(str) {
-    var h = 2166136261;
-    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
-    return h >>> 0;
-  }
-  function pick(seed, n) {
-    // deterministic per URL, so the same site reads the same way twice
-    var out = [], pool = CHECKS.slice(), s = seed;
-    while (out.length < n && pool.length) {
-      s = (s * 1103515245 + 12345) >>> 0;
-      out.push(pool.splice(s % pool.length, 1)[0]);
-    }
-    return out;
-  }
-  function clean(v) {
-    v = (v || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
-    return v.split('/')[0];
-  }
+  var POLL_MS = 1800;
+  var POLL_LIMIT = 90;          // ~2.7 minutes before we give up on a read
 
   function line(text, cls) {
     var p = document.createElement('p');
@@ -82,79 +38,159 @@
     log.scrollTop = log.scrollHeight;
   }
 
-  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
-
   function label(text) {
     var sp = btn.querySelector('span');
     if (sp) sp.textContent = text; else btn.textContent = text;
+  }
+
+  function clean(v) {
+    v = (v || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+    return v.split('/')[0];
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  /* count the ring up to the real score rather than snapping to it */
+  function countUp(target) {
+    return new Promise(function (done) {
+      var t0 = performance.now();
+      (function tick(now) {
+        var k = Math.min(1, ((now || performance.now()) - t0) / 900);
+        var e = k * k * (3 - 2 * k);
+        scoreEl.textContent = Math.round(target * e);
+        ringEl.style.setProperty('--v', (target * e / 100).toFixed(3));
+        if (k < 1) requestAnimationFrame(tick); else done();
+      })();
+    });
+  }
+
+  function renderLayers(layers) {
+    if (!layersEl) return;
+    layersEl.innerHTML = LAYERS.map(function (l) {
+      var v = layers && layers[l[0]] != null ? layers[l[0]] : 0;
+      return '<div class="dm-bar">' +
+        '<div class="dm-bar-t"><span>' + l[1] + '</span><b>' + v + '</b></div>' +
+        '<div class="dm-bar-track"><div class="dm-bar-fill" style="width:' + v + '%"></div></div>' +
+        '<div class="dm-bar-s">' + l[2] + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function renderFindings(findings) {
+    listEl.innerHTML = '';
+    var order = { high: 0, medium: 1, low: 2, info: 3 };
+    findings.slice().sort(function (a, b) {
+      return (order[a.severity] || 9) - (order[b.severity] || 9);
+    }).forEach(function (f, i) {
+      var li = document.createElement('li');
+      li.className = 'dm-find';
+      li.style.setProperty('--i', Math.min(i, 12));
+      var ev = (f.evidence || []).slice(0, 5).map(function (e) {
+        return '<li>' + esc(e) + '</li>';
+      }).join('');
+      li.innerHTML =
+        '<div class="dm-find-top">' +
+          '<b>' + esc((f.check || '').replace(/_/g, ' ')) + '</b>' +
+          '<span class="dm-lead mono">' + esc(f.layer_label || f.layer) +
+            ' &middot; ' + esc(f.severity) + '</span>' +
+        '</div>' +
+        '<p class="dm-why">' + esc(f.summary) + '</p>' +
+        (f.why ? '<p class="dm-why">' + esc(f.why) + '</p>' : '') +
+        (ev ? '<ul class="dm-ev">' + ev + '</ul>' : '') +
+        (f.page ? '<p class="dm-where mono">' + esc(f.page) + '</p>' : '') +
+        (f.fix ? '<p class="dm-fix"><span class="mono">fix</span> ' + esc(f.fix) + '</p>' : '');
+      listEl.appendChild(li);
+    });
+  }
+
+  function fail(message) {
+    line(message, 'bad');
+    countEl.textContent = 'could not read this site';
+    listEl.innerHTML = '<li class="dm-find"><p class="dm-why">' + esc(message) + '</p>' +
+      '<p class="dm-fix"><span class="mono">why</span> Common causes: the site ' +
+      'asks crawlers not to read it in robots.txt, it was unreachable, or it ' +
+      'renders entirely in the browser with no HTML for a crawler to see.</p></li>';
   }
 
   async function run(host) {
     stage.hidden = false;
     log.innerHTML = '';
     listEl.innerHTML = '';
+    lessonEl.hidden = true;
     targetEl.textContent = host;
+    countEl.textContent = 'reading…';
+    scoreEl.textContent = '0';
+    ringEl.style.setProperty('--v', 0);
+    renderLayers(null);
 
-    var seed = hash(host);
-    var found = pick(seed, 3 + (seed % 3));            // 3 to 5 patterns
-    var score = Math.max(18, 96 - found.length * 13 - (seed % 11));
+    line('queueing a read of ' + host);
 
-    var steps = [
-      'reading ' + host,
-      'parsing markup and inline styles',
-      'extracting class names, headings and text nodes',
-      'measuring the type scale',
-      'sampling colours against known defaults',
-      'checking copy against the phrase list',
-      'scoring ' + found.length + ' patterns'
-    ];
-    for (var i = 0; i < steps.length; i++) {
-      line(steps[i]);
-      await wait(260 + (seed % 90));
+    var start;
+    try {
+      var res = await fetch(FIG_API + '/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: host,
+          device_id: window.FIG ? window.FIG.id() : null,
+          share: !!(share && share.checked)
+        })
+      });
+      start = await res.json().catch(function () { return {}; });
+      if (res.status === 429) { gateOut(start.detail || 'Free read limit reached.'); return; }
+      if (!res.ok) { fail(start.detail || 'The read could not be started.'); return; }
+    } catch (e) {
+      fail('Could not reach the FIG API. If you are running this locally, ' +
+           'start the backend with: uvicorn app.main:app');
+      return;
     }
+
+    line('queued · ' + start.scan_id.slice(0, 8));
+    line('fetching robots.txt and looking for a sitemap');
+
+    var said = {};
+    var result = null;
+    for (var i = 0; i < POLL_LIMIT; i++) {
+      await wait(POLL_MS);
+      var r;
+      try {
+        r = await (await fetch(FIG_API + '/scan/' + start.scan_id)).json();
+      } catch (e) { continue; }
+
+      if (r.status === 'running' && !said.running) {
+        said.running = true;
+        line('reading pages, one request at a time');
+      }
+      if (r.status === 'failed') { fail(r.error || 'The read failed.'); return; }
+      if (r.status === 'done') { result = r; break; }
+    }
+
+    if (!result) { fail('The read is taking longer than expected. Try again shortly.'); return; }
+
+    line('read ' + result.pages + ' page' + (result.pages === 1 ? '' : 's'));
+    line('scoring across four layers');
     line('done', 'ok');
 
-    // count up to the score
-    var t0 = performance.now();
-    await new Promise(function (done) {
-      (function tick(now) {
-        var k = Math.min(1, ((now || performance.now()) - t0) / 900);
-        var e = k * k * (3 - 2 * k);
-        scoreEl.textContent = Math.round(score * e);
-        ringEl.style.setProperty('--v', (score * e / 100).toFixed(3));
-        if (k < 1) requestAnimationFrame(tick); else done();
-      })();
-    });
+    await countUp(result.score || 0);
+    renderLayers(result.layers);
 
-    countEl.textContent = found.length + (found.length === 1 ? ' pattern' : ' patterns');
-    found.forEach(function (c, i) {
-      var li = document.createElement('li');
-      li.className = 'dm-find';
-      li.style.setProperty('--i', i);
-      li.innerHTML =
-        '<div class="dm-find-top"><b>' + c.label + '</b>' +
-        '<span class="dm-lead mono">' + c.lead + '</span></div>' +
-        '<p class="dm-why">' + c.why + '</p>' +
-        '<p class="dm-fix"><span class="mono">fix</span> ' + c.fix + '</p>';
-      listEl.appendChild(li);
-    });
-
+    var n = (result.findings || []).length;
+    countEl.textContent = n + (n === 1 ? ' finding' : ' findings') +
+                          ' · ' + (result.verdict || '');
+    renderFindings(result.findings || []);
     lessonEl.hidden = false;
-    window.FIG && window.FIG.scanRecord(host);
-    lock();
   }
 
-  function lock() {
-    if (!window.FIG || !window.FIG.scanUsed()) return;
+  function gateOut(message) {
     gate.hidden = false;
     form.hidden = true;
-    var rec = {};
-    try { rec = JSON.parse(localStorage.getItem('fig_demo_scan') || '{}'); } catch (e) {}
-    var when = rec.at ? new Date(rec.at).toLocaleDateString() : '';
-    var host = rec.url || '';
-    $('#demoGateText').textContent = host
-      ? 'This device already ran its free scan on ' + host + (when ? ' on ' + when : '') + '.'
-      : 'This device has already used its free scan.';
+    var t = $('#demoGateText');
+    if (t) t.textContent = message;
   }
 
   form.addEventListener('submit', function (e) {
@@ -166,18 +202,19 @@
       return;
     }
     input.removeAttribute('aria-invalid');
-    if (window.FIG && window.FIG.scanUsed()) { lock(); return; }
     // write into the inner span: setting textContent on the button itself drops
     // that span, and a bare text node renders behind the button's fill layer
     btn.disabled = true;
     label('Reading…');
-    run(host).then(function () { btn.disabled = false; label('Read this site'); });
+    run(host).then(function () {
+      btn.disabled = false;
+      label('Read this site');
+    });
   });
 
   var reset = $('#demoReset');
   if (reset) {
     reset.addEventListener('click', function () {
-      window.FIG && window.FIG.scanReset();
       gate.hidden = true;
       form.hidden = false;
       stage.hidden = true;
@@ -192,6 +229,4 @@
     devEl.textContent = dev.kind + ' · ' + dev.width + '×' + dev.height +
                         ' · ' + (dev.dpr > 1 ? dev.dpr + 'x' : '1x');
   }
-
-  lock();
 })();

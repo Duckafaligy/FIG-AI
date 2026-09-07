@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glossary — FIG</title>
+<meta name="description" content="Plain definitions for the terms FIG uses: AI slop, GEO, AEO, section order, structured data, crawl budget, and the four layers.">
+<link rel="canonical" href="https://fig.tools/glossary.html">
+<meta property="og:title" content="Glossary — FIG">
+<meta property="og:description" content="Plain definitions for the terms FIG uses: AI slop, GEO, AEO, section order, structured data, crawl budget, and the four layers.">
+<meta property="og:type" content="article">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+/* applied before first paint so a saved light theme never flashes dark */
+(function(){try{
+  var t=localStorage.getItem('fig_theme');
+  if(!t){var m=document.cookie.match(/(?:^|; )fig_theme=([^;]*)/);t=m?decodeURIComponent(m[1]):null;}
+  if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches)t='light';
+  if(t==='light')document.documentElement.setAttribute('data-theme','light');
+}catch(e){}})();
+</script>
+<link rel="stylesheet" href="styles.css?v=3">
+<link rel="stylesheet" href="page.css?v=3">
+<script src="device.js?v=3" defer></script>
+
+</head>
+<body>
+<nav class="nav" id="nav">
+  <div class="nav-pill" id="navPill">
+    <a class="brand" href="index.html">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">FIG</span>
+    </a>
+    <span class="nav-sep" aria-hidden="true"></span>
+    <div class="nav-links" id="navLinks">
+      <a href="index.html#catches">What it catches</a>
+      <a href="glossary.html">Learn</a>
+      <a href="index.html#pricing">Pricing</a>
+      <a href="demo.html" class="nav-demo">Demo</a>
+    </div>
+    <a class="nav-signin" href="/app/login">Sign in</a>
+    <a class="btn21 btn21-solid btn21-sm" href="/app/signup"><span>Try For Free</span></a>
+  </div>
+</nav>
+<main class="pg">
+  <div class="pg-wrap">
+    <p class="pg-crumb"><a href="index.html">FIG</a> / Learn / Glossary</p>
+    <h1>Glossary</h1>
+    <p class="pg-lede">Plain definitions for everything FIG reports on, without the jargon that usually surrounds it.</p>
+    
+    <div class="pg-body">
+<dl class="pg-terms">
+      <div class="pg-term" id="ai-slop">
+        <dt>AI slop</dt>
+        <dd>Output that is fluent and shaped correctly but decided nothing. On a web page it shows up as uniform cards, stock palettes, filler verbs and a flat type scale. It is a description of the result, never a claim about the tool that made it &mdash; hand-written pages produce it too, usually under deadline.</dd>
+        <p class="also">See also: the rulebook</p>
+      </div>
+      <div class="pg-term" id="geo">
+        <dt>GEO</dt>
+        <dd>Generative engine optimisation. The work of making a site legible to models that answer questions rather than return ten blue links. Overlaps heavily with SEO, but weights different things: structured data, plainly-worded answers, and specifics a model can quote with confidence.</dd>
+        <p class="also">See also: AEO, structured data</p>
+      </div>
+      <div class="pg-term" id="aeo">
+        <dt>AEO</dt>
+        <dd>Answer engine optimisation. Used more or less interchangeably with GEO. Where the two are distinguished, AEO tends to mean optimising for direct answer boxes and GEO for generated prose.</dd>
+      </div>
+      <div class="pg-term" id="section-order">
+        <dt>Section order</dt>
+        <dd>The sequence of blocks down a page, and whether it makes its case before it asks for anything. Pricing above the section explaining what you get is the common failure: a reader hitting a number with no context has nothing to weigh it against, so it reads as expensive by default.</dd>
+        <p class="also">FIG checks this deterministically</p>
+      </div>
+      <div class="pg-term" id="structured-data">
+        <dt>Structured data</dt>
+        <dd>JSON-LD in the page head describing what the page is about in a form a machine does not have to infer. <code>Organization</code>, <code>LocalBusiness</code>, <code>Product</code>, <code>FAQPage</code>. The one place you get to state plainly who you are.</dd>
+        <p class="also">See also: schema for AI crawlers</p>
+      </div>
+      <div class="pg-term" id="crawl-budget">
+        <dt>Crawl budget</dt>
+        <dd>How much of your site a crawler will actually read before it moves on. Thin, duplicated and orphaned pages spend it without earning anything.</dd>
+      </div>
+      <div class="pg-term" id="orphan-page">
+        <dt>Orphan page</dt>
+        <dd>A page nothing links to. Readers cannot reach it and crawlers usually will not either, so whatever is on it may as well not exist.</dd>
+      </div>
+      <div class="pg-term" id="canonical">
+        <dt>Canonical</dt>
+        <dd>A <code>&lt;link rel="canonical"&gt;</code> naming the preferred URL for a page. Without it, the same page reached two ways can be treated as two pages, splitting whatever weight it has earned.</dd>
+      </div>
+      <div class="pg-term" id="type-scale">
+        <dt>Type scale</dt>
+        <dd>The set of sizes used across headings and body text, and the ratio between them. A scale that barely changes gives a reader nothing to land on.</dd>
+      </div>
+      <div class="pg-term" id="component-uniformity">
+        <dt>Component uniformity</dt>
+        <dd>Every card carrying an identical radius and shadow. Nothing sits forward or back, so the page reads flat regardless of how much is on it.</dd>
+      </div>
+      <div class="pg-term" id="false-positive">
+        <dt>False positive</dt>
+        <dd>An AI detector saying a human wrote something with a machine. Published rates run 5&ndash;17%. It is the reason FIG reports patterns and never verdicts about authorship, and the reason this is a self-check tool rather than a grading one.</dd>
+      </div>
+      <div class="pg-term" id="layers">
+        <dt>Craft, Structure, Search, Answers</dt>
+        <dd>The four layers FIG reports on. Craft is how a page reads; Structure is what sits where; Search is what a crawler can reach; Answers is what a model has to quote. A site can be immaculate on one and invisible on another.</dd>
+      </div>
+    </dl>
+    </div>
+  </div>
+</main>
+<footer class="footer">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="index.html">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-name">FIG</span>
+        </a>
+        <p class="foot-blurb">Find out what AI gets wrong about your website,
+          where the answer came from, and exactly what to change.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Product</h4>
+        <a href="index.html#catches">What it catches</a>
+        <a href="index.html#pricing">Pricing</a>
+        <a href="index.html#plans-detail">Compare plans</a>
+        <a href="history.html">Recent reads</a>
+        <a href="changelog.html">Changelog</a>
+        <a href="status.html">Status</a>
+      </div>
+      <div class="foot-col">
+        <h4>Learn</h4>
+        <a href="blog.html">Blog</a>
+        <a href="glossary.html">Glossary</a>
+        <a href="rulebook.html">The AI slop rulebook</a>
+        <a href="spotting-ai-pages.html">Spotting AI-written pages</a>
+        <a href="schema-for-crawlers.html">Schema for AI crawlers</a>
+        <a href="robots-reference.html">robots.txt reference</a>
+      </div>
+      <div class="foot-col">
+        <h4>Build</h4>
+        <a href="docs.html">Docs</a>
+        <a href="domain-verification.html">Domain verification</a>
+        <a href="api.html">API reference</a>
+        <a href="webhooks.html">Webhooks</a>
+        <a href="fix-recipes.html">Fix recipes</a>
+      </div>
+      <div class="foot-col">
+        <h4>Company</h4>
+        <a href="about.html">About</a>
+        <a href="contact.html">Contact</a>
+        <a href="privacy.html">Privacy policy</a>
+        <a href="terms.html">Terms of service</a>
+        <a href="cookies.html">Cookie notice</a>
+        <a href="security.html">Security</a>
+      </div>
+    </div>
+    <div class="foot-bar">
+      <span class="mono foot-left">&copy; 2026 FIG &middot; Built for people who publish on the web</span>
+      <span class="foot-right">
+        <a href="privacy.html">Privacy</a><i>&middot;</i><a href="terms.html">Terms</a><i>&middot;</i><a href="cookies.html">Cookies</a>
+      </span>
+    </div>
+  </div>
+</footer>
+<div class="theme-switch" role="group" aria-label="Colour theme">
+  <button class="ts-btn" type="button" data-theme-set="dark" aria-pressed="true" title="Dark">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+    <span class="sr-only">Dark</span>
+  </button>
+  <button class="ts-btn" type="button" data-theme-set="light" aria-pressed="false" title="Light">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>
+    <span class="sr-only">Light</span>
+  </button>
+</div>
+
+</body>
+</html>

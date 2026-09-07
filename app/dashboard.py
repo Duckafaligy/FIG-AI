@@ -283,6 +283,7 @@ def login_page(request: Request, session: Session = Depends(get_session)):
         return RedirectResponse("/app", status_code=303)
     return templates.TemplateResponse("login.html", {
         "request": request,
+        "mode": "signin",
         "auth_ready": config.AUTH_READY,
         "supabase_url": config.SUPABASE_URL,
         # public by design; the service-role key never reaches a browser
@@ -306,6 +307,19 @@ async def establish_session(request: Request, payload: dict = Body(...),
     user = link_user(session, supabase_user)
     start_session(request, user)
     return JSONResponse({"ok": True, "next": "/app", "email": user.email})
+
+
+@router.get("/signup")
+def signup_page(request: Request, session: Session = Depends(get_session)):
+    if current_account(request, session) is not None:
+        return RedirectResponse("/app", status_code=303)
+    return templates.TemplateResponse("login.html", {
+        "request": request,
+        "mode": "signup",
+        "auth_ready": config.AUTH_READY,
+        "supabase_url": config.SUPABASE_URL,
+        "supabase_anon_key": config.SUPABASE_ANON_KEY,
+    })
 
 
 @router.get("/logout")

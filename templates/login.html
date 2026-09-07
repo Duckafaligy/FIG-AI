@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sign in — FIG</title>
+<title>{{ 'Create an account' if mode == 'signup' else 'Sign in' }} — FIG</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -41,8 +41,9 @@ if(t==='light')document.documentElement.setAttribute('data-theme','light');}catc
 <div class="signin">
   <div class="signin-card">
     <div class="brand"><i></i>FIG</div>
-    <h1>Sign in</h1>
-    <p class="sub">Your sites, and what to change about them.</p>
+    <h1>{{ 'Create an account' if mode == 'signup' else 'Sign in' }}</h1>
+    <p class="sub">{{ 'One read of your site, across four layers, with the exact change to make.'
+       if mode == 'signup' else 'Your sites, and what to change about them.' }}</p>
 
     {% if not auth_ready %}
       <div class="msg bad on">
@@ -55,7 +56,7 @@ if(t==='light')document.documentElement.setAttribute('data-theme','light');}catc
         <input type="email" id="email" autocomplete="username" required placeholder="you@company.com"></label>
       <label class="field"><span>Password</span>
         <input type="password" id="password" autocomplete="current-password" placeholder="••••••••"></label>
-      <button class="btn btn-solid" type="submit" id="go">Sign in</button>
+      <button class="btn btn-solid" type="submit" id="go">{{ "Create account" if mode == "signup" else "Sign in" }}</button>
     </form>
 
     <div class="alt">or</div>
@@ -64,8 +65,13 @@ if(t==='light')document.documentElement.setAttribute('data-theme','light');}catc
     <div class="msg" id="msg"></div>
 
     <p class="foot">
-      No account yet? Create the user in Supabase &rarr; Authentication &rarr; Users,
-      or use the sign-in link above if email sending is set up on the project.
+      {% if mode == 'signup' %}
+        Already have an account? <a href="/login" style="color:var(--text);border-bottom:1px solid var(--border-2)">Sign in</a>.
+        By creating one you agree to the <a href="/terms" style="color:var(--text)">terms</a>
+        and <a href="/privacy" style="color:var(--text)">privacy policy</a>.
+      {% else %}
+        No account yet? <a href="/signup" style="color:var(--text);border-bottom:1px solid var(--border-2)">Create one</a>.
+      {% endif %}
     </p>
     {% endif %}
   </div>
@@ -77,6 +83,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 // The anon key is meant to be public and carries no privileges of its own.
 // The service-role key stays on the server and never appears here.
+const MODE = {{ mode | tojson }};
 const sb = createClient({{ supabase_url | tojson }}, {{ supabase_anon_key | tojson }});
 const msg = document.getElementById('msg');
 const show = (text, kind) => { msg.textContent = text; msg.className = 'msg on ' + kind; };
@@ -99,12 +106,18 @@ document.getElementById('pw').addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = document.getElementById('go');
   btn.disabled = true; show('Checking…', '');
-  const { data, error } = await sb.auth.signInWithPassword({
-    email: document.getElementById('email').value.trim(),
-    password: document.getElementById('password').value,
-  });
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const { data, error } = MODE === 'signup'
+    ? await sb.auth.signUp({ email, password })
+    : await sb.auth.signInWithPassword({ email, password });
   btn.disabled = false;
   if (error) { show(error.message, 'bad'); return; }
+  // Projects that require email confirmation return a user with no session.
+  if (!data.session) {
+    show('Account created. Check your email to confirm it, then sign in.', 'ok');
+    return;
+  }
   await establish(data.session);
 });
 
