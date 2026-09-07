@@ -54,7 +54,7 @@ SESSION_MAX_AGE = int(os.environ.get("FIG_SESSION_MAX_AGE", str(14 * 24 * 3600))
 # calls this API cross-origin, so it has to be allowed explicitly.
 SITE_ORIGINS = [o.strip() for o in os.environ.get(
     "FIG_SITE_ORIGINS",
-    "http://127.0.0.1:8123,http://localhost:8123",
+    "http://127.0.0.1:8123,http://localhost:8123,https://fig-ai.vercel.app",
 ).split(",") if o.strip()]
 
 # --- limits -----------------------------------------------------------

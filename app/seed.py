@@ -8,6 +8,7 @@ the network or names a real business.
 
     python -m app.seed          # build it
     python -m app.seed --reset  # start over
+    python -m app.seed --purge  # remove it once there is real data
 """
 from __future__ import annotations
 
@@ -20,7 +21,7 @@ from sqlalchemy import delete, select
 from app.auth import mint_key
 from app.config import DEMO_ACCOUNT_SLUG
 from app.db import init_db, session_scope
-from app.models import Account, ApiKey, Finding, Job, Page, Scan, Site
+from app.models import Account, ApiKey, Finding, Job, Page, Scan, Site, User
 from app.rules.checks import run_all_checks
 from app.rules.scoring import summarise
 from app.rules.sections import roles_for
@@ -268,5 +269,31 @@ def build(reset_first: bool = False) -> str:
                 f"estate ${account.monthly_cents() / 100:.2f}/mo")
 
 
+def purge() -> str:
+    """Delete the demo estate entirely.
+
+    The seeded agency is scaffolding for looking at the UI with data in it. Once
+    there are real sites in here it is just noise, and a dashboard showing
+    twenty-three invented clients does not look like a product anyone is using.
+    """
+    with session_scope() as session:
+        account = session.scalars(
+            select(Account).where(Account.slug == DEMO_ACCOUNT_SLUG)).first()
+        if account is None:
+            return "no demo estate to remove"
+        n = len(account.sites)
+        users = session.scalars(
+            select(User).where(User.account_id == account.id)).all()
+        for u in users:                       # detach before the account goes
+            u.account_id = None
+        session.flush()
+        session.delete(account)               # cascades to sites, scans, findings
+        return (f"removed the demo estate: {n} sites"
+                + (f", {len(users)} user(s) left without a workspace" if users else ""))
+
+
 if __name__ == "__main__":
-    print(build(reset_first="--reset" in sys.argv))
+    if "--purge" in sys.argv:
+        print(purge())
+    else:
+        print(build(reset_first="--reset" in sys.argv))

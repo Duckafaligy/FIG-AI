@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>API reference — FIG</title>
 <meta name="description" content="Provision sites, trigger reads, and pull results into your own product. The API is the primary interface; the dashboard is built on it.">
-<link rel="canonical" href="https://fig.tools/api.html">
+<link rel="canonical" href="https://fig-ai.vercel.app/api.html">
 <meta property="og:title" content="API reference — FIG">
 <meta property="og:description" content="Provision sites, trigger reads, and pull results into your own product. The API is the primary interface; the dashboard is built on it.">
 <meta property="og:type" content="article">
@@ -21,10 +21,10 @@
   if(t==='light')document.documentElement.setAttribute('data-theme','light');
 }catch(e){}})();
 </script>
-<link rel="stylesheet" href="styles.css?v=4">
-<link rel="stylesheet" href="page.css?v=4">
-<script src="config.js?v=4"></script>
-<script src="device.js?v=4" defer></script>
+<link rel="stylesheet" href="styles.css?v=5">
+<link rel="stylesheet" href="page.css?v=5">
+<script src="config.js?v=5"></script>
+<script src="device.js?v=5" defer></script>
 
 </head>
 <body>
@@ -60,7 +60,7 @@ it embeddable inside somebody else's product.</p>
 <h2>Authenticating</h2>
 <p>Every request carries a key, as a header. Keys are created in the dashboard
 under API keys and shown once.</p>
-<pre><code>curl https://api.fig.tools/v1/account \
+<pre><code>curl https://fig-ai.vercel.app/v1/account \
   -H "X-API-Key: fig_live_xxxx_yyyy"</code></pre>
 <p><code>Authorization: Bearer &lt;key&gt;</code> works identically.</p>
 

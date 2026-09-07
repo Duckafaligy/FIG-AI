@@ -17,7 +17,23 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
-V = "4"          # cache-buster for the shared stylesheets
+V = "5"          # cache-buster for the shared stylesheets
+
+# Every canonical URL and contact address on the site comes from here. There
+# are no hardcoded domains anywhere else, so moving to a real domain is:
+#
+#   python scripts/build_pages.py --site-url https://fig.tools --email hello@fig.tools
+#
+# The defaults point at the Vercel deployment and a real inbox, so nothing on
+# the site references an address that does not exist.
+SITE_URL = "https://fig-ai.vercel.app"
+CONTACT_EMAIL = "brendanhllau@gmail.com"
+
+for _i, _a in enumerate(sys.argv):
+    if _a == "--site-url" and _i + 1 < len(sys.argv):
+        SITE_URL = sys.argv[_i + 1].rstrip("/")
+    if _a == "--email" and _i + 1 < len(sys.argv):
+        CONTACT_EMAIL = sys.argv[_i + 1]
 
 APP = "/app"     # where the dashboard lives once deployed
 
@@ -120,7 +136,7 @@ SHELL = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
 <meta name="description" content="{description}">
-<link rel="canonical" href="https://fig.tools/{slug}.html">
+<link rel="canonical" href="{site_url}/{slug}.html">
 <meta property="og:title" content="{title}">
 <meta property="og:description" content="{description}">
 <meta property="og:type" content="{og_type}">
@@ -167,8 +183,9 @@ def page(slug, *, title, description, h1, lede, body, crumb=None, meta="",
          og_type="article", wide=False, head_extra="", body_extra=""):
     return slug, SHELL.format(
         title=title, description=description, slug=slug, og_type=og_type,
-        v=V, nav=NAV, footer=footer(), theme=THEME,
-        crumb=crumb or h1, h1=h1, lede=lede, body=body,
+        v=V, nav=NAV, footer=footer(), theme=THEME, site_url=SITE_URL,
+        crumb=crumb or h1, h1=h1, lede=lede,
+        body=body.replace("{contact}", CONTACT_EMAIL).replace("{site_url}", SITE_URL),
         meta=f'<p class="pg-meta">{meta}</p>' if meta else "",
         wide=" pg-wide" if wide else "", head_extra=head_extra,
         body_extra=body_extra,
@@ -630,7 +647,7 @@ it embeddable inside somebody else's product.</p>
 <h2>Authenticating</h2>
 <p>Every request carries a key, as a header. Keys are created in the dashboard
 under API keys and shown once.</p>
-<pre><code>curl https://api.fig.tools/v1/account \\
+<pre><code>curl {site_url}/v1/account \\
   -H "X-API-Key: fig_live_xxxx_yyyy"</code></pre>
 <p><code>Authorization: Bearer &lt;key&gt;</code> works identically.</p>
 
@@ -790,7 +807,7 @@ CONTACT_PAGE = """
 <p>One person builds this. You will get a real reply, usually within a day.</p>
 
 <h2>Email</h2>
-<p><a href="mailto:hello@fig.tools">hello@fig.tools</a> &mdash; questions,
+<p><a href="mailto:{contact}">{contact}</a> &mdash; questions,
 bugs, agency and platform enquiries, or to tell us a finding was wrong.</p>
 
 <h2>Wrong findings are worth reporting</h2>
@@ -812,7 +829,7 @@ Disallow: /</code></pre>
 
 SECURITY_PAGE = """
 <h2>Reporting a vulnerability</h2>
-<p>Email <a href="mailto:security@fig.tools">security@fig.tools</a>. Please do
+<p>Email <a href="mailto:{contact}">{contact}</a>. Please do
 not open a public issue. We will acknowledge within 72 hours and keep you
 updated until it is resolved. We will not take legal action against
 good-faith research.</p>
@@ -899,7 +916,7 @@ share it. A site never appears there because a stranger pointed FIG at it.</p>
 
 <h2>Your rights</h2>
 <p>Ask for a copy of your data, a correction, or deletion, by emailing
-<a href="mailto:privacy@fig.tools">privacy@fig.tools</a>. Deleting your account
+<a href="mailto:{contact}">{contact}</a>. Deleting your account
 removes your sites and their read history.</p>
 
 <h2>Children</h2>
@@ -1015,9 +1032,9 @@ page that describes them rather than promised here.</p>
 
 STATUS_PAGE = """
 <div class="pg-note">
-  <p><b>No automated status page yet.</b> Rather than show a green tick that is
-  hard-coded to be green &mdash; which is worse than nothing &mdash; this page
-  says what to do when something is wrong.</p>
+  <p><b>No automated status page yet.</b> A green tick that is hard-coded to be
+  green is worse than nothing, so this page says what to do when something is
+  wrong instead of claiming everything is fine.</p>
 </div>
 
 <h2>If a read is stuck</h2>
@@ -1037,7 +1054,7 @@ failed; the site page will show why.</p>
 </table>
 
 <h2>Something else</h2>
-<p>Email <a href="mailto:hello@fig.tools">hello@fig.tools</a> with the domain
+<p>Email <a href="mailto:{contact}">{contact}</a> with the domain
 and roughly when you tried.</p>
 """
 

@@ -16,10 +16,40 @@
 </div>
 
 {% if not e.scanned %}
-<div class="empty">
-  <b>Nothing read yet</b>
-  Add a site and FIG will crawl it, score it across four layers, and tell you what to change.
-  <div style="margin-top:16px"><a class="btn btn-solid" href="/app/sites">Add your first site</a></div>
+<div class="onboard">
+  <div class="onboard-main">
+    <h2>Read your first site</h2>
+    <p>Give FIG a domain and it crawls it the way a search engine does, then scores it
+      across four layers and tells you what to change about each finding. It takes a
+      minute or two.</p>
+    <form class="inline" method="post" action="/app/sites" style="margin-top:18px">
+      <input type="text" name="hostname" placeholder="yourdomain.com" required
+             style="flex:1;min-width:220px" autofocus>
+      <input type="text" name="client_name" placeholder="Label (optional)" style="flex:1">
+      <button class="btn btn-solid" type="submit">Add and audit</button>
+    </form>
+    <p class="note">Start with your own site. It is the one where you can tell whether
+      a finding is right, which is how you learn to trust the rest.</p>
+  </div>
+  <ol class="onboard-steps">
+    <li><b>1</b><span>Add a domain &mdash; no ownership proof needed for a one-off read</span></li>
+    <li><b>2</b><span>FIG checks robots.txt, finds the sitemap and reads up to 40 pages</span></li>
+    <li><b>3</b><span>18 checks run across Craft, Structure, Search and Answers</span></li>
+    <li><b>4</b><span>Every finding gets a why and a fix, and each layer a score</span></li>
+    <li><b>5</b><span>Read it again later and the dashboard shows what changed</span></li>
+  </ol>
+</div>
+
+<div class="grid g3" style="margin-top:16px">
+  <a class="pgcard" href="/app/seo"><b>SEO</b>
+    <span>What a crawler can reach and understand &mdash; titles, canonicals, alt text,
+      internal links.</span></a>
+  <a class="pgcard" href="/app/geo"><b>GEO &amp; answers</b>
+    <span>What a model has to quote &mdash; structured data, answerable questions,
+      concrete specifics.</span></a>
+  <a class="pgcard" href="/app/settings?tab=api"><b>API</b>
+    <span>Drive all of this from your own software. Provision sites, trigger audits,
+      pull reports.</span></a>
 </div>
 {% else %}
 

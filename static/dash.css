@@ -372,3 +372,21 @@ tr.hidden{display:none}
   text-transform:uppercase;padding-top:2px}
 .drow dd{margin:0;color:var(--text)}
 .drow dd small{display:block;color:var(--muted-2);font-size:12px;margin-top:4px;line-height:1.5}
+
+/* --- first run --- */
+.onboard{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;
+  border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface);
+  padding:26px 28px}
+.onboard-main h2{font-size:20px}
+.onboard-main p{margin:10px 0 0;font-size:14px;line-height:1.65;color:var(--muted);max-width:460px}
+.onboard-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+.onboard-steps li{display:flex;gap:11px;align-items:flex-start;font-size:13px;
+  line-height:1.5;color:var(--muted)}
+.onboard-steps b{font-family:var(--f-mono);font-size:10px;color:var(--muted-2);flex:none;
+  padding-top:2px;width:12px}
+.pgcard{display:block;padding:18px 20px;border-radius:var(--r-lg);border:1px solid var(--border);
+  background:var(--surface);transition:border-color .2s,transform .2s}
+.pgcard:hover{border-color:var(--border-2);transform:translateY(-1px)}
+.pgcard b{display:block;font-size:15px;letter-spacing:-.02em;color:var(--text)}
+.pgcard span{display:block;font-size:13px;line-height:1.55;color:var(--muted);margin-top:6px}
+@media (max-width:900px){ .onboard{grid-template-columns:1fr} }
