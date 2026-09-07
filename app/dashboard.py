@@ -48,6 +48,13 @@ def _account(request: Request, session: Session) -> Account:
 
 
 def _ctx(request: Request, session: Session, account: Account, page: str) -> dict:
+    """Everything the shell needs, on every page: who you are, what the
+    sidebar counts should say, and how much of the free week is left."""
+    sites = [s for s in account.sites if s.is_active]
+    latest = [s.latest_scan() for s in sites]
+    findings = sum(len(sc.findings) for sc in latest if sc)
+    running = sum(
+        1 for s in sites if any(x.status in ("queued", "running") for x in s.scans))
     return {
         "request": request,
         "account": account,
@@ -58,6 +65,8 @@ def _ctx(request: Request, session: Session, account: Account, page: str) -> dic
         "brand": account.brand_name if account.white_label else "FIG",
         "public_url": config.PUBLIC_URL,
         "user": session_user(request, session),
+        "nav_counts": {"sites": len(sites), "findings": findings, "running": running},
+        "trial": {"on_trial": account.on_trial(), "days": account.trial_days_left()},
     }
 
 
@@ -65,11 +74,51 @@ def _ctx(request: Request, session: Session, account: Account, page: str) -> dic
 
 
 @router.get("/app")
-def estate(request: Request, session: Session = Depends(get_session)):
+def overview(request: Request, session: Session = Depends(get_session)):
     account = _account(request, session)
-    ctx = _ctx(request, session, account, "estate")
+    ctx = _ctx(request, session, account, "overview")
+    ctx.update(e=reporting.estate(session, account), queue=queue_depth(session))
+    return templates.TemplateResponse("overview.html", ctx)
+
+
+@router.get("/app/sites")
+def sites_view(request: Request, session: Session = Depends(get_session)):
+    account = _account(request, session)
+    ctx = _ctx(request, session, account, "sites")
     ctx.update(e=reporting.estate(session, account), queue=queue_depth(session))
     return templates.TemplateResponse("estate.html", ctx)
+
+
+@router.get("/app/seo")
+def seo_view(request: Request, session: Session = Depends(get_session)):
+    account = _account(request, session)
+    ctx = _ctx(request, session, account, "seo")
+    ctx.update(v=reporting.layer_view(session, account, "search"))
+    return templates.TemplateResponse("layer.html", ctx)
+
+
+@router.get("/app/geo")
+def geo_view(request: Request, session: Session = Depends(get_session)):
+    account = _account(request, session)
+    ctx = _ctx(request, session, account, "geo")
+    ctx.update(v=reporting.layer_view(session, account, "answers"))
+    return templates.TemplateResponse("layer.html", ctx)
+
+
+@router.get("/app/analytics")
+def analytics_view(request: Request, session: Session = Depends(get_session)):
+    account = _account(request, session)
+    ctx = _ctx(request, session, account, "analytics")
+    ctx.update(a=reporting.analytics(session, account))
+    return templates.TemplateResponse("analytics.html", ctx)
+
+
+@router.get("/app/audits")
+def audits_view(request: Request, session: Session = Depends(get_session)):
+    account = _account(request, session)
+    ctx = _ctx(request, session, account, "audits")
+    ctx.update(a=reporting.audits(session, account), depth=queue_depth(session))
+    return templates.TemplateResponse("audits.html", ctx)
 
 
 @router.get("/app/findings")
@@ -169,7 +218,7 @@ def site_detail(site_id: str, request: Request, session: Session = Depends(get_s
             page_flow = {"path": home.path, "roles": home.section_roles, "flagged": flagged}
 
     history = reporting.site_history(site)
-    ctx = _ctx(request, session, account, "estate")
+    ctx = _ctx(request, session, account, "sites")
     ctx.update(site=site, scan=scan, pending=pending, findings=findings,
                grouped=grouped, scores=scores, pages=pages, page_flow=page_flow,
                layer_meta=LAYER_META, history=history,
@@ -182,46 +231,46 @@ def site_detail(site_id: str, request: Request, session: Session = Depends(get_s
 # --- queue --------------------------------------------------------------
 
 
-@router.get("/app/queue")
-def queue_view(request: Request, session: Session = Depends(get_session)):
-    account = _account(request, session)
-    site_ids = [s.id for s in account.sites]
-    rows = session.scalars(
-        select(Scan).where(Scan.site_id.in_(site_ids))
-        .order_by(Scan.created_at.desc()).limit(60)
-    ).all() if site_ids else []
-
-    by_id = {s.id: s for s in account.sites}
-    since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
-    scans = [{
-        "site_id": s.site_id,
-        "hostname": by_id[s.site_id].hostname if s.site_id in by_id else "—",
-        "status": s.status, "trigger": s.trigger, "pages_crawled": s.pages_crawled,
-        "score": s.score, "verdict": verdict(s.score) if s.score is not None else None,
-        "took": s.duration_s(), "created_at": s.created_at, "error": s.error,
-    } for s in rows]
-
-    ctx = _ctx(request, session, account, "queue")
-    ctx.update(depth=queue_depth(session), scans=scans,
-               done_today=sum(1 for s in rows if s.status == "done"
-                              and s.created_at and s.created_at >= since),
-               failed=sum(1 for s in rows if s.status == "failed"))
-    return templates.TemplateResponse("queue.html", ctx)
-
-
 # --- keys ---------------------------------------------------------------
 
 
-@router.get("/app/keys")
-def keys_view(request: Request, session: Session = Depends(get_session), new: str = ""):
+@router.get("/app/settings")
+def settings_view(request: Request, session: Session = Depends(get_session),
+                  tab: str = "account", new: str = "", checkout: str = "", msg: str = ""):
+    """Account, billing and API keys in one place — they are all "how this
+    account is set up" rather than three separate jobs."""
     account = _account(request, session)
+    if tab not in ("account", "billing", "api"):
+        tab = "account"
+
+    quote = price_quote(max(account.billable_sites(), account.site_floor, 1))
+    quote["billable_sites"] = account.billable_sites()
+    quote["site_floor"] = account.site_floor
+    quote["enabled"] = config.BILLING_ENABLED
+    quote["trial_days_left"] = account.trial_days_left()
+    quote["on_trial"] = account.on_trial()
+
     keys = session.scalars(
         select(ApiKey).where(ApiKey.account_id == account.id)
         .order_by(ApiKey.created_at.desc())
     ).all()
-    ctx = _ctx(request, session, account, "keys")
-    ctx.update(keys=keys, new_key=new or None)
-    return templates.TemplateResponse("keys.html", ctx)
+
+    ctx = _ctx(request, session, account, "settings")
+    ctx.update(tab=tab, quote=quote, keys=keys, new_key=new or None,
+               message=msg or {"done": "Checkout completed.",
+                               "cancelled": "Checkout cancelled."}.get(checkout, ""))
+    return templates.TemplateResponse("settings.html", ctx)
+
+
+@router.post("/app/settings/account")
+def rename_account(request: Request, name: str = Form(...),
+                   session: Session = Depends(get_session)):
+    account = _account(request, session)
+    cleaned = name.strip()[:80]
+    if cleaned:
+        account.name = cleaned
+        session.commit()
+    return RedirectResponse("/app/settings?msg=Saved", status_code=303)
 
 
 @router.post("/app/keys")
@@ -230,7 +279,7 @@ def create_key(request: Request, session: Session = Depends(get_session)):
     _row, plaintext = mint_key(session, account, label="dashboard")
     session.commit()
     # Shown once, then never again — only the hash is kept.
-    return RedirectResponse(f"/app/keys?new={plaintext}", status_code=303)
+    return RedirectResponse(f"/app/settings?tab=api&new={plaintext}", status_code=303)
 
 
 @router.post("/app/keys/{key_id}/revoke")
@@ -241,27 +290,10 @@ def revoke_key(request: Request, key_id: str, session: Session = Depends(get_ses
         raise HTTPException(404, "no such key")
     key.revoked = True
     session.commit()
-    return RedirectResponse("/app/keys", status_code=303)
+    return RedirectResponse("/app/settings?tab=api", status_code=303)
 
 
 # --- billing ------------------------------------------------------------
-
-
-@router.get("/app/billing")
-def billing_view(request: Request, session: Session = Depends(get_session),
-                 checkout: str = "", msg: str = ""):
-    account = _account(request, session)
-    quote = price_quote(max(account.billable_sites(), account.site_floor, 1))
-    quote["billable_sites"] = account.billable_sites()
-    quote["site_floor"] = account.site_floor
-    quote["enabled"] = config.BILLING_ENABLED
-    quote["trial_days_left"] = account.trial_days_left()
-    quote["on_trial"] = account.on_trial()
-    message = msg or {"done": "Checkout completed.",
-                      "cancelled": "Checkout cancelled."}.get(checkout, "")
-    ctx = _ctx(request, session, account, "billing")
-    ctx.update(quote=quote, message=message)
-    return templates.TemplateResponse("billing.html", ctx)
 
 
 @router.post("/app/billing/checkout")
@@ -271,7 +303,7 @@ def billing_checkout(request: Request, session: Session = Depends(get_session)):
     try:
         result = make_checkout(account=account, session=session)
     except HTTPException as exc:
-        return RedirectResponse(f"/app/billing?msg={exc.detail}", status_code=303)
+        return RedirectResponse(f"/app/settings?tab=billing&msg={exc.detail}", status_code=303)
     return RedirectResponse(result["url"], status_code=303)
 
 
@@ -281,9 +313,9 @@ def billing_sync(request: Request, session: Session = Depends(get_session)):
     try:
         result = sync_quantity(session, account)
     except HTTPException as exc:
-        return RedirectResponse(f"/app/billing?msg={exc.detail}", status_code=303)
+        return RedirectResponse(f"/app/settings?tab=billing&msg={exc.detail}", status_code=303)
     note = f"quantity now {result['quantity']}" if result.get("synced") else result.get("reason", "")
-    return RedirectResponse(f"/app/billing?msg={note}", status_code=303)
+    return RedirectResponse(f"/app/settings?tab=billing&msg={note}", status_code=303)
 
 
 # --- sign in / out ------------------------------------------------------
@@ -316,7 +348,7 @@ async def establish_session(request: Request, payload: dict = Body(...),
     if not token:
         raise HTTPException(400, "access_token is required")
     supabase_user = await verify_access_token(token)
-    user = link_user(session, supabase_user)
+    user = link_user(session, supabase_user, (payload or {}).get("account_name"))
     start_session(request, user)
     return JSONResponse({"ok": True, "next": "/app", "email": user.email})
 

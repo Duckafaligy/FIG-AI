@@ -272,3 +272,178 @@ def page_rows(session: Session, scan: Scan) -> list[Page]:
     return session.scalars(
         select(Page).where(Page.scan_id == scan.id).order_by(Page.path)
     ).all()
+
+
+# --- layer-specific views ----------------------------------------------
+
+# Which checks belong to which working view. A person fixing search problems
+# is doing different work from a person making a site quotable, so the two
+# get their own screens rather than one undifferentiated list.
+LAYER_CHECKS = {
+    "search": ("missing_title", "title_length", "missing_meta_description",
+               "meta_description_length", "missing_canonical", "missing_lang",
+               "missing_alt", "few_internal_links"),
+    "answers": ("no_structured_data", "thin_structured_data",
+                "no_answerable_questions", "low_specificity"),
+    "structure": ("section_order", "missing_h1", "multiple_h1",
+                  "heading_skips", "thin_page"),
+    "craft": ("component_uniformity", "numbered_eyebrows", "generic_copy",
+              "default_color_palette", "flat_typography", "overused_icons"),
+}
+
+# What a clean result on each check actually means, said as a positive. The
+# report is more useful when it also says what is already working -- a page of
+# nothing but problems tells you nothing about what to protect.
+GOOD_NEWS = {
+    "missing_title": "Every page has a title",
+    "missing_meta_description": "Every page has a meta description",
+    "missing_canonical": "Canonicals are set",
+    "missing_lang": "Language is declared",
+    "missing_alt": "Images carry alt text",
+    "few_internal_links": "Pages link onward",
+    "no_structured_data": "Structured data is present",
+    "no_answerable_questions": "Pages carry answerable questions",
+    "low_specificity": "Copy carries concrete specifics",
+    "section_order": "Sections run in an order that makes its case first",
+    "missing_h1": "Every page has an h1",
+    "multiple_h1": "One h1 per page",
+    "heading_skips": "Heading levels step down cleanly",
+    "thin_page": "No thin pages",
+    "component_uniformity": "Cards are not all identical",
+    "generic_copy": "No filler marketing phrasing",
+    "default_color_palette": "The palette is not a framework default",
+    "flat_typography": "The type scale has real hierarchy",
+    "overused_icons": "Icons are not the usual four",
+    "numbered_eyebrows": "No numbered section labels",
+}
+
+
+def layer_view(session: Session, account: Account, layer: str) -> dict:
+    """One layer across the whole estate: the score, what is failing, and --
+    the half usually missing from tools like this -- what is already clean."""
+    e = estate(session, account)
+    checks = set(LAYER_CHECKS.get(layer, ()))
+
+    failing, sites_hit = [], set()
+    for c in e["common"]:
+        if c["check"] in checks:
+            failing.append(c)
+            sites_hit.add(c["check"])
+
+    passing = [
+        {"check": c, "label": GOOD_NEWS.get(c, c.replace("_", " "))}
+        for c in sorted(checks) if c not in sites_hit
+    ]
+
+    scores = [r["layers"][layer] for r in e["rows"]
+              if r["layers"] and r["layers"][layer] is not None]
+    best = sorted(
+        [r for r in e["rows"] if r["layers"] and r["layers"][layer] is not None],
+        key=lambda r: -r["layers"][layer])
+
+    return {
+        "layer": layer,
+        "label": LAYER_LABEL.get(layer, layer),
+        "sub": LAYER_SUB.get(layer, ""),
+        "average": round(sum(scores) / len(scores)) if scores else None,
+        "sites": len(scores),
+        "failing": failing,
+        "passing": passing,
+        "worst": list(reversed(best))[:8],
+        "best": best[:5],
+        "clean_sites": sum(1 for s in scores if s >= 80),
+    }
+
+
+def analytics(session: Session, account: Account) -> dict:
+    """Movement over time, and coverage. Answers "is this getting better".
+
+    A single read is a snapshot and says nothing about direction; this only
+    becomes useful on the second read of a site, and says so when it cannot
+    tell you anything yet.
+    """
+    sites = session.scalars(
+        select(Site).where(Site.account_id == account.id, Site.is_active.is_(True))
+    ).all()
+
+    tracked, improving, declining, flat = [], 0, 0, 0
+    total_reads = 0
+    first_scores, latest_scores = [], []
+    layer_first = {k: [] for k in LAYERS}
+    layer_now = {k: [] for k in LAYERS}
+
+    for site in sites:
+        hist = site_history(site, limit=50)
+        total_reads += len(hist)
+        if not hist:
+            continue
+        latest_scores.append(hist[-1]["score"])
+        for k in LAYERS:
+            if hist[-1]["layers"][k] is not None:
+                layer_now[k].append(hist[-1]["layers"][k])
+        if len(hist) < 2:
+            continue
+        first_scores.append(hist[0]["score"])
+        for k in LAYERS:
+            if hist[0]["layers"][k] is not None:
+                layer_first[k].append(hist[0]["layers"][k])
+        change = hist[-1]["score"] - hist[0]["score"]
+        if change > 0:
+            improving += 1
+        elif change < 0:
+            declining += 1
+        else:
+            flat += 1
+        tracked.append({
+            "id": site.id, "hostname": site.hostname, "client": site.client_name,
+            "reads": len(hist), "from": hist[0]["score"], "to": hist[-1]["score"],
+            "change": change, "spark": sparkline([h["score"] for h in hist]),
+            "first_at": _aware(hist[0]["at"]), "last_at": _aware(hist[-1]["at"]),
+        })
+
+    tracked.sort(key=lambda t: -abs(t["change"]))
+
+    def avg(xs):
+        return round(sum(xs) / len(xs)) if xs else None
+
+    return {
+        "sites": len(sites),
+        "with_history": len(tracked),
+        "total_reads": total_reads,
+        "improving": improving, "declining": declining, "flat": flat,
+        "avg_now": avg(latest_scores),
+        "avg_then": avg(first_scores),
+        "layer_now": {k: avg(v) for k, v in layer_now.items()},
+        "layer_then": {k: avg(v) for k, v in layer_first.items()},
+        "tracked": tracked,
+        "layer_meta": LAYER_META,
+    }
+
+
+def audits(session: Session, account: Account, limit: int = 80) -> dict:
+    """Every read ever run on this account, newest first."""
+    sites = {s.id: s for s in session.scalars(
+        select(Site).where(Site.account_id == account.id)).all()}
+    if not sites:
+        return {"rows": [], "counts": {}, "total": 0}
+
+    scans = session.scalars(
+        select(Scan).where(Scan.site_id.in_(list(sites)))
+        .order_by(Scan.created_at.desc()).limit(limit)
+    ).all()
+
+    counts = {"done": 0, "failed": 0, "queued": 0, "running": 0}
+    rows = []
+    for sc in scans:
+        counts[sc.status] = counts.get(sc.status, 0) + 1
+        site = sites.get(sc.site_id)
+        rows.append({
+            "scan": sc, "site_id": sc.site_id,
+            "hostname": site.hostname if site else "—",
+            "client": site.client_name if site else None,
+            "status": sc.status, "trigger": sc.trigger,
+            "pages": sc.pages_crawled, "score": sc.score,
+            "verdict": verdict(sc.score) if sc.score is not None else None,
+            "took": sc.duration_s(), "at": _aware(sc.created_at), "error": sc.error,
+        })
+    return {"rows": rows, "counts": counts, "total": len(scans)}

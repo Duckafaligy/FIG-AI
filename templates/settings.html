@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}Settings — {{ account.name }}{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <p class="eyebrow">Settings</p>
+    <h1>{{ account.name }}</h1>
+    <p>How this workspace is set up — who it belongs to, what it costs, and the keys
+      that let other software drive it.</p>
+  </div>
+</div>
+
+<div class="tabs">
+  <a href="/app/settings?tab=account" class="{{ 'on' if tab == 'account' }}">Account</a>
+  <a href="/app/settings?tab=billing" class="{{ 'on' if tab == 'billing' }}">Billing</a>
+  <a href="/app/settings?tab=api" class="{{ 'on' if tab == 'api' }}">API keys</a>
+</div>
+
+{% if message %}<div class="card" style="margin-bottom:16px"><p style="margin:0">{{ message }}</p></div>{% endif %}
+
+{# ---------------------------------------------------------------- account #}
+{% if tab == 'account' %}
+<div class="grid g2">
+  <div class="card">
+    <h3>Workspace</h3>
+    <form class="inline" method="post" action="/app/settings/account" style="margin-bottom:16px">
+      <input type="text" name="name" value="{{ account.name }}" required style="flex:1" maxlength="80">
+      <button class="btn" type="submit">Save</button>
+    </form>
+    <dl style="margin:0">
+      <div class="drow"><dt>Signed in as</dt>
+        <dd>{{ user.email if user else '—' }}
+          <small>Authentication runs through Supabase. The access token is verified
+            server-side and discarded; this browser holds a signed session cookie.</small></dd></div>
+      <div class="drow"><dt>Workspace type</dt>
+        <dd>{{ account.kind }}
+          <small>{% if account.kind == 'agency' %}An agency: your clients are sites here,
+            and never sign up themselves.{% else %}Direct: sites you own or manage
+            yourself.{% endif %}</small></dd></div>
+      <div class="drow"><dt>Slug</dt><dd class="mono">{{ account.slug }}</dd></div>
+      <div class="drow"><dt>Created</dt>
+        <dd>{{ account.created_at.strftime('%d %B %Y') if account.created_at else '—' }}</dd></div>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h3>White label</h3>
+    <p style="color:var(--muted);font-size:13.5px;line-height:1.6">
+      {% if account.white_label %}
+        On. Reports render as <b>{{ account.brand_name }}</b> with no FIG chrome anywhere
+        your client can see.
+      {% else %}
+        Off. Reports carry FIG branding. Agencies reselling this usually want their own
+        logo on the report their client reads &mdash;
+        <a href="/app/settings?tab=billing" style="border-bottom:1px solid var(--border-2)">it is
+        included</a>, not an enterprise add-on.
+      {% endif %}
+    </p>
+    <h3 style="margin-top:22px">Deleting things</h3>
+    <p style="color:var(--muted);font-size:13.5px;line-height:1.6;margin:0">
+      Removing a site deactivates it rather than erasing it &mdash; the read history is
+      what makes a before-and-after report possible. Billing stops either way. To have
+      the workspace and everything in it deleted, email
+      <a href="mailto:privacy@fig.tools" style="border-bottom:1px solid var(--border-2)">privacy@fig.tools</a>.
+    </p>
+  </div>
+</div>
+{% endif %}
+
+{# ---------------------------------------------------------------- billing #}
+{% if tab == 'billing' %}
+{% if quote.on_trial %}
+<div class="card" style="border-color:color-mix(in srgb,var(--warm) 38%,var(--border));
+     background:color-mix(in srgb,var(--warm) 7%,transparent);margin-bottom:16px">
+  <h3>Free week &middot; {{ quote.trial_days_left }} day{{ '' if quote.trial_days_left == 1 else 's' }} left</h3>
+  <p style="color:var(--muted);margin:0">No card is on file, so nothing starts billing on
+    its own. Subscribing before the week is out carries the remaining days over rather
+    than restarting or losing them.</p>
+</div>
+{% elif quote.trial_days_left == 0 and not account.stripe_subscription_id %}
+<div class="card" style="margin-bottom:16px">
+  <h3>Free week has ended</h3>
+  <p style="color:var(--muted);margin:0">Nothing was charged — there is no card on file.</p>
+</div>
+{% endif %}
+
+<div class="grid g2">
+  <div class="card">
+    <h3>Volume rate</h3>
+    <table class="tiers">
+      <thead><tr><th>From</th><th class="num">Per site / month</th><th class="num">At that size</th></tr></thead>
+      <tbody>
+      {% for t in quote.tiers %}
+      <tr class="{{ 'on' if t.current }}">
+        <td>{{ t.from_sites }} site{{ '' if t.from_sites == 1 else 's' }}</td>
+        <td class="num">${{ '%.2f'|format(t.cents_per_site / 100) }}</td>
+        <td class="num">${{ '%.0f'|format(t.from_sites * t.cents_per_site / 100) }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="note">Volume, not graduated: at 30 sites every site costs the 30-site rate,
+      rather than the first four costing more. The Stripe price is configured the same way,
+      so the invoice matches this table.</p>
+  </div>
+
+  <div>
+    <div class="stat" style="margin-bottom:12px">
+      <div class="n">${{ '%.2f'|format(quote.monthly_cents / 100) }}</div>
+      <div class="l">Per month</div>
+      <div class="s">{{ quote.billable_sites }} billable site{{ '' if quote.billable_sites == 1 else 's' }}
+        at ${{ '%.2f'|format(quote.cents_per_site / 100) }} each</div>
+    </div>
+    <div class="card">
+      <h3>Subscription</h3>
+      {% if quote.enabled %}
+        <p style="color:var(--muted);font-size:13.5px;line-height:1.6">
+          {% if account.stripe_subscription_id %}
+            Live subscription <span class="mono">{{ account.stripe_subscription_id }}</span>.
+            The quantity tracks the site count, so adding a site changes the invoice
+            without anyone re-signing.
+          {% else %}
+            Starting a subscription sets the quantity to
+            {{ [quote.billable_sites, quote.site_floor, 1]|max }}{% if quote.trial_days_left %},
+            with {{ quote.trial_days_left }} trial day{{ '' if quote.trial_days_left == 1 else 's' }}
+            carried over{% endif %}.
+          {% endif %}
+        </p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+          <form method="post" action="/app/billing/checkout"><button class="btn btn-solid" type="submit">
+            {{ 'Manage' if account.stripe_subscription_id else 'Start subscription' }}</button></form>
+          <form method="post" action="/app/billing/sync"><button class="btn" type="submit">Sync quantity</button></form>
+        </div>
+      {% else %}
+        <p style="color:var(--muted);font-size:13.5px;line-height:1.6;margin:0">
+          Billing is off. Set <span class="mono">STRIPE_SECRET_KEY</span> and
+          <span class="mono">STRIPE_PRICE_ID</span> in <span class="mono">.env</span>.
+          Nothing else in the product depends on it.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# -------------------------------------------------------------------- api #}
+{% if tab == 'api' %}
+{% if new_key %}
+<div class="card" style="border-color:color-mix(in srgb,var(--warm) 40%,var(--border));margin-bottom:16px">
+  <h3>Copy this now</h3>
+  <code class="key">{{ new_key }}</code>
+  <p class="note">Only a SHA-256 of the key is stored, so this is the one time it can be
+    shown. A database dump does not hand anyone working credentials.</p>
+</div>
+{% endif %}
+
+<div class="sec-h" style="margin-bottom:12px">
+  <h2>Keys</h2>
+  <form method="post" action="/app/keys"><button class="btn btn-solid" type="submit">Create a key</button></form>
+</div>
+
+{% if keys %}
+<div class="tw" style="margin-bottom:18px">
+<table>
+  <thead><tr><th>Label</th><th>Prefix</th><th>Created</th><th>Last used</th><th></th></tr></thead>
+  <tbody>
+  {% for k in keys %}
+  <tr>
+    <td>{{ k.label }}</td>
+    <td class="mono">fig_live_{{ k.prefix }}_…</td>
+    <td style="color:var(--muted)">{{ k.created_at.strftime('%d %b %Y') if k.created_at else '—' }}</td>
+    <td style="color:var(--muted)">{{ k.last_used_at.strftime('%d %b %Y, %H:%M') if k.last_used_at else 'never' }}</td>
+    <td class="num">
+      {% if not k.revoked %}
+      <form method="post" action="/app/keys/{{ k.id }}/revoke">
+        <button class="btn btn-sm" type="submit">Revoke</button></form>
+      {% else %}<span class="pill none">revoked</span>{% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="empty" style="margin-bottom:18px"><b>No keys yet</b>Create one to drive FIG from your own software.</div>
+{% endif %}
+
+<div class="card">
+  <h3>The calls a partner makes</h3>
+  <pre class="key" style="white-space:pre-wrap;line-height:1.7"># provision a site when their customer turns the feature on
+curl -X POST {{ public_url }}/v1/sites \
+  -H "X-API-Key: $FIG_KEY" -H "Content-Type: application/json" \
+  -d '{"hostname":"clientdomain.com","client_name":"Their Client Ltd"}'
+
+# audit it
+curl -X POST {{ public_url }}/v1/sites/$SITE_ID/scans -H "X-API-Key: $FIG_KEY"
+
+# pull the result into their own UI
+curl {{ public_url }}/v1/scans/$SCAN_ID -H "X-API-Key: $FIG_KEY"
+
+# or the whole estate as one report, worst first
+curl {{ public_url }}/v1/report -H "X-API-Key: $FIG_KEY"</pre>
+  <p class="note">Full schema at <a href="/docs" style="border-bottom:1px solid var(--border-2)">/docs</a>.</p>
+</div>
+{% endif %}
+{% endblock %}

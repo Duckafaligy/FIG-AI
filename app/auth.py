@@ -131,12 +131,14 @@ def _slug_for(email: str, session: Session) -> str:
     return slug
 
 
-def link_user(session: Session, supabase_user: dict) -> User:
+def link_user(session: Session, supabase_user: dict,
+               account_name: str | None = None) -> User:
     """Find or create our User row, and decide which Account it belongs to.
 
-    First sign-in by FIG_OWNER_EMAIL adopts the seeded account, so the estate
-    that is already there has an owner. Everyone else starts empty rather
-    than landing inside somebody else's client list.
+    A new person gets their own empty workspace, named by them at sign-up.
+    Nobody lands inside somebody else's client list -- the only exception is
+    FIG_OWNER_EMAIL, which adopts the seeded demo estate so it has an owner
+    rather than floating unattached.
     """
     uid = supabase_user["id"]
     email = (supabase_user.get("email") or "").strip().lower()
@@ -160,7 +162,8 @@ def link_user(session: Session, supabase_user: dict) -> User:
                 select(Account).where(Account.slug == config.DEMO_ACCOUNT_SLUG)).first()
         if account is None:
             account = Account(
-                name=email.split("@")[0].title() if email else "New account",
+                name=(account_name or "").strip()[:80]
+                     or (email.split("@")[0].title() if email else "New workspace"),
                 slug=_slug_for(email or uid, session),
                 kind="direct",
                 contact_email=email or None,

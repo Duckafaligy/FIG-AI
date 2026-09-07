@@ -25,9 +25,10 @@ DATABASE_URL = (os.environ.get("FIG_DATABASE_URL")
                 or SQLITE_URL)
 
 # --- auth -------------------------------------------------------------
-# While this is on, the dashboard opens straight onto the demo account with
-# no sign-in at all. Convenient locally; an open admin panel in public.
-DEV_NO_AUTH = os.environ.get("FIG_DEV_NO_AUTH", "1") == "1"
+# Off by default. Turning it on pins every request to the seeded demo account
+# with no sign-in -- useful for looking at the UI with data in it, and an open
+# admin panel if it ever reaches a public URL.
+DEV_NO_AUTH = os.environ.get("FIG_DEV_NO_AUTH", "0") == "1"
 DEMO_ACCOUNT_SLUG = "northgate"
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Full audits — {{ account.name }}{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <p class="eyebrow">Full audits</p>
+    <h1>{{ a.total }} read{{ '' if a.total == 1 else 's' }} on record</h1>
+    <p>Every audit run on this account. A read crawls the site, runs 18 checks across
+      four layers and writes a why and a fix for each finding — it is queued rather
+      than instant, so an estate of four hundred is a queue depth and not four hundred
+      long requests.</p>
+  </div>
+  <form class="inline" method="post" action="/app/scan-estate">
+    <button class="btn btn-solid" type="submit">Audit every site</button>
+  </form>
+</div>
+
+<div class="grid g4" style="margin-bottom:16px">
+  <div class="stat"><div class="n">{{ depth.queued }}</div><div class="l">Queued</div></div>
+  <div class="stat"><div class="n">{{ depth.running }}</div><div class="l">Running now</div>
+    <div class="s">one request per host at a time</div></div>
+  <div class="stat"><div class="n">{{ a.counts.get('done', 0) }}</div><div class="l">Completed</div></div>
+  <div class="stat"><div class="n" style="{{ 'color:var(--bad)' if a.counts.get('failed') }}">{{ a.counts.get('failed', 0) }}</div>
+    <div class="l">Failed</div><div class="s">retried up to 3 times</div></div>
+</div>
+
+{% if a.rows %}
+<div class="tw">
+  <table>
+    <thead><tr><th>Site</th><th>Status</th><th>Trigger</th><th class="num">Pages</th>
+      <th class="num">Score</th><th class="num">Took</th><th>When</th><th>Note</th></tr></thead>
+    <tbody>
+    {% for r in a.rows %}
+      <tr>
+        <td class="host"><a href="/app/sites/{{ r.site_id }}">{{ r.hostname }}</a>
+          {% if r.client %}<span>{{ r.client }}</span>{% endif %}</td>
+        <td><span class="pill {{ r.status if r.status in ('queued','running') else (r.verdict or 'none') }}">{{ r.status }}</span></td>
+        <td class="mono" style="color:var(--muted-2);font-size:11.5px">{{ r.trigger }}</td>
+        <td class="num">{{ r.pages }}</td>
+        <td class="num">{{ r.score if r.score is not none else '—' }}</td>
+        <td class="num">{{ '%.1fs'|format(r.took) if r.took else '—' }}</td>
+        <td style="color:var(--muted);white-space:nowrap">
+          {{ r.at.strftime('%d %b %H:%M') if r.at else '—' }}</td>
+        <td style="color:var(--muted-2);max-width:280px;font-size:12.5px">{{ r.error or '' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty">
+  <b>No audits yet</b>
+  Add a site and FIG will read it. <a href="/app/sites" style="color:var(--text)">Go to sites</a>.
+</div>
+{% endif %}
+
+<div class="sec">
+  <div class="card">
+    <h3>What one audit does</h3>
+    <div class="good" style="margin-top:12px">
+      <li><i>1</i><span>Checks <b>robots.txt</b> and looks for a sitemap, then reads
+        pages one request at a time</span></li>
+      <li><i>2</i><span>Extracts <b>structure</b> — sections in order, headings, links,
+        colours, schema, alt text</span></li>
+      <li><i>3</i><span>Runs <b>18 deterministic checks</b> across Craft, Structure,
+        Search and Answers</span></li>
+      <li><i>4</i><span>Writes a <b>why and a fix</b> for every finding, and scores
+        each layer 0–100</span></li>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+{% if depth.queued or depth.running %}setTimeout(function(){location.reload()}, 3500);{% endif %}
+{% endblock %}

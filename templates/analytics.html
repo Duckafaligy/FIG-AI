@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Analytics — {{ account.name }}{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <p class="eyebrow">Analytics</p>
+    <h1>Is this getting better?</h1>
+    <p>Movement over time rather than a snapshot. A single read tells you where a site
+      stands; this tells you which direction it is going, and only becomes meaningful
+      on the second read of a site.</p>
+  </div>
+</div>
+
+<div class="grid g4" style="margin-bottom:16px">
+  <div class="stat"><div class="n">{{ a.total_reads }}</div><div class="l">Reads run</div>
+    <div class="s">across {{ a.sites }} site{{ '' if a.sites == 1 else 's' }}</div></div>
+  <div class="stat"><div class="n">{{ a.with_history }}</div><div class="l">Tracked</div>
+    <div class="s">read more than once</div></div>
+  <div class="stat"><div class="n" style="color:var(--ok)">{{ a.improving }}</div><div class="l">Improving</div>
+    <div class="s">up since the first read</div></div>
+  <div class="stat"><div class="n" style="color:var(--bad)">{{ a.declining }}</div><div class="l">Declining</div>
+    <div class="s">down since the first read</div></div>
+</div>
+
+{% if a.with_history %}
+<div class="sec">
+  <div class="sec-h"><h2>Layer movement</h2>
+    <span class="hint">First read to latest, across every tracked site</span></div>
+  <div class="grid g4">
+    {% for key, label, sub in a.layer_meta %}
+    {% set then = a.layer_then[key] %}{% set now = a.layer_now[key] %}
+    <div class="stat">
+      <div class="n">{{ now if now is not none else '—' }}
+        {% if then is not none and now is not none and now != then %}
+        <span class="delta {{ 'up' if now > then else 'down' }}" style="font-size:13px">
+          {{ '+' if now > then }}{{ now - then }}</span>{% endif %}
+      </div>
+      <div class="l">{{ label }}</div>
+      <div class="s">{% if then is not none %}was {{ then }}{% else %}{{ sub }}{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-h"><h2>Every tracked site</h2>
+    <span class="hint">Biggest movement first</span></div>
+  <div class="tw"><table>
+    <thead><tr><th>Site</th><th class="num">Reads</th><th>Trend</th>
+      <th class="num">First</th><th class="num">Latest</th><th class="num">Change</th><th>Since</th></tr></thead>
+    <tbody>
+    {% for t in a.tracked %}
+      <tr>
+        <td class="host"><a href="/app/sites/{{ t.id }}">{{ t.hostname }}</a>
+          {% if t.client %}<span>{{ t.client }}</span>{% endif %}</td>
+        <td class="num">{{ t.reads }}</td>
+        <td style="width:120px">{% if t.spark %}
+          <svg class="spark" viewBox="0 0 104 26" preserveAspectRatio="none" aria-hidden="true">
+            <polyline points="{{ t.spark }}"></polyline></svg>{% endif %}</td>
+        <td class="num">{{ t.from }}</td>
+        <td class="num">{{ t.to }}</td>
+        <td class="num"><span class="delta {{ 'up' if t.change > 0 else ('down' if t.change < 0 else 'flat') }}">
+          {{ '+' if t.change > 0 }}{{ t.change }}</span></td>
+        <td style="color:var(--muted-2);font-family:var(--f-mono);font-size:11px">
+          {{ t.first_at.strftime('%d %b') if t.first_at else '—' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% else %}
+<div class="empty">
+  <b>Nothing to compare yet</b>
+  Every site has been read once. Direction needs a second read — run a full audit now
+  and this fills in, or turn on monitoring so it happens on a schedule.
+  <div style="margin-top:16px">
+    <form method="post" action="/app/scan-estate" style="display:inline">
+      <button class="btn btn-solid" type="submit">Run a full audit</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

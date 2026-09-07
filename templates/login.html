@@ -52,6 +52,11 @@ if(t==='light')document.documentElement.setAttribute('data-theme','light');}catc
       </div>
     {% else %}
     <form id="pw">
+      {% if mode == 'signup' %}
+      <label class="field"><span>Workspace name</span>
+        <input type="text" id="workspace" placeholder="Your company or agency"
+               autocomplete="organization"></label>
+      {% endif %}
       <label class="field"><span>Email</span>
         <input type="email" id="email" autocomplete="username" required placeholder="you@company.com"></label>
       <label class="field"><span>Password</span>
@@ -94,7 +99,10 @@ async function establish(session) {
   const r = await fetch('/auth/session', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ access_token: session.access_token }),
+    body: JSON.stringify({
+      access_token: session.access_token,
+      account_name: (document.getElementById('workspace') || {}).value || null,
+    }),
   });
   const body = await r.json().catch(() => ({}));
   if (!r.ok) { show(body.detail || 'Could not complete sign-in.', 'bad'); return; }

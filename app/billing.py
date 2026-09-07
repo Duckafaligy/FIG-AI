@@ -98,8 +98,8 @@ def checkout(account: Account = Depends(require_account),
         customer=customer_id,
         line_items=[{"price": config.STRIPE_PRICE_ID, "quantity": qty}],
         subscription_data=sub_data or None,
-        success_url=f"{config.PUBLIC_URL}/app/billing?checkout=done",
-        cancel_url=f"{config.PUBLIC_URL}/app/billing?checkout=cancelled",
+        success_url=f"{config.PUBLIC_URL}/app/settings?tab=billing&checkout=done",
+        cancel_url=f"{config.PUBLIC_URL}/app/settings?tab=billing&checkout=cancelled",
         metadata={"fig_account_id": account.id},
     )
     return {"url": s["url"], "quantity": qty, "trial_days": trial_left}
@@ -111,7 +111,7 @@ def portal(account: Account = Depends(require_account),
     stripe = _stripe()
     customer_id = ensure_customer(session, account)
     s = stripe.billing_portal.Session.create(
-        customer=customer_id, return_url=f"{config.PUBLIC_URL}/app/billing")
+        customer=customer_id, return_url=f"{config.PUBLIC_URL}/app/settings?tab=billing")
     return {"url": s["url"]}
 
 

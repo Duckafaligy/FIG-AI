@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}{{ v.label }} — {{ account.name }}{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <p class="eyebrow">{{ 'Search visibility' if v.layer == 'search' else 'Generative visibility' }}</p>
+    <h1>{% if v.layer == 'search' %}SEO{% else %}GEO &amp; answers{% endif %}</h1>
+    <p>
+      {% if v.layer == 'search' %}
+        What a crawler can actually reach and understand: titles, descriptions,
+        canonicals, language, alt text and internal links. The mechanics of being
+        found at all.
+      {% else %}
+        What a model has to work with when it is asked about you: structured data,
+        plainly-worded questions with direct answers, and concrete specifics it can
+        quote with confidence. A site can rank well and still be unquotable.
+      {% endif %}
+    </p>
+  </div>
+</div>
+
+{% if not v.sites %}
+<div class="empty"><b>Nothing read yet</b>This fills in once a site has been audited.</div>
+{% else %}
+
+<div class="hero-row">
+  <div class="donut" style="--v:{{ v.average }}"><b>{{ v.average }}</b><span>{{ v.label }} average</span></div>
+  <div class="hero-side">
+    <div>
+      <h2>{{ v.clean_sites }} of {{ v.sites }} site{{ '' if v.sites == 1 else 's' }} clean on this layer</h2>
+      <p>{{ v.failing|length }} distinct problem{{ '' if v.failing|length == 1 else 's' }} across the estate,
+        and {{ v.passing|length }} check{{ '' if v.passing|length == 1 else 's' }} passing everywhere.</p>
+    </div>
+    {% if v.best %}
+    <div>
+      <p style="font-family:var(--f-mono);font-size:9.5px;letter-spacing:.15em;
+                text-transform:uppercase;color:var(--muted-2);margin:0 0 8px">Strongest</p>
+      <div class="lchips" style="flex-wrap:wrap;gap:6px">
+        {% for b in v.best %}
+        <a href="/app/sites/{{ b.id }}" class="lchip" style="width:auto;padding:4px 9px">
+          {{ b.hostname }} {{ b.layers[v.layer] }}</a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if v.passing %}
+<div class="sec">
+  <div class="sec-h"><h2>Already working</h2>
+    <span class="hint">Clean on every site read &mdash; worth protecting</span></div>
+  <ul class="good">
+    {% for p in v.passing %}<li><i>&check;</i><span><b>{{ p.label }}</b></span></li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if v.failing %}
+<div class="sec">
+  <div class="sec-h"><h2>Needs work</h2>
+    <span class="hint">Ranked by severity &times; sites affected</span></div>
+  <div class="todo">
+    {% for c in v.failing %}
+    <a class="todo-item" href="/app/findings?check={{ c.check }}">
+      <span class="todo-rank">{{ loop.index }}</span>
+      <span class="todo-b">
+        <b>{{ c.label }}</b>
+        <span class="sev {{ c.severity }}" style="margin-left:8px">{{ c.severity }}</span>
+        <p>{{ c.fix or c.why }}</p>
+      </span>
+      <span class="todo-meta"><span class="n">{{ c.sites }}</span>
+        <span class="l">site{{ '' if c.sites == 1 else 's' }}</span></span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="sec">
+  <div class="sec-h"><h2>Weakest on this layer</h2></div>
+  <div class="tw"><table>
+    <thead><tr><th>Site</th><th class="num">{{ v.label }}</th><th class="num">Overall</th><th>Top finding</th></tr></thead>
+    <tbody>
+    {% for r in v.worst %}
+      <tr>
+        <td class="host"><a href="/app/sites/{{ r.id }}">{{ r.hostname }}</a>
+          {% if r.client %}<span>{{ r.client }}</span>{% endif %}</td>
+        <td class="num"><span class="lchip {{ 'low' if r.layers[v.layer] < 55 else ('mid' if r.layers[v.layer] < 80 else '') }}">{{ r.layers[v.layer] }}</span></td>
+        <td class="num">{{ r.score }}</td>
+        <td style="color:var(--muted);max-width:340px">{{ r.top.summary if r.top else '—' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<div class="sec">
+  <div class="card">
+    <h3>{{ 'What this layer measures' if v.layer == 'search' else 'Why this is the half people miss' }}</h3>
+    <p style="color:var(--muted);font-size:13.5px;line-height:1.65;margin:0">
+      {% if v.layer == 'search' %}
+        These are the mechanics, not the content. A missing title or an unreachable page
+        costs you regardless of how good the writing is &mdash; and unlike the craft layer,
+        every one of these has an unambiguous right answer.
+      {% else %}
+        Ranking gets you listed. Being quotable gets you repeated. Models answer questions,
+        so the pages that get used are the ones already carrying a plainly-worded question,
+        a direct answer, and a specific number or name. A page of adjectives has to be
+        paraphrased, and paraphrase loses you.
+      {% endif %}
+    </p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

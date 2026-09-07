@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Overview — {{ account.name }}{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <p class="eyebrow">Overview</p>
+    <h1>{{ account.name }}</h1>
+    <p>{{ e.sites }} site{{ '' if e.sites == 1 else 's' }},
+      {{ e.scanned }} read across four layers &mdash; how it reads, what sits where,
+      what a crawler reaches, and what a model can quote.</p>
+  </div>
+  <form class="inline" method="post" action="/app/scan-estate">
+    <button class="btn btn-solid" type="submit">Run a full audit</button>
+  </form>
+</div>
+
+{% if not e.scanned %}
+<div class="empty">
+  <b>Nothing read yet</b>
+  Add a site and FIG will crawl it, score it across four layers, and tell you what to change.
+  <div style="margin-top:16px"><a class="btn btn-solid" href="/app/sites">Add your first site</a></div>
+</div>
+{% else %}
+
+<div class="hero-row">
+  <div class="donut" style="--v:{{ e.average }}"><b>{{ e.average }}</b><span>Estate average</span></div>
+  <div class="hero-side">
+    <div>
+      <h2>{{ e.buckets.clean }} of {{ e.sites }} site{{ '' if e.sites == 1 else 's' }} scoring 80 or better</h2>
+      <p>{% if e.weakest %}{{ e.weakest_label }} is the layer holding the estate back, averaging
+        {{ e.layer_avg[e.weakest] }}. {% endif %}
+        {% if e.buckets.fix %}{{ e.buckets.fix }} site{{ '' if e.buckets.fix == 1 else 's' }} need work.{% endif %}</p>
+    </div>
+    <div>
+      <div class="dist">
+        {% for k in ['clean','check','fix','none'] %}
+          {% if e.buckets[k] %}<i class="{{ k }}" style="width:{{ (e.buckets[k] / e.sites * 100)|round(1) }}%"></i>{% endif %}
+        {% endfor %}
+      </div>
+      <div class="dist-key">
+        <span><em class="clean"></em>{{ e.buckets.clean }} clean</span>
+        <span><em class="check"></em>{{ e.buckets.check }} check</span>
+        <span><em class="fix"></em>{{ e.buckets.fix }} fix</span>
+        {% if e.buckets.none %}<span><em class="none"></em>{{ e.buckets.none }} unread</span>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="grid g4" style="margin-bottom:14px">
+  {% for key, label, sub in e.layer_meta %}
+  {% set href = '/app/seo' if key == 'search' else ('/app/geo' if key == 'answers' else '/app/findings') %}
+  <a class="stat" href="{{ href }}" style="display:block">
+    <div class="n">{{ e.layer_avg[key] if e.layer_avg[key] is not none else '—' }}</div>
+    <div class="l">{{ label }}</div>
+    <div class="s">{{ sub }}</div>
+    <div class="bar" style="margin-top:10px"><div class="track">
+      <div class="fill" style="width:{{ e.layer_avg[key] or 0 }}%"></div></div></div>
+  </a>
+  {% endfor %}
+</div>
+
+{% if e.common %}
+<div class="sec">
+  <div class="sec-h">
+    <h2>Do this first</h2>
+    <span class="hint">Ranked by how bad it is &times; how many sites have it</span>
+    <a class="more" href="/app/findings">Every finding &rarr;</a>
+  </div>
+  <div class="todo">
+    {% for c in e.common[:4] %}
+    <a class="todo-item" href="/app/findings?check={{ c.check }}">
+      <span class="todo-rank">{{ loop.index }}</span>
+      <span class="todo-b">
+        <b>{{ c.label }}</b>
+        <span class="sev {{ c.severity }}" style="margin-left:8px">{{ c.severity }}</span>
+        <span class="where" style="margin-left:8px">{{ c.layer_label }}</span>
+        <p>{{ c.fix or c.why }}</p>
+      </span>
+      <span class="todo-meta"><span class="n">{{ c.sites }}</span>
+        <span class="l">site{{ '' if c.sites == 1 else 's' }}</span></span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if e.movers %}
+<div class="sec">
+  <div class="sec-h"><h2>Moved since the last read</h2>
+    <a class="more" href="/app/analytics">Analytics &rarr;</a></div>
+  <div class="tw"><table><tbody>
+    {% for m in e.movers %}
+    <tr>
+      <td class="host"><a href="/app/sites/{{ m.id }}">{{ m.hostname }}</a>
+        {% if m.client %}<span>{{ m.client }}</span>{% endif %}</td>
+      <td class="num">{{ m.score }}</td>
+      <td class="num" style="width:90px">
+        <span class="delta {{ 'up' if m.delta > 0 else 'down' }}">{{ '+' if m.delta > 0 }}{{ m.delta }}</span></td>
+    </tr>
+    {% endfor %}
+  </tbody></table></div>
+</div>
+{% endif %}
+
+<div class="sec">
+  <div class="sec-h"><h2>Worst five</h2><a class="more" href="/app/sites">All {{ e.sites }} sites &rarr;</a></div>
+  <div class="tw"><table>
+    <thead><tr><th>Site</th><th>Verdict</th><th class="num">Score</th>
+      <th>C · S · E · A</th><th>Top finding</th></tr></thead>
+    <tbody>
+    {% for r in e.rows[:5] %}
+      <tr>
+        <td class="host"><a href="/app/sites/{{ r.id }}">{{ r.hostname }}</a>
+          {% if r.client %}<span>{{ r.client }}</span>{% endif %}</td>
+        <td>{% if r.verdict %}<span class="pill {{ r.verdict }}">{{ r.verdict }}</span>
+            {% else %}<span class="pill none">not read</span>{% endif %}</td>
+        <td class="num">{{ r.score if r.score is not none else '—' }}</td>
+        <td>{% if r.layers %}<span class="lchips">
+          {% for k in ['craft','structure','search','answers'] %}{% set v = r.layers[k] %}
+          <span class="lchip {{ 'low' if v is not none and v < 55 else ('mid' if v is not none and v < 80 else '') }}">{{ v if v is not none else '—' }}</span>
+          {% endfor %}</span>{% else %}—{% endif %}</td>
+        <td style="color:var(--muted);max-width:320px">{{ r.top.summary if r.top else '—' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
+
+{% if e.pending %}
+<p class="note">{{ e.pending }} read{{ '' if e.pending == 1 else 's' }} in progress — this page refreshes itself.</p>
+{% endif %}
+{% endblock %}
+
+{% block script %}
+{% if e.pending %}setTimeout(function(){location.reload()}, 5000);{% endif %}
+{% endblock %}
