@@ -1,0 +1,18 @@
+fastapi
+uvicorn[standard]
+beautifulsoup4
+lxml                 # the XML parser sitemap discovery uses
+requests
+sqlalchemy
+jinja2
+python-multipart     # form posts from the dashboard
+anthropic            # only used by app/ai_explain.py
+supabase             # Auth, not yet wired up
+psycopg2-binary      # only needed when DATABASE_URL points at Postgres
+python-dotenv
+dnspython
+stripe               # billing; the app boots and runs without it
+
+# Planned per the tech stack in CLAUDE.md, not yet imported by any module:
+# apscheduler   # scheduled Watch jobs
+# resend        # verification instructions + Watch alert emails

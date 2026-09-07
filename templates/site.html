@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}{{ site.hostname }} — {{ account.name }}{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <p class="eyebrow"><a href="/app" style="color:inherit">Estate</a> / {{ site.hostname }}</p>
+    <h1>{{ site.label or site.hostname }}</h1>
+    <p>
+      {% if site.client_name %}Delivered for {{ site.client_name }}. {% endif %}
+      {% if scan %}Last read {{ scan.pages_crawled }} page{{ '' if scan.pages_crawled == 1 else 's' }}
+        {% if scan.finished_at %}on {{ scan.finished_at.strftime('%d %b %Y, %H:%M') }}{% endif %}.
+      {% else %}This site has not been read yet.{% endif %}
+    </p>
+  </div>
+  <form class="inline" method="post" action="/app/sites/{{ site.id }}/scan">
+    <button class="btn btn-solid" type="submit">Read again</button>
+  </form>
+</div>
+
+{% if not scan %}
+  <div class="empty">
+    <b>{{ 'A read is in progress' if pending else 'Nothing read yet' }}</b>
+    {{ 'This page will refresh when it lands.' if pending else 'Press “Read again” to queue one.' }}
+  </div>
+{% else %}
+
+<div class="grid g2" style="margin-bottom:18px">
+  <div class="card">
+    <h3>Layers</h3>
+    <div class="bars">
+      {% for key, label, sub in layer_meta %}
+      <div class="bar">
+        <div class="t"><span>{{ label }}</span><b>{{ scores[key] if scores[key] is not none else '—' }}</b></div>
+        <div class="track"><div class="fill" style="width:{{ scores[key] or 0 }}%"></div></div>
+        <div class="sub">{{ sub }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="stat">
+    <div class="n">{{ scan.score }}</div>
+    <div class="l">Overall</div>
+    <div class="s" style="margin-top:10px">
+      <span class="pill {{ verdict }}">{{ verdict }}</span>
+      <span style="margin-left:8px">{{ findings|length }} finding{{ '' if findings|length == 1 else 's' }}</span>
+    </div>
+  </div>
+</div>
+
+{% if page_flow %}
+<div class="card" style="margin-bottom:18px">
+  <h3>Section order on {{ page_flow.path }}</h3>
+  <div class="flow">
+    {% for r in page_flow.roles %}
+      <b class="{{ 'bad' if loop.index0 in page_flow.flagged else '' }}">{{ r }}</b>
+      {% if not loop.last %}<i>→</i>{% endif %}
+    {% endfor %}
+  </div>
+  <p class="note">Roles are inferred from what is in each block — a price token, a form,
+    a run of list items, a heading that names itself. A block marked in red is one the
+    order check flagged.</p>
+</div>
+{% endif %}
+
+{% for key, label, sub in layer_meta %}
+  {% set group = grouped[key] %}
+  <div class="layerhead">
+    <h2>{{ label }}</h2>
+    <span class="c">{{ sub }} · {{ group|length }} finding{{ '' if group|length == 1 else 's' }}</span>
+  </div>
+  {% if group %}
+    {% for f in group %}
+    <div class="finding">
+      <div class="fh">
+        <b>{{ f.check.replace('_', ' ') }}</b>
+        <span class="sev {{ f.severity }}">{{ f.severity }}</span>
+        {% if f.page_url %}<span class="where">{{ f.page_url }}</span>{% endif %}
+        {% if f.ai_written %}<span class="where">explained</span>{% endif %}
+      </div>
+      <p class="why">{{ f.summary }}</p>
+      {% if f.why %}<p class="why">{{ f.why }}</p>{% endif %}
+      {% if f.evidence %}
+      <ul class="ev">{% for e in f.evidence[:6] %}<li>{{ e }}</li>{% endfor %}</ul>
+      {% endif %}
+      {% if f.fix %}<p class="fix"><span>fix</span>{{ f.fix }}</p>{% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">Nothing flagged on this layer.</div>
+  {% endif %}
+{% endfor %}
+
+{% if pages %}
+<div class="layerhead"><h2>Pages read</h2><span class="c">{{ pages|length }}</span></div>
+<div class="tw">
+<table>
+  <thead><tr><th>Path</th><th>Title</th><th class="num">Status</th><th class="num">Words</th><th>Sections</th></tr></thead>
+  <tbody>
+  {% for p in pages %}
+    <tr>
+      <td class="mono">{{ p.path }}</td>
+      <td style="color:var(--muted);max-width:320px">{{ p.title or '—' }}</td>
+      <td class="num">{{ p.status_code or '—' }}</td>
+      <td class="num">{{ p.word_count }}</td>
+      <td class="mono" style="font-size:11px;color:var(--muted-2);max-width:360px">
+        {{ (p.section_roles or [])|join(' → ') }}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% endif %}
+
+{% if pending %}<p class="note">A read is queued or running — this page refreshes itself.</p>{% endif %}
+{% endblock %}
+
+{% block script %}
+{% if pending %}setTimeout(function(){location.reload()}, 4000);{% endif %}
+{% endblock %}

@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Estate — {{ account.name }}{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <p class="eyebrow">Estate</p>
+    <h1>{{ report.sites }} site{{ '' if report.sites == 1 else 's' }} under {{ account.name }}</h1>
+    <p>Worst first. Each row is one site, read across four layers — how it
+      reads, what sits where, what a crawler reaches, and what a model can
+      quote. Nothing here says a page “is” anything; it says what a pattern
+      is and what to change.</p>
+  </div>
+  <form class="inline" method="post" action="/app/scan-estate">
+    <button class="btn btn-solid" type="submit">Re-read all {{ report.sites }}</button>
+  </form>
+</div>
+
+<div class="grid g4" style="margin-bottom:16px">
+  <div class="stat">
+    <div class="n">{{ report.average_score if report.average_score is not none else '—' }}</div>
+    <div class="l">Average score</div>
+    <div class="s">{{ report.scanned }} of {{ report.sites }} read</div>
+  </div>
+  <div class="stat">
+    <div class="n">{{ counts.fix }}</div>
+    <div class="l">Need work</div>
+    <div class="s">scoring under 55</div>
+  </div>
+  <div class="stat">
+    <div class="n">{{ counts.clean }}</div>
+    <div class="l">Clean</div>
+    <div class="s">scoring 80 or above</div>
+  </div>
+  <div class="stat">
+    <div class="n">{{ '%.2f'|format(quote.monthly_cents / 100) }}</div>
+    <div class="l">Monthly, USD</div>
+    <div class="s">{{ report.sites }} × ${{ '%.2f'|format(quote.cents_per_site / 100) }} per site</div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:16px">
+  <h3>Add a site</h3>
+  <form class="inline" method="post" action="/app/sites">
+    <input type="text" name="hostname" placeholder="clientdomain.com" required style="flex:1">
+    <input type="text" name="client_name" placeholder="Client name (appears on their report)" style="flex:1">
+    <button class="btn" type="submit">Add and read</button>
+  </form>
+  <p class="note">Provisioning is the same call a partner makes from their own product:
+    <span class="mono">POST /v1/sites</span>. Billing follows the site count, not the seat count.</p>
+</div>
+
+{% if report.rows %}
+<div class="tw">
+<table>
+  <thead><tr>
+    <th>Site</th><th>Verdict</th><th class="num">Score</th>
+    <th class="num">Craft</th><th class="num">Structure</th>
+    <th class="num">Search</th><th class="num">Answers</th>
+    <th class="num">Pages</th><th>Top finding</th><th></th>
+  </tr></thead>
+  <tbody>
+  {% for r in report.rows %}
+    <tr>
+      <td class="host">
+        <a href="/app/sites/{{ r.site_id }}">{{ r.hostname }}</a>
+        {% if r.client %}<span>{{ r.client }}</span>{% endif %}
+      </td>
+      <td>
+        {% if r.verdict %}<span class="pill {{ r.verdict }}">{{ r.verdict }}</span>
+        {% else %}<span class="pill none">not read</span>{% endif %}
+      </td>
+      <td class="num">{{ r.score if r.score is not none else '—' }}</td>
+      <td class="num">{{ r.layers.craft if r.layers else '—' }}</td>
+      <td class="num">{{ r.layers.structure if r.layers else '—' }}</td>
+      <td class="num">{{ r.layers.search if r.layers else '—' }}</td>
+      <td class="num">{{ r.layers.answers if r.layers else '—' }}</td>
+      <td class="num">{{ r.pages }}</td>
+      <td style="color:var(--muted);max-width:340px">
+        {{ r.top_findings[0].summary if r.top_findings else '—' }}
+      </td>
+      <td class="num">
+        <form method="post" action="/app/sites/{{ r.site_id }}/scan">
+          <button class="btn btn-sm" type="submit">Re-read</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="empty"><b>No sites yet</b>Add one above, or POST to /v1/sites with your API key.</div>
+{% endif %}
+
+{% if queue.queued or queue.running %}
+<p class="note">{{ queue.queued }} queued · {{ queue.running }} running — this page refreshes itself while work is outstanding.</p>
+{% endif %}
+{% endblock %}
+
+{% block script %}
+{% if queue.queued or queue.running %}
+setTimeout(function(){location.reload()}, 4000);
+{% endif %}
+{% endblock %}

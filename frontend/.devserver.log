@@ -1,0 +1,17 @@
+
+> tellcheck-landing@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+
+ ✓ Starting...
+ ✓ Ready in 1148ms
+ ○ Compiling / ...
+ ✓ Compiled / in 2.7s (1249 modules)
+ GET / 200 in 2873ms
+ GET / 200 in 61ms
+ GET / 200 in 52ms
+ ✓ Compiled in 289ms (1231 modules)
+ ✓ Compiled in 181ms (1231 modules)
+ GET / 200 in 113ms

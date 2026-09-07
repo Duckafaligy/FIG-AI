@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0a0a0a;
+  --surface: #141414;
+  --border: #222222;
+  --text: #ededec;
+  --text-muted: #6b6b6b;
+  --accent: #e05a33;
+  /* Muted amber — used ONLY for medium-confidence bars, exactly as the spec
+     permits ("--accent for high, a muted amber for medium"). Nowhere else. */
+  --amber: #a8803c;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-page px-6;
+  }
+  .section {
+    @apply py-20 md:py-[120px];
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Type scale — the ONLY sizes allowed. Reduced at <768px per spec.    */
+/* ------------------------------------------------------------------ */
+.text-hero {
+  font-size: 36px;
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.text-section {
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.text-sub {
+  font-size: 20px;
+  line-height: 1.4;
+}
+.text-body {
+  font-size: 16px;
+  line-height: 1.6;
+}
+.text-small {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.text-monolabel {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+@media (min-width: 768px) {
+  .text-hero {
+    font-size: 56px;
+  }
+  .text-section {
+    font-size: 32px;
+  }
+}
+
+::selection {
+  background: rgba(224, 90, 51, 0.25);
+  color: var(--text);
+}

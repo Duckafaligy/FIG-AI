@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FIG Demo &mdash; read your own site for AI slop</title>
+<meta name="description" content="One free read per device. FIG looks at the patterns that make a page read as machine-made — the copy, the type scale, the palette, the layout habits — and explains each one.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+/* applied before first paint so a saved light theme never flashes dark */
+(function(){try{
+  var t=localStorage.getItem('fig_theme');
+  if(!t){var m=document.cookie.match(/(?:^|; )fig_theme=([^;]*)/);t=m?decodeURIComponent(m[1]):null;}
+  if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches)t='light';
+  if(t==='light')document.documentElement.setAttribute('data-theme','light');
+}catch(e){}})();
+</script>
+<link rel="stylesheet" href="styles.css?v=1788750048">
+<link rel="stylesheet" href="demo.css?v=1788750048">
+<script src="device.js?v=1788750048" defer></script>
+</head>
+<body class="demo-body">
+
+<nav class="nav" id="nav">
+  <div class="nav-pill" id="navPill">
+    <a class="brand" href="index.html">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">FIG</span>
+    </a>
+    <span class="nav-sep" aria-hidden="true"></span>
+    <div class="nav-links">
+      <a href="index.html#catches">What it catches</a>
+      <a href="index.html#pricing">Pricing</a>
+      <a href="demo.html" class="nav-demo on">Demo</a>
+    </div>
+    <a class="btn21 btn21-solid btn21-sm" href="index.html#pricing"><span>See Plans</span></a>
+  </div>
+</nav>
+
+<main class="dm">
+  <header class="wrap dm-head">
+    <p class="dm-eyebrow mono">Free demo &middot; one read per device</p>
+    <h1 class="dm-title">Is your site written for people, or assembled?</h1>
+    <p class="dm-sub">
+      This is the educational half of FIG. It looks at the patterns that make a page
+      read as machine-made &mdash; the copy, the type scale, the palette, the layout
+      habits &mdash; and for each one it tells you what the pattern is, why it lands
+      flat, and what to change. No score without a reason.
+    </p>
+
+    <form class="dm-form" id="demoForm" autocomplete="off">
+      <span class="dm-scheme mono">https://</span>
+      <input id="demoUrl" class="dm-input" type="text" placeholder="yourdomain.com"
+             aria-label="The site to read" spellcheck="false">
+      <button class="btn21 btn21-solid dm-btn" id="demoBtn" type="submit"><span>Read this site</span></button>
+    </form>
+
+    <div class="dm-gate" id="demoGate" hidden>
+      <p class="dm-gate-t" id="demoGateText">This device has already used its free scan.</p>
+      <p class="dm-gate-s">The free read is one per device so it stays free. A plan lifts the limit
+        and adds the model side &mdash; what ChatGPT and Claude actually say about you.</p>
+      <div class="dm-gate-act">
+        <a class="btn21 btn21-solid" href="index.html#pricing"><span>See Plans</span></a>
+        <button class="btn21" id="demoReset" type="button"><span>Run another (dev)</span></button>
+      </div>
+    </div>
+
+    <p class="dm-device mono">this device: <span id="demoDevice">&mdash;</span></p>
+  </header>
+
+  <section class="wrap dm-stage" id="demoStage" hidden>
+    <div class="dm-grid">
+      <aside class="dm-side">
+        <div class="dm-scorebox">
+          <div class="dm-ring" id="demoRing" style="--v:0">
+            <span class="dm-score" id="demoScore">0</span>
+            <span class="dm-score-l mono">craft score</span>
+          </div>
+          <p class="dm-target mono" id="demoTarget">&mdash;</p>
+          <p class="dm-count" id="demoCount">&mdash;</p>
+        </div>
+        <div class="dm-logbox">
+          <div class="dm-log-h mono">read log</div>
+          <div class="dm-log mono" id="demoLog"></div>
+        </div>
+      </aside>
+
+      <div class="dm-main">
+        <div class="dm-main-h">
+          <h2>What stood out</h2>
+          <span class="dm-note mono">patterns, not verdicts</span>
+        </div>
+        <ul class="dm-findings" id="demoFindings"></ul>
+
+        <div class="dm-lesson" id="demoLesson" hidden>
+          <h3>Why this is worth knowing</h3>
+          <p>None of these patterns prove anything about how a page was made, and FIG
+            will never tell you a page &ldquo;is&rdquo; AI-written &mdash; detectors that
+            claim to do that are wrong often enough to ruin someone's week. What they do
+            show is where a page stopped making decisions. Every one of them is a choice
+            somebody skipped, and every one is yours to take back.</p>
+          <p class="dm-lesson-2">The same habits that make a page feel generic to a reader
+            also make it thin to a model: nothing specific to quote, nothing distinctive to
+            remember. Fixing them is the same work either way.</p>
+          <div class="dm-lesson-links">
+            <a href="index.html#catches">See what a full audit checks</a>
+            <a href="index.html#plans-detail">Compare plans</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer dm-footer">
+  <div class="wrap foot-bar">
+    <span class="mono foot-left">&copy; 2026 FIG &middot; Built for people who publish on the web</span>
+    <span class="foot-right">
+      <a href="index.html">Home</a><i>&middot;</i><a href="#">Privacy</a><i>&middot;</i><a href="#">Cookies</a>
+    </span>
+  </div>
+</footer>
+
+<script src="demo.js?v=1788750048" defer></script>
+<div class="theme-switch" role="group" aria-label="Colour theme">
+  <button class="ts-btn" type="button" data-theme-set="dark" aria-pressed="true" title="Dark">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+    <span class="sr-only">Dark</span>
+  </button>
+  <button class="ts-btn" type="button" data-theme-set="light" aria-pressed="false" title="Light">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>
+    <span class="sr-only">Light</span>
+  </button>
+</div>
+</body>
+</html>

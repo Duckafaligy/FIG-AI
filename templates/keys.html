@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}API keys — {{ account.name }}{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <p class="eyebrow">API keys</p>
+    <h1>Keys for {{ account.name }}</h1>
+    <p>The API is the primary interface — the dashboard is the first thing built on it.
+      A partner adds a site, triggers a read and pulls the result from inside their own
+      product, so their customer never leaves it.</p>
+  </div>
+  <form method="post" action="/app/keys">
+    <button class="btn btn-solid" type="submit">Create a key</button>
+  </form>
+</div>
+
+{% if new_key %}
+<div class="card" style="border-color:color-mix(in srgb,var(--warm) 40%,var(--border));margin-bottom:16px">
+  <h3>Copy this now</h3>
+  <code class="key">{{ new_key }}</code>
+  <p class="note">Only a SHA-256 of the key is stored, so this is the one time it can be shown.
+    A database dump does not hand anyone working credentials.</p>
+</div>
+{% endif %}
+
+{% if keys %}
+<div class="tw" style="margin-bottom:18px">
+<table>
+  <thead><tr><th>Label</th><th>Prefix</th><th>Created</th><th>Last used</th><th></th></tr></thead>
+  <tbody>
+  {% for k in keys %}
+  <tr>
+    <td>{{ k.label }}</td>
+    <td class="mono">fig_live_{{ k.prefix }}_…</td>
+    <td style="color:var(--muted)">{{ k.created_at.strftime('%d %b %Y') if k.created_at else '—' }}</td>
+    <td style="color:var(--muted)">{{ k.last_used_at.strftime('%d %b %Y, %H:%M') if k.last_used_at else 'never' }}</td>
+    <td class="num">
+      {% if not k.revoked %}
+      <form method="post" action="/app/keys/{{ k.id }}/revoke">
+        <button class="btn btn-sm" type="submit">Revoke</button>
+      </form>
+      {% else %}<span class="pill none">revoked</span>{% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="empty"><b>No keys yet</b>Create one to call the API from outside this dashboard.</div>
+{% endif %}
+
+<div class="card">
+  <h3>The calls a partner makes</h3>
+  <pre class="key" style="white-space:pre-wrap;line-height:1.7"># provision a site when their customer turns the feature on
+curl -X POST {{ public_url }}/v1/sites \
+  -H "X-API-Key: $FIG_KEY" -H "Content-Type: application/json" \
+  -d '{"hostname":"clientdomain.com","client_name":"Their Client Ltd"}'
+
+# read it
+curl -X POST {{ public_url }}/v1/sites/$SITE_ID/scans -H "X-API-Key: $FIG_KEY"
+
+# pull the result into their own UI
+curl {{ public_url }}/v1/scans/$SCAN_ID -H "X-API-Key: $FIG_KEY"
+
+# or the whole estate as one report, worst first
+curl {{ public_url }}/v1/report -H "X-API-Key: $FIG_KEY"</pre>
+  <p class="note">Full schema at <a href="/docs" style="border-bottom:1px solid var(--border-2)">/docs</a>.</p>
+</div>
+{% endblock %}
