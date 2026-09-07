@@ -9,8 +9,10 @@
     <p>
       {% if site.client_name %}Delivered for {{ site.client_name }}. {% endif %}
       {% if scan %}Last read {{ scan.pages_crawled }} page{{ '' if scan.pages_crawled == 1 else 's' }}
-        {% if scan.finished_at %}on {{ scan.finished_at.strftime('%d %b %Y, %H:%M') }}{% endif %}.
+        {% if scan.finished_at %}on {{ scan.finished_at.strftime('%d %b %Y, %H:%M') }}{% endif %}{% if scan.duration_s() %},
+        in {{ '%.0f'|format(scan.duration_s()) }}s{% endif %}.
       {% else %}This site has not been read yet.{% endif %}
+      {% if history|length > 1 %} {{ history|length }} reads on record.{% endif %}
     </p>
   </div>
   <form class="inline" method="post" action="/app/sites/{{ site.id }}/scan">
@@ -25,91 +27,168 @@
   </div>
 {% else %}
 
-<div class="grid g2" style="margin-bottom:18px">
-  <div class="card">
-    <h3>Layers</h3>
+<div class="hero-row">
+  <div class="donut" style="--v:{{ scan.score }}"><b>{{ scan.score }}</b><span>{{ verdict }}</span></div>
+  <div class="hero-side">
     <div class="bars">
       {% for key, label, sub in layer_meta %}
       <div class="bar">
-        <div class="t"><span>{{ label }}</span><b>{{ scores[key] if scores[key] is not none else '—' }}</b></div>
+        <div class="t"><span>{{ label }}</span>
+          <b>{{ scores[key] if scores[key] is not none else '—' }}{% if delta and delta.layers[key] %}
+            <span class="delta {{ 'up' if delta.layers[key] > 0 else 'down' }}"
+              style="font-size:11px">{{ '+' if delta.layers[key] > 0 }}{{ delta.layers[key] }}</span>{% endif %}</b>
+        </div>
         <div class="track"><div class="fill" style="width:{{ scores[key] or 0 }}%"></div></div>
         <div class="sub">{{ sub }}</div>
       </div>
       {% endfor %}
     </div>
-  </div>
-  <div class="stat">
-    <div class="n">{{ scan.score }}</div>
-    <div class="l">Overall</div>
-    <div class="s" style="margin-top:10px">
-      <span class="pill {{ verdict }}">{{ verdict }}</span>
-      <span style="margin-left:8px">{{ findings|length }} finding{{ '' if findings|length == 1 else 's' }}</span>
+    {% if spark %}
+    <div>
+      <svg class="spark" viewBox="0 0 104 26" preserveAspectRatio="none" style="width:100%;height:34px"
+           aria-label="Score across the last {{ history|length }} reads">
+        <polyline points="{{ spark }}"></polyline>
+      </svg>
+      <p style="margin-top:6px;font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;
+                text-transform:uppercase;color:var(--muted-2)">
+        {{ history|length }} reads · {{ history[0].score }} &rarr; {{ history[-1].score }}
+      </p>
     </div>
+    {% endif %}
   </div>
 </div>
 
-{% if page_flow %}
-<div class="card" style="margin-bottom:18px">
-  <h3>Section order on {{ page_flow.path }}</h3>
-  <div class="flow">
-    {% for r in page_flow.roles %}
-      <b class="{{ 'bad' if loop.index0 in page_flow.flagged else '' }}">{{ r }}</b>
-      {% if not loop.last %}<i>→</i>{% endif %}
-    {% endfor %}
+{% if delta %}
+<div class="sec">
+  <div class="sec-h">
+    <h2>Since the last read</h2>
+    <span class="hint">
+      {{ delta.from_score }} &rarr; {{ delta.to_score }}
+      <span class="delta {{ 'up' if delta.change > 0 else ('down' if delta.change < 0 else 'flat') }}">
+        {{ '+' if delta.change > 0 }}{{ delta.change }}</span>
+      {% if delta.since %} · since {{ delta.since.strftime('%d %b') }}{% endif %}
+    </span>
   </div>
-  <p class="note">Roles are inferred from what is in each block — a price token, a form,
-    a run of list items, a heading that names itself. A block marked in red is one the
-    order check flagged.</p>
+  <div class="changes">
+    <div class="chg gone">
+      <h4>Gone ({{ delta.fixed|length }})</h4>
+      {% if delta.fixed %}
+      <ul>{% for f in delta.fixed[:8] %}
+        <li><i>&minus;</i><span>{{ f.check.replace('_',' ') }}{% if f.page_url %} · {{ f.page_url }}{% endif %}</span></li>
+      {% endfor %}</ul>
+      {% else %}<p class="none">Nothing was fixed between these two reads.</p>{% endif %}
+    </div>
+    <div class="chg came">
+      <h4>New ({{ delta.new|length }})</h4>
+      {% if delta.new %}
+      <ul>{% for f in delta.new[:8] %}
+        <li><i>+</i><span>{{ f.check.replace('_',' ') }}{% if f.page_url %} · {{ f.page_url }}{% endif %}</span></li>
+      {% endfor %}</ul>
+      {% else %}<p class="none">Nothing new turned up.</p>{% endif %}
+    </div>
+  </div>
 </div>
 {% endif %}
 
-{% for key, label, sub in layer_meta %}
-  {% set group = grouped[key] %}
-  <div class="layerhead">
-    <h2>{{ label }}</h2>
-    <span class="c">{{ sub }} · {{ group|length }} finding{{ '' if group|length == 1 else 's' }}</span>
-  </div>
-  {% if group %}
-    {% for f in group %}
-    <div class="finding">
-      <div class="fh">
-        <b>{{ f.check.replace('_', ' ') }}</b>
-        <span class="sev {{ f.severity }}">{{ f.severity }}</span>
-        {% if f.page_url %}<span class="where">{{ f.page_url }}</span>{% endif %}
-        {% if f.ai_written %}<span class="where">explained</span>{% endif %}
-      </div>
-      <p class="why">{{ f.summary }}</p>
-      {% if f.why %}<p class="why">{{ f.why }}</p>{% endif %}
-      {% if f.evidence %}
-      <ul class="ev">{% for e in f.evidence[:6] %}<li>{{ e }}</li>{% endfor %}</ul>
-      {% endif %}
-      {% if f.fix %}<p class="fix"><span>fix</span>{{ f.fix }}</p>{% endif %}
+{% if page_flow %}
+<div class="sec">
+  <div class="sec-h"><h2>Section order on {{ page_flow.path }}</h2>
+    <span class="hint">Inferred from what is in each block</span></div>
+  <div class="card">
+    <div class="flow">
+      {% for r in page_flow.roles %}
+        <b class="{{ 'bad' if loop.index0 in page_flow.flagged else '' }}">{{ r }}</b>
+        {% if not loop.last %}<i>&rarr;</i>{% endif %}
+      {% endfor %}
     </div>
-    {% endfor %}
-  {% else %}
-    <div class="empty">Nothing flagged on this layer.</div>
-  {% endif %}
-{% endfor %}
+    <p class="note">A price token, a form, a run of list items, a heading that names itself.
+      A block marked in red is one the order check flagged.</p>
+  </div>
+</div>
+{% endif %}
+
+<div class="sec">
+  <div class="sec-h">
+    <h2>{{ findings|length }} finding{{ '' if findings|length == 1 else 's' }}</h2>
+    <span class="hint">Highest severity first, within each layer</span>
+  </div>
+
+  {% for key, label, sub in layer_meta %}
+    {% set group = grouped[key] %}
+    <div class="layerhead">
+      <h2>{{ label }}</h2>
+      <span class="c">{{ sub }} · {{ scores[key] if scores[key] is not none else '—' }}/100 ·
+        {{ group|length }} finding{{ '' if group|length == 1 else 's' }}</span>
+    </div>
+    {% if group %}
+      {% for f in group %}
+      <div class="finding">
+        <div class="fh">
+          <b>{{ f.check.replace('_', ' ') }}</b>
+          <span class="sev {{ f.severity }}">{{ f.severity }}</span>
+          {% if f.page_url %}<span class="where">{{ f.page_url }}</span>{% endif %}
+          {% if f.ai_written %}<span class="where">explained</span>{% endif %}
+        </div>
+        <p class="why">{{ f.summary }}</p>
+        {% if f.why %}<p class="why">{{ f.why }}</p>{% endif %}
+        {% if f.evidence %}
+        <ul class="ev">{% for e in f.evidence[:6] %}<li>{{ e }}</li>{% endfor %}</ul>
+        {% endif %}
+        {% if f.fix %}<p class="fix"><span>fix</span>{{ f.fix }}</p>{% endif %}
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty">Nothing flagged on this layer.</div>
+    {% endif %}
+  {% endfor %}
+</div>
 
 {% if pages %}
-<div class="layerhead"><h2>Pages read</h2><span class="c">{{ pages|length }}</span></div>
-<div class="tw">
-<table>
-  <thead><tr><th>Path</th><th>Title</th><th class="num">Status</th><th class="num">Words</th><th>Sections</th></tr></thead>
-  <tbody>
-  {% for p in pages %}
-    <tr>
-      <td class="mono">{{ p.path }}</td>
-      <td style="color:var(--muted);max-width:320px">{{ p.title or '—' }}</td>
-      <td class="num">{{ p.status_code or '—' }}</td>
-      <td class="num">{{ p.word_count }}</td>
-      <td class="mono" style="font-size:11px;color:var(--muted-2);max-width:360px">
-        {{ (p.section_roles or [])|join(' → ') }}
-      </td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+<div class="sec">
+  <div class="sec-h"><h2>Pages read</h2><span class="hint">{{ pages|length }} of {{ scan.pages_requested }} requested</span></div>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Path</th><th>Title</th><th class="num">Status</th><th class="num">Words</th><th>Section order</th></tr></thead>
+    <tbody>
+    {% for p in pages %}
+      <tr>
+        <td class="mono">{{ p.path }}</td>
+        <td style="color:var(--muted);max-width:300px">{{ p.title or '—' }}</td>
+        <td class="num">{{ p.status_code or '—' }}</td>
+        <td class="num {{ 'delta down' if p.word_count < 120 else '' }}">{{ p.word_count }}</td>
+        <td class="mono" style="font-size:11px;color:var(--muted-2);max-width:340px">
+          {{ (p.section_roles or [])|join(' → ') }}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+{% if history|length > 1 %}
+<div class="sec">
+  <div class="sec-h"><h2>Read history</h2></div>
+  <div class="tw">
+  <table>
+    <thead><tr><th>When</th><th class="num">Score</th><th class="num">Craft</th><th class="num">Structure</th>
+      <th class="num">Search</th><th class="num">Answers</th><th class="num">Pages</th></tr></thead>
+    <tbody>
+    {% for h in history|reverse %}
+      <tr>
+        <td>{{ h.at.strftime('%d %b %Y, %H:%M') if h.at else '—' }}</td>
+        <td class="num">{{ h.score }}</td>
+        <td class="num">{{ h.layers.craft }}</td>
+        <td class="num">{{ h.layers.structure }}</td>
+        <td class="num">{{ h.layers.search }}</td>
+        <td class="num">{{ h.layers.answers }}</td>
+        <td class="num">{{ h.pages }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
 </div>
 {% endif %}
 

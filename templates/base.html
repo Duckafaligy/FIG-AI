@@ -31,6 +31,7 @@ if(t==='light')document.documentElement.setAttribute('data-theme','light');}catc
   <a class="brand" href="/app"><i></i>{{ brand }}</a>
   <nav class="nav">
     <a href="/app" class="{% if page == 'estate' %}on{% endif %}">Estate</a>
+    <a href="/app/findings" class="{% if page == 'findings' %}on{% endif %}">Findings</a>
     <a href="/app/queue" class="{% if page == 'queue' %}on{% endif %}">Queue</a>
     <a href="/app/keys" class="{% if page == 'keys' %}on{% endif %}">API keys</a>
     <a href="/app/billing" class="{% if page == 'billing' %}on{% endif %}">Billing</a>

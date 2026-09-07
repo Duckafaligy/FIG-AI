@@ -18,13 +18,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import config
-from app.api import estate_report, hostname_of
+from app.api import hostname_of
 from app.auth import (current_account, end_session, link_user, mint_key,
                       session_user, start_session, verify_access_token)
 from app.billing import price_quote, sync_quantity
 from app.db import get_session
 from app.jobs import enqueue_estate, enqueue_scan, queue_depth
 from app.models import Account, ApiKey, Page, Scan, Site
+from app import reporting
 from app.rules.scoring import LAYER_LABEL, LAYER_SUB, verdict
 
 router = APIRouter(tags=["dashboard"])
@@ -66,15 +67,21 @@ def _ctx(request: Request, session: Session, account: Account, page: str) -> dic
 @router.get("/app")
 def estate(request: Request, session: Session = Depends(get_session)):
     account = _account(request, session)
-    report = estate_report(account=account, session=session)
-    counts = {"clean": 0, "check": 0, "fix": 0, "none": 0}
-    for row in report["rows"]:
-        counts[row["verdict"] or "none"] = counts.get(row["verdict"] or "none", 0) + 1
-
     ctx = _ctx(request, session, account, "estate")
-    ctx.update(report=report, counts=counts, queue=queue_depth(session),
-               quote=price_quote(max(account.billable_sites(), 1)))
+    ctx.update(e=reporting.estate(session, account), queue=queue_depth(session))
     return templates.TemplateResponse("estate.html", ctx)
+
+
+@router.get("/app/findings")
+def findings_view(request: Request, session: Session = Depends(get_session),
+                  check: str = ""):
+    """Grouped by what is wrong rather than by which site has it — an estate
+    is fixed one problem at a time, not one site at a time."""
+    account = _account(request, session)
+    ctx = _ctx(request, session, account, "findings")
+    ctx.update(f=reporting.findings_across(session, account, check or None),
+               layer_meta=reporting.LAYER_META)
+    return templates.TemplateResponse("findings.html", ctx)
 
 
 @router.post("/app/sites")
@@ -161,10 +168,13 @@ def site_detail(site_id: str, request: Request, session: Session = Depends(get_s
                     taken.add(role)
             page_flow = {"path": home.path, "roles": home.section_roles, "flagged": flagged}
 
+    history = reporting.site_history(site)
     ctx = _ctx(request, session, account, "estate")
     ctx.update(site=site, scan=scan, pending=pending, findings=findings,
                grouped=grouped, scores=scores, pages=pages, page_flow=page_flow,
-               layer_meta=LAYER_META,
+               layer_meta=LAYER_META, history=history,
+               spark=reporting.sparkline([h["score"] for h in history]),
+               delta=reporting.site_delta(site),
                verdict=verdict(scan.score) if scan and scan.score is not None else None)
     return templates.TemplateResponse("site.html", ctx)
 

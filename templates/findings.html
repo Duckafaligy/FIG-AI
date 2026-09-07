@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Findings — {{ account.name }}{% endblock %}
+
+{% block body %}
+<div class="head">
+  <div>
+    <p class="eyebrow">Findings</p>
+    <h1>{{ f.total }} finding{{ '' if f.total == 1 else 's' }} across the estate</h1>
+    <p>Grouped by what is wrong rather than by which site has it. Nobody fixes an estate
+      one site at a time — they fix one problem everywhere it appears, and this is the
+      list to work down.</p>
+  </div>
+  {% if f.selected %}
+  <a class="btn" href="/app/findings">Show everything</a>
+  {% endif %}
+</div>
+
+{% if f.groups %}
+<div class="filters">
+  <input type="text" id="fq" placeholder="Filter findings…" autocomplete="off">
+  <button class="chip on" data-layer="all" type="button">All layers</button>
+  {% for key, label, sub in layer_meta %}
+  <button class="chip" data-layer="{{ key }}" type="button">{{ label }}</button>
+  {% endfor %}
+</div>
+
+<div id="fgroups">
+{% for g in f.groups %}
+<details class="fgroup" data-layer="{{ g.layer }}"
+         data-name="{{ (g.label ~ ' ' ~ g.layer_label)|lower }}"
+         {% if f.selected or loop.index <= 2 %}open{% endif %}>
+  <summary>
+    <span>
+      <b>{{ g.label }}</b>
+      <span class="sev {{ g.severity }}" style="margin-left:9px">{{ g.severity }}</span>
+      <span class="where" style="margin-left:8px">{{ g.layer_label }}</span>
+      <span class="sub">{{ g.why or g.fix }}</span>
+    </span>
+    <span class="cnt">{{ g.site_count }} site{{ '' if g.site_count == 1 else 's' }} ·
+      {{ g.instances|length }} occurrence{{ '' if g.instances|length == 1 else 's' }}</span>
+  </summary>
+  <div class="inner">
+    {% if g.fix %}<p class="fix"><span>fix</span>{{ g.fix }}</p>{% endif %}
+    <ul class="hits">
+      {% for i in g.instances[:40] %}
+      <li>
+        <span>
+          <a href="/app/sites/{{ i.site_id }}">{{ i.hostname }}</a>
+          {% if i.page %}<span class="pg">{{ i.page }}</span>{% endif %}
+        </span>
+        <span>{{ i.summary }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if g.instances|length > 40 %}
+    <p class="note">and {{ g.instances|length - 40 }} more</p>
+    {% endif %}
+  </div>
+</details>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty">
+  <b>Nothing to show yet</b>
+  Findings appear here once at least one site has been read.
+  <a href="/app" style="color:var(--text)">Go to the estate</a>.
+</div>
+{% endif %}
+{% endblock %}
+
+{% block script %}
+(function () {
+  var q = document.getElementById('fq');
+  var groups = [].slice.call(document.querySelectorAll('.fgroup'));
+  var layer = 'all';
+  function apply() {
+    var term = (q ? q.value : '').trim().toLowerCase();
+    groups.forEach(function (g) {
+      var okName = !term || g.dataset.name.indexOf(term) !== -1;
+      var okLayer = layer === 'all' || g.dataset.layer === layer;
+      g.style.display = (okName && okLayer) ? '' : 'none';
+    });
+  }
+  if (q) q.addEventListener('input', apply);
+  document.querySelectorAll('[data-layer]').forEach(function (b) {
+    if (!b.classList.contains('chip')) return;
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.chip[data-layer]').forEach(function (o) { o.classList.remove('on'); });
+      b.classList.add('on');
+      layer = b.dataset.layer;
+      apply();
+    });
+  });
+})();
+{% endblock %}
