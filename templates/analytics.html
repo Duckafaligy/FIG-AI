@@ -24,6 +24,12 @@
 </div>
 
 {% if a.with_history %}
+{% if c %}
+<div class="sec">
+  {% with chart_title = 'Estate average over time' %}{% include "parts/chart.html" %}{% endwith %}
+</div>
+{% endif %}
+
 <div class="sec">
   <div class="sec-h"><h2>Layer movement</h2>
     <span class="hint">First read to latest, across every tracked site</span></div>
@@ -81,4 +87,25 @@
   </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block script %}
+(function () {
+  var wrap = document.querySelector('.chart-wrap');
+  var tip = document.getElementById('chartTip');
+  if (!wrap || !tip) return;
+  var svg = wrap.querySelector('.chart');
+  wrap.querySelectorAll('.dot-hit').forEach(function (d) {
+    d.addEventListener('mouseenter', function () {
+      var box = svg.getBoundingClientRect();
+      var scale = box.width / svg.viewBox.baseVal.width;
+      tip.innerHTML = '<b>' + d.dataset.score + '</b> · ' +
+        (d.dataset.pages || '?') + ' pages<span>' + d.dataset.when + '</span>';
+      tip.style.left = (svg.offsetLeft + (+d.getAttribute('cx')) * scale) + 'px';
+      tip.style.top  = (svg.offsetTop  + (+d.getAttribute('cy')) * scale) + 'px';
+      tip.classList.add('on');
+    });
+    d.addEventListener('mouseleave', function () { tip.classList.remove('on'); });
+  });
+})();
 {% endblock %}

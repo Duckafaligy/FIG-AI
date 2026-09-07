@@ -112,3 +112,44 @@ table.pr-tiers td:nth-child(2),table.pr-tiers td:nth-child(3){font-family:var(--
   color:var(--text);white-space:nowrap}
 table.pr-tiers td:nth-child(4){color:var(--muted-2);font-size:13px}
 table.pr-tiers td:first-child{font-family:var(--f-mono)}
+
+/* ---- pricing cards ---- */
+.pr-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:6px 0 26px}
+.pr-card{position:relative;display:flex;flex-direction:column;padding:26px 24px;
+  border-radius:12px;border:1px solid var(--border);background:var(--bg-2)}
+.pr-best{border-color:color-mix(in srgb,var(--warm) 46%,var(--border));
+  box-shadow:0 1px 2px rgb(9 12 18 / .2),0 14px 40px rgb(9 12 18 / .18)}
+.pr-flag{position:absolute;top:-9px;left:24px;padding:3px 10px;border-radius:9999px;
+  font-family:var(--f-mono);font-size:9px;letter-spacing:.13em;text-transform:uppercase;
+  background:var(--warm);color:#12151b;font-weight:500}
+.pr-k{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.17em;text-transform:uppercase;
+  color:var(--muted-2)}
+.pr-p{display:flex;align-items:baseline;gap:8px;margin-top:12px}
+.pr-p b{font-family:var(--f-display);font-size:38px;font-weight:800;letter-spacing:-.045em;
+  line-height:1;color:var(--text)}
+.pr-p span{font-size:12.5px;color:var(--muted-2)}
+.pr-for{font-size:13.5px;line-height:1.55;color:var(--muted);margin:12px 0 0;min-height:38px}
+.pr-cta{display:block;margin-top:18px;padding:11px 16px;border-radius:8px;text-align:center;
+  border:1px solid var(--border-2);color:var(--text);font-size:14px;font-weight:600;
+  transition:background .18s,border-color .18s,transform .18s}
+.pr-cta:hover{background:var(--surface-2);transform:translateY(-1px);border-color:var(--border-2)}
+.pr-cta-solid{background:var(--pure);color:var(--on-accent);border-color:transparent}
+.pr-cta-solid:hover{background:var(--pure);filter:brightness(.93)}
+.pr-list{list-style:none;margin:20px 0 0;padding:18px 0 0;border-top:1px solid var(--border);
+  display:flex;flex-direction:column;gap:9px}
+.pr-list li{position:relative;padding-left:20px;font-size:13.5px;line-height:1.55;color:var(--muted)}
+.pr-list li:before{content:"";position:absolute;left:2px;top:7px;width:8px;height:4px;
+  border-left:1.6px solid var(--ok);border-bottom:1.6px solid var(--ok);
+  transform:rotate(-45deg)}
+.pr-list li b{color:var(--text);font-weight:600}
+.pr-note{font-size:13px;color:var(--muted-2);text-align:center;margin:0 0 30px}
+@media (max-width:860px){ .pr-cards{grid-template-columns:1fr} .pr-for{min-height:0} }
+
+/* .pg-body a sets a link colour for the whole article, which beat .pr-cta-solid
+   on specificity and left white text on a white button. */
+.pg-body .pr-cta{border-bottom:0}
+.pg-body .pr-cta-solid{color:var(--on-accent)}
+.pg-body .pr-cta:hover{border-color:var(--border-2)}
+.pg-body .pr-cta-solid:hover{border-color:transparent}
+.pr-p{flex-wrap:wrap}
+.pr-p b{white-space:nowrap}

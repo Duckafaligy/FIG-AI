@@ -109,7 +109,8 @@ def geo_view(request: Request, session: Session = Depends(get_session)):
 def analytics_view(request: Request, session: Session = Depends(get_session)):
     account = _account(request, session)
     ctx = _ctx(request, session, account, "analytics")
-    ctx.update(a=reporting.analytics(session, account))
+    a = reporting.analytics(session, account)
+    ctx.update(a=a, c=reporting.chart(a["estate_series"]) if a.get("estate_series") else None)
     return templates.TemplateResponse("analytics.html", ctx)
 
 
@@ -223,6 +224,7 @@ def site_detail(site_id: str, request: Request, session: Session = Depends(get_s
                grouped=grouped, scores=scores, pages=pages, page_flow=page_flow,
                layer_meta=LAYER_META, history=history,
                spark=reporting.sparkline([h["score"] for h in history]),
+               c=reporting.chart(history),
                delta=reporting.site_delta(site),
                verdict=verdict(scan.score) if scan and scan.score is not None else None)
     return templates.TemplateResponse("site.html", ctx)
@@ -329,6 +331,7 @@ def login_page(request: Request, session: Session = Depends(get_session)):
         "request": request,
         "mode": "signin",
         "auth_ready": config.AUTH_READY,
+        "site_url": config.MARKETING_URL,
         "supabase_url": config.SUPABASE_URL,
         # public by design; the service-role key never reaches a browser
         "supabase_anon_key": config.SUPABASE_ANON_KEY,
@@ -361,6 +364,7 @@ def signup_page(request: Request, session: Session = Depends(get_session)):
         "request": request,
         "mode": "signup",
         "auth_ready": config.AUTH_READY,
+        "site_url": config.MARKETING_URL,
         "supabase_url": config.SUPABASE_URL,
         "supabase_anon_key": config.SUPABASE_ANON_KEY,
     })

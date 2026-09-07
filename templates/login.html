@@ -3,84 +3,137 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ 'Create an account' if mode == 'signup' else 'Sign in' }} — FIG</title>
+<title>{{ 'Sign up' if mode == 'signup' else 'Sign in' }} — FIG</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script>
 (function(){try{var t=localStorage.getItem('fig_theme');
-if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches)t='light';
-if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();
+if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();
 </script>
-<link rel="stylesheet" href="/static/dash.css">
-<style>
-  .signin{min-height:100vh;display:grid;place-items:center;padding:24px}
-  .signin-card{width:min(400px,100%);border:1px solid var(--border);border-radius:var(--r-lg);
-    background:var(--surface);padding:30px}
-  .signin-card .brand{margin-bottom:22px}
-  .signin-card h1{font-size:21px;margin-bottom:7px}
-  .signin-card p.sub{color:var(--muted);font-size:13.5px;margin-bottom:22px}
-  .field{display:block;margin-bottom:12px}
-  .field span{display:block;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.15em;
-    text-transform:uppercase;color:var(--muted-2);margin-bottom:6px}
-  .field input{width:100%}
-  .signin-card .btn{width:100%;justify-content:center;margin-top:6px}
-  .alt{display:flex;align-items:center;gap:10px;margin:18px 0 14px;color:var(--muted-2);
-    font-family:var(--f-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase}
-  .alt:before,.alt:after{content:"";flex:1;height:1px;background:var(--border)}
-  .msg{margin-top:16px;padding:11px 13px;border-radius:var(--r-sm);font-size:13px;
-    border:1px solid var(--border-2);display:none}
-  .msg.on{display:block}
-  .msg.bad{border-color:color-mix(in srgb,var(--bad) 45%,transparent);color:var(--bad)}
-  .msg.ok{border-color:color-mix(in srgb,var(--ok) 45%,transparent);color:var(--ok)}
-  .foot{margin-top:20px;font-size:11.5px;color:var(--muted-2);line-height:1.6}
-</style>
+<link rel="stylesheet" href="/static/auth.css?v=1">
 </head>
 <body>
-<div class="signin">
-  <div class="signin-card">
-    <div class="brand"><i></i>FIG</div>
-    <h1>{{ 'Create an account' if mode == 'signup' else 'Sign in' }}</h1>
-    <p class="sub">{{ 'One read of your site, across four layers, with the exact change to make.'
-       if mode == 'signup' else 'Your sites, and what to change about them.' }}</p>
+<main class="auth">
 
-    {% if not auth_ready %}
-      <div class="msg bad on">
-        Supabase Auth is not configured. Set <span class="mono">SUPABASE_URL</span> and
-        <span class="mono">SUPABASE_ANON_KEY</span> in <span class="mono">.env</span>.
-      </div>
-    {% else %}
-    <form id="pw">
+  <section class="auth-form">
+    <div class="auth-top">
+      <a class="logo" href="/"><i></i>FIG</a>
+      <a class="back" href="{{ site_url }}">&larr; Back to site</a>
+    </div>
+
+    <div class="auth-box">
       {% if mode == 'signup' %}
-      <label class="field"><span>Workspace name</span>
-        <input type="text" id="workspace" placeholder="Your company or agency"
-               autocomplete="organization"></label>
-      {% endif %}
-      <label class="field"><span>Email</span>
-        <input type="email" id="email" autocomplete="username" required placeholder="you@company.com"></label>
-      <label class="field"><span>Password</span>
-        <input type="password" id="password" autocomplete="current-password" placeholder="••••••••"></label>
-      <button class="btn btn-solid" type="submit" id="go">{{ "Create account" if mode == "signup" else "Sign in" }}</button>
-    </form>
-
-    <div class="alt">or</div>
-    <button class="btn" type="button" id="magic">Email me a sign-in link</button>
-
-    <div class="msg" id="msg"></div>
-
-    <p class="foot">
-      {% if mode == 'signup' %}
-        Already have an account? <a href="/login" style="color:var(--text);border-bottom:1px solid var(--border-2)">Sign in</a>.
-        By creating one you agree to the <a href="/terms" style="color:var(--text)">terms</a>
-        and <a href="/privacy" style="color:var(--text)">privacy policy</a>.
+        <h1>Sign up &mdash; try FIG for <em>free</em></h1>
+        <p class="sub">Seven days. No credit card.</p>
       {% else %}
-        No account yet? <a href="/signup" style="color:var(--text);border-bottom:1px solid var(--border-2)">Create one</a>.
+        <h1>Welcome back</h1>
+        <p class="sub">Your sites, and what to change about them.</p>
       {% endif %}
-    </p>
-    {% endif %}
-  </div>
-</div>
+
+      {% if not auth_ready %}
+        <div class="msg bad on">
+          Supabase Auth is not configured. Set <code>SUPABASE_URL</code> and
+          <code>SUPABASE_ANON_KEY</code> in <code>.env</code>.
+        </div>
+      {% else %}
+
+      <button class="oauth" type="button" id="google">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.5-5.2 3.5-8.8Z"/>
+          <path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.9-3a7.2 7.2 0 0 1-10.7-3.8h-4v3.1A12 12 0 0 0 12 24Z"/>
+          <path fill="#FBBC05" d="M5.3 14.3a7.1 7.1 0 0 1 0-4.6v-3.1h-4a12 12 0 0 0 0 10.8l4-3.1Z"/>
+          <path fill="#EA4335" d="M12 4.8c1.8 0 3.4.6 4.6 1.8l3.5-3.5A12 12 0 0 0 1.3 6.6l4 3.1A7.2 7.2 0 0 1 12 4.8Z"/>
+        </svg>
+        Continue with Google
+      </button>
+
+      <div class="or">OR</div>
+
+      <form id="pw" autocomplete="on">
+        {% if mode == 'signup' %}
+        <label class="field"><span>Workspace name</span>
+          <input type="text" id="workspace" placeholder="Your company or agency"
+                 autocomplete="organization">
+          <span class="hint">What this account is called. You can change it later.</span>
+        </label>
+        {% endif %}
+
+        <label class="field"><span>Email</span>
+          <input type="email" id="email" placeholder="Email address" required
+                 autocomplete="username">
+        </label>
+
+        <label class="field"><span>Password</span>
+          <span class="pw-wrap">
+            <input type="password" id="password" placeholder="Password"
+                   autocomplete="{{ 'new-password' if mode == 'signup' else 'current-password' }}"
+                   {% if mode == 'signup' %}minlength="8"{% endif %}>
+            <button class="pw-eye" type="button" id="peek" aria-label="Show password">
+              <svg viewBox="0 0 24 24"><path d="M1.5 12S5 5.5 12 5.5 22.5 12 22.5 12 19 18.5 12 18.5 1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </span>
+          {% if mode == 'signup' %}<span class="hint">At least 8 characters.</span>{% endif %}
+        </label>
+
+        <button class="submit" type="submit" id="go">
+          {{ 'Start free' if mode == 'signup' else 'Log in' }}</button>
+      </form>
+
+      <div class="msg" id="msg"></div>
+
+      <p class="swap">
+        {% if mode == 'signup' %}
+          Already have an account? <a href="/login">Log in</a>
+        {% else %}
+          New here? <a href="/signup">Create an account</a>
+          &middot; <a href="#" id="magic">email me a link</a>
+        {% endif %}
+      </p>
+
+      {% if mode == 'signup' %}
+      <p class="legal">By creating an account you agree to the
+        <a href="{{ site_url }}/terms.html">terms</a> and
+        <a href="{{ site_url }}/privacy.html">privacy policy</a>.</p>
+      {% endif %}
+      {% endif %}
+    </div>
+  </section>
+
+  <aside class="auth-side">
+    <div>
+      <h2>{{ 'Find out what a crawler and a model actually see.' if mode == 'signup'
+             else 'Pick up where you left off.' }}</h2>
+      <p class="lead">FIG reads your site across four layers and tells you what to change
+        about each finding &mdash; not just a number.</p>
+    </div>
+
+    <div class="mini" aria-hidden="true">
+      <div class="mini-top"><span>Audit &middot; yourdomain.com</span><span>6 pages</span></div>
+      <div class="mini-score"><b>62</b><span>check &middot; 27 findings</span></div>
+      <div class="mini-bars">
+        <div class="mini-bar"><span>Craft</span><i><em style="width:64%"></em></i></div>
+        <div class="mini-bar"><span>Struct</span><i><em style="width:76%"></em></i></div>
+        <div class="mini-bar"><span>Search</span><i><em style="width:86%"></em></i></div>
+        <div class="mini-bar"><span>Answers</span><i><em style="width:13%"></em></i></div>
+      </div>
+      <div class="mini-find">
+        <b>Pricing sits above the section that justifies it</b>
+        The page asks for a decision before it has made the case for one.
+      </div>
+    </div>
+
+    <ul class="auth-points">
+      <li><svg viewBox="0 0 24 24"><path d="m4 12.5 5 5L20 6.5"/></svg>
+        Seven days free, no card taken</li>
+      <li><svg viewBox="0 0 24 24"><path d="m4 12.5 5 5L20 6.5"/></svg>
+        Every finding comes with a why and a fix</li>
+      <li><svg viewBox="0 0 24 24"><path d="m4 12.5 5 5L20 6.5"/></svg>
+        Patterns, never a verdict about who wrote it</li>
+    </ul>
+  </aside>
+</main>
 
 {% if auth_ready %}
 <script type="module">
@@ -91,10 +144,10 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const MODE = {{ mode | tojson }};
 const sb = createClient({{ supabase_url | tojson }}, {{ supabase_anon_key | tojson }});
 const msg = document.getElementById('msg');
-const show = (text, kind) => { msg.textContent = text; msg.className = 'msg on ' + kind; };
+const show = (t, k) => { msg.textContent = t; msg.className = 'msg on ' + (k || 'info'); };
 
-// Hand the access token to our backend exactly once. It verifies with
-// Supabase and sets its own HttpOnly cookie; the token is never stored here.
+// Hand the access token to our backend exactly once. It verifies with Supabase
+// and sets its own HttpOnly cookie; the token is never stored here.
 async function establish(session) {
   const r = await fetch('/auth/session', {
     method: 'POST',
@@ -110,26 +163,43 @@ async function establish(session) {
   location.href = body.next || '/app';
 }
 
+document.getElementById('peek').addEventListener('click', function () {
+  const i = document.getElementById('password');
+  i.type = i.type === 'password' ? 'text' : 'password';
+  this.setAttribute('aria-label', i.type === 'password' ? 'Show password' : 'Hide password');
+});
+
+document.getElementById('google').addEventListener('click', async () => {
+  show('Redirecting to Google…');
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: location.origin + '/login' },
+  });
+  // Google has to be switched on in the Supabase project first; say that
+  // rather than leaving the button looking broken.
+  if (error) show(error.message + ' — enable Google in Supabase → Authentication → Providers.', 'bad');
+});
+
 document.getElementById('pw').addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = document.getElementById('go');
-  btn.disabled = true; show('Checking…', '');
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
+  if (!password) { show('Enter a password, or use Google.', 'bad'); return; }
+  btn.disabled = true; show(MODE === 'signup' ? 'Creating your account…' : 'Checking…');
   const { data, error } = MODE === 'signup'
     ? await sb.auth.signUp({ email, password })
     : await sb.auth.signInWithPassword({ email, password });
   btn.disabled = false;
   if (error) { show(error.message, 'bad'); return; }
-  // Projects that require email confirmation return a user with no session.
-  if (!data.session) {
-    show('Account created. Check your email to confirm it, then sign in.', 'ok');
-    return;
-  }
+  // Projects requiring email confirmation return a user with no session.
+  if (!data.session) { show('Account created. Check your email to confirm it, then log in.', 'ok'); return; }
   await establish(data.session);
 });
 
-document.getElementById('magic').addEventListener('click', async () => {
+const magic = document.getElementById('magic');
+if (magic) magic.addEventListener('click', async (e) => {
+  e.preventDefault();
   const email = document.getElementById('email').value.trim();
   if (!email) { show('Enter your email first.', 'bad'); return; }
   const { error } = await sb.auth.signInWithOtp({
@@ -138,9 +208,9 @@ document.getElementById('magic').addEventListener('click', async () => {
   show(error ? error.message : 'Check your email for the link.', error ? 'bad' : 'ok');
 });
 
-// Coming back from a magic link: the token arrives in the URL fragment.
+// Coming back from Google or a magic link: the token arrives in the fragment.
 const { data: { session } } = await sb.auth.getSession();
-if (session) { show('Signing you in…', ''); await establish(session); }
+if (session) { show('Signing you in…'); await establish(session); }
 </script>
 {% endif %}
 </body>

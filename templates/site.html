@@ -43,20 +43,15 @@
       </div>
       {% endfor %}
     </div>
-    {% if spark %}
-    <div>
-      <svg class="spark" viewBox="0 0 104 26" preserveAspectRatio="none" style="width:100%;height:34px"
-           aria-label="Score across the last {{ history|length }} reads">
-        <polyline points="{{ spark }}"></polyline>
-      </svg>
-      <p style="margin-top:6px;font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;
-                text-transform:uppercase;color:var(--muted-2)">
-        {{ history|length }} reads · {{ history[0].score }} &rarr; {{ history[-1].score }}
-      </p>
-    </div>
-    {% endif %}
+
   </div>
 </div>
+
+{% if c %}
+<div class="sec">
+  {% with chart_title = 'Score over time' %}{% include "parts/chart.html" %}{% endwith %}
+</div>
+{% endif %}
 
 {% if delta %}
 <div class="sec">
@@ -198,5 +193,23 @@
 {% endblock %}
 
 {% block script %}
+(function () {
+  var wrap = document.querySelector('.chart-wrap');
+  var tip = document.getElementById('chartTip');
+  if (!wrap || !tip) return;
+  var svg = wrap.querySelector('.chart');
+  wrap.querySelectorAll('.dot-hit').forEach(function (d) {
+    d.addEventListener('mouseenter', function () {
+      var box = svg.getBoundingClientRect();
+      var scale = box.width / svg.viewBox.baseVal.width;
+      tip.innerHTML = '<b>' + d.dataset.score + '</b> · ' +
+        (d.dataset.pages || '?') + ' pages<span>' + d.dataset.when + '</span>';
+      tip.style.left = (svg.offsetLeft + (+d.getAttribute('cx')) * scale) + 'px';
+      tip.style.top  = (svg.offsetTop  + (+d.getAttribute('cy')) * scale) + 'px';
+      tip.classList.add('on');
+    });
+    d.addEventListener('mouseleave', function () { tip.classList.remove('on'); });
+  });
+})();
 {% if pending %}setTimeout(function(){location.reload()}, 4000);{% endif %}
 {% endblock %}

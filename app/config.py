@@ -91,3 +91,6 @@ STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_PRICE_ID = os.environ.get("STRIPE_PRICE_ID", "")   # per-site graduated price
 BILLING_ENABLED = bool(STRIPE_SECRET_KEY)
 PUBLIC_URL = os.environ.get("FIG_PUBLIC_URL", "http://127.0.0.1:8000")
+# Where the marketing site lives. The auth pages link back to it, and its
+# origin is the one allowed to call this API from a browser.
+MARKETING_URL = os.environ.get("FIG_MARKETING_URL", "http://127.0.0.1:8123")

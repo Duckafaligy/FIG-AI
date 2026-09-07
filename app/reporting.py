@@ -406,7 +406,22 @@ def analytics(session: Session, account: Account) -> dict:
     def avg(xs):
         return round(sum(xs) / len(xs)) if xs else None
 
+    # Estate average over time: bucket every read by day and average it, so a
+    # single chart can show whether the whole account is moving.
+    by_day: dict[str, list[int]] = defaultdict(list)
+    for site in sites:
+        for h in site_history(site, limit=50):
+            at = _aware(h["at"])
+            if at:
+                by_day[at.strftime("%Y-%m-%d")].append(h["score"])
+    series = [
+        {"at": datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=timezone.utc),
+         "score": round(sum(v) / len(v)), "pages": len(v)}
+        for day, v in sorted(by_day.items())
+    ]
+
     return {
+        "estate_series": series,
         "sites": len(sites),
         "with_history": len(tracked),
         "total_reads": total_reads,
@@ -447,3 +462,55 @@ def audits(session: Session, account: Account, limit: int = 80) -> dict:
             "took": sc.duration_s(), "at": _aware(sc.created_at), "error": sc.error,
         })
     return {"rows": rows, "counts": counts, "total": len(scans)}
+
+
+def chart(points: list[dict], w: int = 720, h: int = 200,
+          pad_l: int = 34, pad_b: int = 26, pad_t: int = 12) -> dict | None:
+    """Geometry for a score-over-time line chart.
+
+    Returned as plain numbers so the template draws inline SVG. A chart
+    library for a dozen points would be a bigger dependency than the whole
+    charting problem.
+    """
+    if len(points) < 2:
+        return None
+
+    scores = [p["score"] for p in points]
+    lo = max(0, min(scores) - 8)
+    hi = min(100, max(scores) + 8)
+    if hi - lo < 20:                       # keep a flat line from looking dramatic
+        mid = (hi + lo) / 2
+        lo, hi = max(0, mid - 10), min(100, mid + 10)
+    span = max(hi - lo, 1)
+
+    inner_w = w - pad_l - 10
+    inner_h = h - pad_t - pad_b
+    step = inner_w / (len(points) - 1)
+
+    xy = []
+    for i, p in enumerate(points):
+        x = pad_l + i * step
+        y = pad_t + (1 - (p["score"] - lo) / span) * inner_h
+        at = _aware(p["at"])
+        xy.append({
+            "x": round(x, 1), "y": round(y, 1), "score": p["score"],
+            "label": at.strftime("%d %b") if at else "",
+            "when": at.strftime("%d %b %Y, %H:%M") if at else "",
+            "pages": p.get("pages"),
+        })
+
+    line = " ".join(f'{p["x"]},{p["y"]}' for p in xy)
+    area = (f'M{xy[0]["x"]},{h - pad_b} ' +
+            " ".join(f'L{p["x"]},{p["y"]}' for p in xy) +
+            f' L{xy[-1]["x"]},{h - pad_b} Z')
+
+    ticks = []
+    for frac in (0, 0.5, 1):
+        value = round(lo + span * (1 - frac))
+        ticks.append({"y": round(pad_t + frac * inner_h, 1), "value": value})
+
+    return {
+        "w": w, "h": h, "line": line, "area": area, "points": xy,
+        "ticks": ticks, "baseline": h - pad_b, "pad_l": pad_l,
+        "lo": round(lo), "hi": round(hi),
+    }
