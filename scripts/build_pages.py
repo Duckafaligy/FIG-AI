@@ -17,7 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
-V = "3"          # cache-buster for the shared stylesheets
+V = "4"          # cache-buster for the shared stylesheets
 
 APP = "/app"     # where the dashboard lives once deployed
 
@@ -31,19 +31,19 @@ NAV = """<nav class="nav" id="nav">
     <div class="nav-links" id="navLinks">
       <a href="index.html#catches">What it catches</a>
       <a href="glossary.html">Learn</a>
-      <a href="index.html#pricing">Pricing</a>
+      <a href="pricing.html">Pricing</a>
       <a href="demo.html" class="nav-demo">Demo</a>
     </div>
-    <a class="nav-signin" href="{app}/login">Sign in</a>
-    <a class="btn21 btn21-solid btn21-sm" href="{app}/signup"><span>Try For Free</span></a>
+    <a class="nav-signin" href="#" data-app="/login">Sign in</a>
+    <a class="btn21 btn21-solid btn21-sm" href="#" data-app="/signup"><span>Try For Free</span></a>
   </div>
-</nav>""".format(app=APP)
+</nav>"""
 
 FOOTER_COLS = [
     ("Product", [
         ("What it catches", "index.html#catches"),
-        ("Pricing", "index.html#pricing"),
-        ("Compare plans", "index.html#plans-detail"),
+        ("Pricing", "pricing.html"),
+        ("Compare plans", "pricing.html"),
         ("Recent reads", "history.html"),
         ("Changelog", "changelog.html"),
         ("Status", "status.html"),
@@ -138,6 +138,7 @@ SHELL = """<!doctype html>
 </script>
 <link rel="stylesheet" href="styles.css?v={v}">
 <link rel="stylesheet" href="page.css?v={v}">
+<script src="config.js?v={v}"></script>
 <script src="device.js?v={v}" defer></script>
 {head_extra}
 </head>
@@ -1063,8 +1064,7 @@ HISTORY_BODY = """
 </p>
 """
 
-HISTORY_SCRIPT = """<script src="config.js?v=%s"></script>
-<script>
+HISTORY_SCRIPT = """<script>
 (function () {
   'use strict';
   var list = document.getElementById('rdList');
@@ -1116,10 +1116,127 @@ HISTORY_SCRIPT = """<script src="config.js?v=%s"></script>
         'The API may not be running.</div>';
     });
 })();
-</script>""" % V
+</script>"""
 
+
+
+PRICING_PAGE = """
+<div class="pr-trial">
+  <b>Your first week is free.</b>
+  <span>No card. The account starts on a seven-day trial the moment you create
+  it, so nothing can begin billing without a decision from you.</span>
+  <a class="btn21 btn21-solid" href="#" data-app="/signup"><span>Start free week</span></a>
+</div>
+
+<h2 id="how">You pay per site, not per person</h2>
+<p>This is the part worth understanding before the numbers, because it is the
+thing most tools get backwards. An agency with three logins and four hundred
+client sites pays for <strong>four hundred</strong>, not three. A solo owner
+with one site pays for one.</p>
+<p>Charging per seat would mean a three-person agency auditing four hundred
+sites for the price of three logins. That is not a discount, it is a broken
+meter &mdash; and it would mean the product could not survive its best
+customers.</p>
+
+<h2 id="tiers">Rates</h2>
+<p>The rate is <strong>volume</strong>, not graduated: at 30 sites every site
+costs the 30-site rate, rather than the first four costing more. Whatever your
+estate size, one number applies to all of it.</p>
+
+<table class="pg-t pr-tiers">
+  <thead><tr><th>Sites</th><th>Per site / month</th><th>At the top of that tier</th><th>Who this is</th></tr></thead>
+  <tbody>
+    <tr><td>1&ndash;4</td><td>$20.00</td><td>$80</td><td>Your own site, or a couple of projects</td></tr>
+    <tr><td>5&ndash;24</td><td>$15.00</td><td>$360</td><td>A freelancer with a handful of clients</td></tr>
+    <tr><td>25&ndash;99</td><td>$12.00</td><td>$1,188</td><td>A small agency&rsquo;s client roster</td></tr>
+    <tr><td>100&ndash;299</td><td>$9.00</td><td>$2,691</td><td>An SEO agency, or a multi-location group</td></tr>
+    <tr><td>300&ndash;999</td><td>$7.00</td><td>$6,993</td><td>A platform, or a franchisee network</td></tr>
+    <tr><td>1,000+</td><td>$5.00</td><td>&mdash;</td><td>Talk to us about a floor and a contract</td></tr>
+  </tbody>
+</table>
+
+<h2 id="included">What every plan includes</h2>
+<ul>
+  <li><strong>All four layers.</strong> Craft, Structure, Search and Answers.
+    There is no tier that withholds half the product.</li>
+  <li><strong>Every check.</strong> Including the section-order check, which
+    nothing else does.</li>
+  <li><strong>A written why and fix</strong> on every finding, not just a
+    score.</li>
+  <li><strong>The full API.</strong> Provision sites, trigger reads, pull an
+    estate report. Not gated behind an enterprise call.</li>
+  <li><strong>Unlimited manual reads</strong> of the sites on your account.</li>
+</ul>
+
+<h2 id="agencies">If you run an agency</h2>
+<p>Two things are worth knowing, and neither is behind a sales call:</p>
+<ul>
+  <li><strong>White-labelled reports.</strong> Your logo, your colours, no FIG
+    chrome anywhere your client can see. Most tools gate this at
+    &ldquo;Enterprise&rdquo;. We do not, because it is the feature agencies
+    actually want and hiding it behind a call is just friction.</li>
+  <li><strong>Adding a site is an API call</strong>, not a renegotiation. The
+    subscription quantity follows your site count, so site 401 changes the
+    invoice by itself.</li>
+</ul>
+<p><a href="api.html">See the API</a> or
+<a href="contact.html">get in touch</a> about a volume floor.</p>
+
+<h2 id="free">The free read</h2>
+<p>Anyone can read any public site, without an account, a few times a day per
+browser. No ownership proof required &mdash; studying a site you admire to
+work out why it holds together is how most people learn, and locking that
+behind a login would kill the most useful thing here.</p>
+<p><a href="demo.html">Run one now &rarr;</a></p>
+
+<h2 id="faq">Questions people actually ask</h2>
+
+<h3>What counts as a site?</h3>
+<p>One hostname. <code>example.com</code> and <code>shop.example.com</code>
+are two. Pages within a site are not charged separately.</p>
+
+<h3>What happens after the free week?</h3>
+<p>Nothing automatic. There is no card on file, so it cannot start charging
+you. Your reads stay visible and you decide whether to subscribe.</p>
+
+<h3>Can I change how many sites I have?</h3>
+<p>Any time, in either direction. Adding sites is billed pro rata from the
+next invoice; removing them stops the charge. An annual commitment can set a
+floor if you would rather lock a rate.</p>
+
+<h3>Do you charge per page?</h3>
+<p>No. A read covers up to 40 pages of a site by default and that is included.
+Very large estates &mdash; catalogues in the thousands of pages &mdash; are a
+conversation rather than a checkbox; <a href="contact.html">say hello</a>.</p>
+
+<h3>Is there a free plan?</h3>
+<p>There is a free <em>read</em>, permanently, for anyone. There is no free
+tier of the dashboard beyond the trial week, because a scheduled crawler that
+costs us money on a schedule cannot be free forever without becoming somebody
+else's bill.</p>
+
+<h3>Can I cancel?</h3>
+<p>Whenever you like, from the billing page. You keep access until the end of
+the period you have paid for.</p>
+
+<div class="pg-note">
+  <p><b>One thing we will not sell you.</b> There is no plan that lets you
+  check somebody else&rsquo;s work for AI use, and there never will be. FIG
+  reports patterns on sites you choose to read; it does not judge authorship,
+  because nothing reliably can. <a href="about.html">Why that matters &rarr;</a></p>
+</div>
+"""
 
 PAGES = [
+    page("pricing",
+         title="Pricing — FIG",
+         description="Per site, not per seat. Volume rates from $20 down to $5 a site, every feature on every plan, and the first week free with no card.",
+         h1="Pricing",
+         crumb="Product / Pricing",
+         lede="Per site, not per seat. Every plan includes every check — the tiers change the rate, never the product.",
+         body=PRICING_PAGE,
+         og_type="website"),
+
     page("rulebook",
          title="The AI slop rulebook — FIG",
          description="Nine patterns that make a web page read as machine-made, why each one lands flat, and what to change. Patterns, not accusations.",
@@ -1325,7 +1442,10 @@ def main() -> int:
     for name in ("index.html", "demo.html"):
         p = SITE / name
         if p.exists():
-            n = p.read_text(encoding="utf-8").count('href="#"')
+            # data-app links are rewritten by config.js at load;
+            # they are placeholders, not dead ends
+            text = p.read_text(encoding="utf-8")
+            n = len(re.findall(r'<a(?![^>]*data-app)[^>]*href="#"', text))
             remaining += n
             print(f"  {name}: {n} dead links left")
     return 0 if remaining == 0 else 0

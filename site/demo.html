@@ -34,22 +34,24 @@
     <span class="nav-sep" aria-hidden="true"></span>
     <div class="nav-links">
       <a href="index.html#catches">What it catches</a>
-      <a href="index.html#pricing">Pricing</a>
+      <a href="glossary.html">Learn</a>
+      <a href="pricing.html">Pricing</a>
       <a href="demo.html" class="nav-demo on">Demo</a>
     </div>
-    <a class="btn21 btn21-solid btn21-sm" href="index.html#pricing"><span>See Plans</span></a>
+    <a class="nav-signin" href="#" data-app="/login">Sign in</a>
+    <a class="btn21 btn21-solid btn21-sm" href="#" data-app="/signup"><span>Try For Free</span></a>
   </div>
 </nav>
 
 <main class="dm">
   <header class="wrap dm-head">
-    <p class="dm-eyebrow mono">Free demo &middot; one read per device</p>
-    <h1 class="dm-title">Is your site written for people, or assembled?</h1>
+    <p class="dm-eyebrow mono">Free &middot; no account &middot; reads up to 6 pages</p>
+    <h1 class="dm-title">Read any site. Free.</h1>
     <p class="dm-sub">
-      FIG reads your site the way a crawler does. It looks at the patterns that make a page
-      read as machine-made &mdash; the copy, the type scale, the palette, the layout
-      habits &mdash; and for each one it tells you what the pattern is, why it lands
-      flat, and what to change. No score without a reason.
+      Give it a URL and FIG crawls it the way a search engine does, then scores it
+      across four layers &mdash; how it reads, what sits where, what a crawler can
+      reach, and what a model has to quote. Every finding comes with why it lands
+      flat and the specific change that fixes it.
     </p>
 
     <form class="dm-form" id="demoForm" autocomplete="off">
@@ -65,13 +67,19 @@
         Off by default &mdash; nobody else&rsquo;s site gets named there.</span>
     </label>
 
+    <ul class="dm-steps">
+      <li><b>1</b> We check robots.txt and look for your sitemap</li>
+      <li><b>2</b> Up to six pages are read, one request at a time</li>
+      <li><b>3</b> 18 checks run across four layers</li>
+      <li><b>4</b> Each finding gets a why and a fix</li>
+    </ul>
+
     <div class="dm-gate" id="demoGate" hidden>
       <p class="dm-gate-t" id="demoGateText">This device has already used its free scan.</p>
-      <p class="dm-gate-s">The free read is one per device so it stays free. A plan lifts the limit
-        and adds the model side &mdash; what ChatGPT and Claude actually say about you.</p>
+      <p class="dm-gate-s">The limit is what keeps the free read free &mdash; it crawls a real site and calls a model, and both cost something. An account lifts it, and the first week is free with no card.</p>
       <div class="dm-gate-act">
-        <a class="btn21 btn21-solid" href="index.html#pricing"><span>See Plans</span></a>
-        <button class="btn21" id="demoReset" type="button"><span>Run another (dev)</span></button>
+        <a class="btn21 btn21-solid" href="#" data-app="/signup"><span>Start free week</span></a>
+        
       </div>
     </div>
 
@@ -114,8 +122,10 @@
             also make it thin to a model: nothing specific to quote, nothing distinctive to
             remember. Fixing them is the same work either way.</p>
           <div class="dm-lesson-links">
-            <a href="index.html#catches">See what a full audit checks</a>
-            <a href="index.html#plans-detail">Compare plans</a>
+            <a href="rulebook.html">The AI slop rulebook</a>
+            <a href="fix-recipes.html">Fix recipes</a>
+            <a href="history.html">What others found</a>
+            <a href="pricing.html">Pricing</a>
           </div>
         </div>
       </div>

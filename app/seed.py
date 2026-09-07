@@ -193,6 +193,7 @@ def build(reset_first: bool = False) -> str:
                 contact_email="hello@northgate.example",
                 white_label=True, brand_name="Northgate Digital",
                 site_floor=20,
+                trial_ends_at=_now() + timedelta(days=Account.TRIAL_DAYS),
             )
             session.add(account)
             session.flush()

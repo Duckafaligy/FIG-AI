@@ -99,3 +99,16 @@ table.pg-t td:first-child{color:var(--text);white-space:nowrap}
   .rd-row{grid-template-columns:auto 1fr;row-gap:6px}
   .rd-when{grid-column:2}
 }
+
+/* ---- pricing ---- */
+.pr-trial{display:flex;flex-direction:column;align-items:flex-start;gap:6px;
+  padding:22px 24px;border-radius:var(--r-lg);
+  border:1px solid color-mix(in srgb,var(--warm) 34%,var(--border));
+  background:color-mix(in srgb,var(--warm) 7%,transparent);margin-bottom:10px}
+.pr-trial b{font-family:var(--f-display);font-size:18px;letter-spacing:-.025em;color:var(--text)}
+.pr-trial span{font-size:14px;line-height:1.6;color:var(--muted);max-width:520px}
+.pr-trial .btn21{margin-top:12px}
+table.pr-tiers td:nth-child(2),table.pr-tiers td:nth-child(3){font-family:var(--f-mono);
+  color:var(--text);white-space:nowrap}
+table.pr-tiers td:nth-child(4){color:var(--muted-2);font-size:13px}
+table.pr-tiers td:first-child{font-family:var(--f-mono)}

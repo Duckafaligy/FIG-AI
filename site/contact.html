@@ -21,9 +21,10 @@
   if(t==='light')document.documentElement.setAttribute('data-theme','light');
 }catch(e){}})();
 </script>
-<link rel="stylesheet" href="styles.css?v=3">
-<link rel="stylesheet" href="page.css?v=3">
-<script src="device.js?v=3" defer></script>
+<link rel="stylesheet" href="styles.css?v=4">
+<link rel="stylesheet" href="page.css?v=4">
+<script src="config.js?v=4"></script>
+<script src="device.js?v=4" defer></script>
 
 </head>
 <body>
@@ -37,11 +38,11 @@
     <div class="nav-links" id="navLinks">
       <a href="index.html#catches">What it catches</a>
       <a href="glossary.html">Learn</a>
-      <a href="index.html#pricing">Pricing</a>
+      <a href="pricing.html">Pricing</a>
       <a href="demo.html" class="nav-demo">Demo</a>
     </div>
-    <a class="nav-signin" href="/app/login">Sign in</a>
-    <a class="btn21 btn21-solid btn21-sm" href="/app/signup"><span>Try For Free</span></a>
+    <a class="nav-signin" href="#" data-app="/login">Sign in</a>
+    <a class="btn21 btn21-solid btn21-sm" href="#" data-app="/signup"><span>Try For Free</span></a>
   </div>
 </nav>
 <main class="pg">
@@ -91,8 +92,8 @@ Disallow: /</code></pre>
       <div class="foot-col">
         <h4>Product</h4>
         <a href="index.html#catches">What it catches</a>
-        <a href="index.html#pricing">Pricing</a>
-        <a href="index.html#plans-detail">Compare plans</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="pricing.html">Compare plans</a>
         <a href="history.html">Recent reads</a>
         <a href="changelog.html">Changelog</a>
         <a href="status.html">Status</a>

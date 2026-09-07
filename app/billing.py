@@ -59,6 +59,8 @@ def quote(account: Account = Depends(require_account)):
     q["billable_sites"] = account.billable_sites()
     q["site_floor"] = account.site_floor
     q["enabled"] = config.BILLING_ENABLED
+    q["trial_days_left"] = account.trial_days_left()
+    q["on_trial"] = account.on_trial()
     return q
 
 
@@ -85,15 +87,22 @@ def checkout(account: Account = Depends(require_account),
         raise HTTPException(503, "set STRIPE_PRICE_ID to the per-site recurring price")
     customer_id = ensure_customer(session, account)
     qty = max(account.billable_sites(), account.site_floor, 1)
+    # Carry over whatever is left of the free week rather than restarting it
+    # — somebody who subscribes on day 3 should not get 7 more days, and
+    # should not lose the 4 they had either.
+    trial_left = account.trial_days_left()
+    sub_data = {"trial_period_days": trial_left} if trial_left else {}
+
     s = stripe.checkout.Session.create(
         mode="subscription",
         customer=customer_id,
         line_items=[{"price": config.STRIPE_PRICE_ID, "quantity": qty}],
+        subscription_data=sub_data or None,
         success_url=f"{config.PUBLIC_URL}/app/billing?checkout=done",
         cancel_url=f"{config.PUBLIC_URL}/app/billing?checkout=cancelled",
         metadata={"fig_account_id": account.id},
     )
-    return {"url": s["url"], "quantity": qty}
+    return {"url": s["url"], "quantity": qty, "trial_days": trial_left}
 
 
 @router.post("/portal")

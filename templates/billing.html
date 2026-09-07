@@ -16,6 +16,22 @@
   </div>
 </div>
 
+{% if quote.on_trial %}
+<div class="card" style="border-color:color-mix(in srgb,var(--warm) 38%,var(--border));
+     background:color-mix(in srgb,var(--warm) 7%,transparent);margin-bottom:16px">
+  <h3>Free week &middot; {{ quote.trial_days_left }} day{{ '' if quote.trial_days_left == 1 else 's' }} left</h3>
+  <p style="color:var(--muted)">No card is on file, so nothing starts billing on its own.
+    Subscribing before the week is out carries the remaining days over rather than
+    restarting or losing them.</p>
+</div>
+{% elif quote.trial_days_left == 0 and not account.stripe_subscription_id %}
+<div class="card" style="margin-bottom:16px">
+  <h3>Free week has ended</h3>
+  <p style="color:var(--muted)">Nothing was charged &mdash; there is no card on file.
+    Subscribe below whenever you are ready.</p>
+</div>
+{% endif %}
+
 <div class="grid g2">
   <div class="card">
     <h3>Volume rate</h3>
@@ -47,7 +63,7 @@
           The quantity is kept in step with the site count.
         {% else %}
           Stripe is configured. Starting a subscription sets the quantity to
-          {{ [quote.billable_sites, quote.site_floor, 1]|max }}.
+          {{ [quote.billable_sites, quote.site_floor, 1]|max }}{% if quote.trial_days_left %}, with {{ quote.trial_days_left }} trial day{{ '' if quote.trial_days_left == 1 else 's' }} carried over{% endif %}.
         {% endif %}
       </p>
       <div class="bars" style="margin-top:14px;gap:8px">

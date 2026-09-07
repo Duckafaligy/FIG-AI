@@ -245,6 +245,8 @@ def billing_view(request: Request, session: Session = Depends(get_session),
     quote["billable_sites"] = account.billable_sites()
     quote["site_floor"] = account.site_floor
     quote["enabled"] = config.BILLING_ENABLED
+    quote["trial_days_left"] = account.trial_days_left()
+    quote["on_trial"] = account.on_trial()
     message = msg or {"done": "Checkout completed.",
                       "cancelled": "Checkout cancelled."}.get(checkout, "")
     ctx = _ctx(request, session, account, "billing")

@@ -20,7 +20,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from fastapi import Depends, Header, HTTPException, Request
@@ -164,6 +164,10 @@ def link_user(session: Session, supabase_user: dict) -> User:
                 slug=_slug_for(email or uid, session),
                 kind="direct",
                 contact_email=email or None,
+                # The free week starts here, not at checkout: no card is
+                # taken, so nothing can start billing without a decision.
+                trial_ends_at=datetime.now(timezone.utc) + timedelta(
+                    days=Account.TRIAL_DAYS),
             )
             session.add(account)
             session.flush()

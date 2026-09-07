@@ -61,6 +61,11 @@ class Account(Base):
     stripe_customer_id = Column(String, nullable=True)
     stripe_subscription_id = Column(String, nullable=True)
 
+    # A week, free, from the moment the account is created. No card, so it is
+    # a trial in the honest sense rather than a subscription that starts
+    # quietly.
+    trial_ends_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=_now)
 
     api_keys = relationship("ApiKey", back_populates="account", cascade="all, delete-orphan")
@@ -86,6 +91,21 @@ class Account(Base):
         n = max(self.billable_sites(), self.site_floor)
         rate = self.rate_override_cents or self.rate_for(n)
         return n * rate
+
+    TRIAL_DAYS = 7
+
+    def trial_days_left(self) -> int:
+        """Whole days remaining, 0 once it has run out."""
+        if not self.trial_ends_at:
+            return 0
+        end = self.trial_ends_at
+        if end.tzinfo is None:
+            end = end.replace(tzinfo=timezone.utc)
+        left = (end - datetime.now(timezone.utc)).total_seconds()
+        return max(0, int(left // 86400) + (1 if left % 86400 else 0))
+
+    def on_trial(self) -> bool:
+        return self.trial_days_left() > 0 and not self.stripe_subscription_id
 
 
 class ApiKey(Base):

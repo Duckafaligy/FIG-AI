@@ -121,3 +121,13 @@
   border:1px solid var(--border);border-radius:var(--r-sm);padding:3px 7px;
   max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dm-where{font-family:var(--f-mono);font-size:10.5px;color:var(--muted-2);margin-top:9px}
+
+/* what the read actually does, before it does it */
+.dm-steps{list-style:none;margin:26px auto 0;padding:0;max-width:600px;
+  display:grid;grid-template-columns:repeat(2,1fr);gap:8px;text-align:left}
+.dm-steps li{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;
+  border-radius:var(--r-sm);border:1px solid var(--border);background:var(--surface);
+  font-size:12.5px;line-height:1.5;color:var(--muted)}
+.dm-steps b{font-family:var(--f-mono);font-size:10px;color:var(--muted-2);
+  flex:none;padding-top:1px}
+@media (max-width:620px){ .dm-steps{grid-template-columns:1fr} }
