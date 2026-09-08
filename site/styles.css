@@ -191,14 +191,22 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 
 /* ========== NAV ========== */
 .nav{position:fixed;top:16px;left:0;right:0;z-index:60;display:flex;justify-content:center;pointer-events:none}
+/* The pill is a width, not a content box: 70% of the viewport at rest,
+   narrowing to 35% once you scroll down. Contents sit space-between so the
+   brand and the calls to action move with it instead of clumping. */
 .nav-pill{
-  pointer-events:auto;display:flex;align-items:center;gap:26px;
-  padding:9px 9px 9px 28px;border-radius:8px;
+  pointer-events:auto;display:flex;align-items:center;justify-content:space-between;gap:20px;
+  /* Plain percentages, not min(): a width transition cannot interpolate
+     between two min() expressions, so the pill held its start value forever
+     and never actually narrowed. The cap lives in max-width instead. */
+  width:70%;max-width:1180px;min-width:470px;
+  padding:9px 9px 9px 22px;border-radius:10px;
   background:rgba(14,14,18,.72);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   border:1px solid rgb(var(--ink) / .08);
   box-shadow:0 8px 34px rgba(0,0,0,.55);
-  transition:gap .4s var(--ease),padding .4s var(--ease),background .4s var(--ease);
+  transition:width .45s var(--ease),padding .45s var(--ease),background .4s var(--ease);
 }
+.nav-pill > .nav-links{margin-right:auto}
 .brand{display:flex;align-items:center;gap:9px;font-family:var(--f-display);font-weight:700;letter-spacing:-.01em}
 .brand-mark{
   width:16px;height:16px;border-radius:8px;flex:none;
@@ -212,9 +220,10 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
   max-width:420px;opacity:1;transition:max-width .42s var(--ease),opacity .3s var(--ease),margin .42s var(--ease)}
 .nav-links a{color:var(--muted);font-size:14px;white-space:nowrap;transition:color .2s;letter-spacing:.005em}
 .nav-links a:hover{color:var(--text)}
-.nav.shrunk .nav-links{max-width:0;opacity:0;margin-left:-26px}
-.nav.shrunk .nav-sep{opacity:0}
-.nav.shrunk .nav-pill{gap:16px;padding-left:22px;background:rgba(14,14,18,.86)}
+
+
+.nav.shrunk .nav-pill{width:35%;max-width:620px;padding-left:20px;
+  background:rgba(14,14,18,.88)}
 
 /* ========== HERO ========== */
 .hero{position:relative;z-index:20;min-height:100svh;display:flex;align-items:center;
@@ -844,7 +853,7 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 
 /* hard failsafe: never leave a reveal element invisible */
 .reveal-off .reveal{opacity:1!important;transform:none!important;transition:none!important}
-.nav.shrunk .nav-pill{cursor:pointer}
+
 
 /* ========== DASHBOARD SHELL ========== */
 .audit-sec .wrap{max-width:1340px}
@@ -1194,13 +1203,14 @@ button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
 /* ========== NAV SIGN IN ========== */
 .nav-signin{font-size:14px;color:var(--muted);white-space:nowrap;transition:color .2s;flex:none}
 .nav-signin:hover{color:var(--text)}
-.nav.shrunk .nav-signin{display:none}
+
 @media (max-width:1040px){
-  /* the pill cannot hold five links on a narrow screen -- it was rendering
-     wider than the viewport and bleeding off both edges */
-  .nav-links,.nav-sep{display:none}
-  .nav-pill{gap:14px;padding:8px 8px 8px 18px}
-  .nav-signin{display:none}
+  /* below this a fraction of the viewport is too small to hold the pill's
+     contents, so it spans the screen instead and stops resizing on scroll */
+  .nav-pill,.nav.shrunk .nav-pill{
+    width:calc(100% - 28px);max-width:none;min-width:0;
+    gap:14px;padding:8px 8px 8px 18px}
+  .nav-signin{display:inline-flex}
 }
 
 

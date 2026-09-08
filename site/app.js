@@ -87,15 +87,8 @@
       lastY = y;
     }
 
-    if (pill) {
-      pill.addEventListener('click', function (e) {
-        if (!n.classList.contains('shrunk')) return;   // already open, act normally
-        if (e.target.closest('.btn')) return;          // never swallow the CTA
-        e.preventDefault();                            // tap opens instead of jumping
-        open();
-        lastY = window.scrollY;                        // re-baseline so it stays open
-      });
-    }
+    // The pill narrows rather than hiding its contents now, so there is
+    // nothing to reopen and no click to intercept.
 
     tick();
     window.addEventListener('scroll', tick, { passive: true });

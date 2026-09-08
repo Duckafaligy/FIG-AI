@@ -17,7 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
-V = "10"          # cache-buster for the shared stylesheets
+V = "12"          # cache-buster for the shared stylesheets
 
 # Every canonical URL and contact address on the site comes from here. There
 # are no hardcoded domains anywhere else, so moving to a real domain is:
@@ -44,10 +44,7 @@ NAV = """<nav class="nav" id="nav">
       <span class="brand-name">FIG</span>
     </a>
     <span class="nav-sep" aria-hidden="true"></span>
-    <div class="nav-links" id="navLinks">
-      <a href="index.html#catches">What it catches</a>
-      <a href="glossary.html">Learn</a>
-      <a href="pricing.html">Pricing</a>
+<div class="nav-links" id="navLinks">
       <a href="demo.html" class="nav-demo">Demo</a>
     </div>
     <a class="nav-signin" href="#" data-app="/login">Sign in</a>
