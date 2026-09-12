@@ -15,14 +15,14 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import config, dashdata, reporting
+from app import config, dashdata, publishing, reporting, roadmap
 from app.api import hostname_of
 from app.auth import (current_account, end_session, link_user, mint_key,
                       session_user, start_session, verify_access_token)
 from app.billing import price_quote, sync_quantity
 from app.db import get_session
 from app.jobs import enqueue_estate, enqueue_scan, queue_depth
-from app.models import Account, ApiKey, Site
+from app.models import Account, ApiKey, Integration, Site
 from app.rules.scoring import verdict
 
 router = APIRouter(tags=["dashboard"])
@@ -166,6 +166,7 @@ def seo_view(request: Request, session: Session = Depends(get_session)):
     ctx = _ctx(request, session, account, "seo")
     ctx["v"] = reporting.layer_view(session, account, "search")
     ctx["d"] = dashdata.overview(session, account)
+    ctx["pub"] = publishing.queue(session, account, layer="search")
     return templates.TemplateResponse("dash/layer.html", ctx)
 
 
@@ -175,6 +176,7 @@ def geo_view(request: Request, session: Session = Depends(get_session)):
     ctx = _ctx(request, session, account, "geo")
     ctx["v"] = reporting.layer_view(session, account, "answers")
     ctx["d"] = dashdata.overview(session, account)
+    ctx["pub"] = publishing.queue(session, account, layer="answers")
     return templates.TemplateResponse("dash/layer.html", ctx)
 
 
@@ -214,7 +216,7 @@ def settings_view(request: Request, session: Session = Depends(get_session),
                   tab: str = "account", new: str = "", checkout: str = "",
                   msg: str = ""):
     account = _account(request, session)
-    if tab not in ("account", "billing", "api"):
+    if tab not in ("account", "billing", "api", "integrations", "roadmap"):
         tab = "account"
 
     quote = price_quote(max(account.billable_sites(), account.site_floor, 1))
@@ -229,8 +231,17 @@ def settings_view(request: Request, session: Session = Depends(get_session),
         .order_by(ApiKey.created_at.desc())
     ).all()
 
+    integrations = session.scalars(
+        select(Integration).where(Integration.site_id.in_(
+            [s.id for s in account.sites])) if account.sites else select(Integration).where(
+            Integration.id == "none")).all()
+    by_site = {i.site_id: i for i in integrations}
+
     ctx = _ctx(request, session, account, "settings")
     ctx.update(tab=tab, quote=quote, keys=keys, new_key=new or None,
+               sites=[s for s in account.sites if s.is_active],
+               integrations=integrations, integ_by_site=by_site,
+               roadmap=roadmap.summary(),
                message=msg or {"done": "Checkout completed.",
                                "cancelled": "Checkout cancelled."}.get(checkout, ""))
     return templates.TemplateResponse("dash/settings.html", ctx)
@@ -338,3 +349,53 @@ async def establish_session(request: Request, payload: dict = Body(...),
 def logout(request: Request):
     end_session(request)
     return RedirectResponse("/login", status_code=303)
+
+
+# --- the publish console -------------------------------------------------
+
+
+@router.post("/app/changes/propose")
+def propose_changes(request: Request, session: Session = Depends(get_session)):
+    """Derive publishable changes from every site's latest audit."""
+    account = _account(request, session)
+    made = 0
+    for site in account.sites:
+        if site.is_active:
+            made += len(publishing.propose(session, site))
+    return RedirectResponse("/app/seo", status_code=303)
+
+
+@router.post("/app/changes/{change_id}/{action}")
+def change_action(change_id: str, action: str, request: Request,
+                  session: Session = Depends(get_session)):
+    account = _account(request, session)
+    if action == "approve":
+        publishing.approve(session, account, change_id)
+    elif action == "reject":
+        publishing.reject(session, account, change_id)
+    elif action == "publish":
+        publishing.publish(session, account, change_id)
+    elif action == "revert":
+        publishing.revert(session, account, change_id)
+    else:
+        raise HTTPException(404, "no such action")
+    back = request.headers.get("referer") or "/app/seo"
+    return RedirectResponse(back, status_code=303)
+
+
+@router.post("/app/integrations")
+def connect_integration(request: Request, site_id: str = Form(...),
+                        platform: str = Form(...), endpoint: str = Form(default=""),
+                        credential: str = Form(default=""),
+                        session: Session = Depends(get_session)):
+    account = _account(request, session)
+    publishing.connect(session, account, site_id, platform, endpoint, credential)
+    return RedirectResponse("/app/settings?tab=integrations", status_code=303)
+
+
+@router.post("/app/integrations/{integration_id}/disconnect")
+def disconnect_integration(integration_id: str, request: Request,
+                           session: Session = Depends(get_session)):
+    account = _account(request, session)
+    publishing.disconnect(session, account, integration_id)
+    return RedirectResponse("/app/settings?tab=integrations", status_code=303)

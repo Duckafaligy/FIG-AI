@@ -12,6 +12,8 @@
   <a href="/app/settings?tab=account" class="{{ 'on' if tab == 'account' }}">Account</a>
   <a href="/app/settings?tab=billing" class="{{ 'on' if tab == 'billing' }}">Billing</a>
   <a href="/app/settings?tab=api" class="{{ 'on' if tab == 'api' }}">API keys</a>
+  <a href="/app/settings?tab=integrations" class="{{ 'on' if tab == 'integrations' }}">Integrations</a>
+  <a href="/app/settings?tab=roadmap" class="{{ 'on' if tab == 'roadmap' }}">Checklist</a>
 </div>
 
 {% if message %}
@@ -150,5 +152,109 @@ GET  {{ public_url }}/v1/report            the whole estate, worst first</pre>
   <p class="kpi-sub" style="margin-top:10px">Full schema at
     <a class="lk" href="/docs">/docs</a>.</p>
 </div>
+{% endif %}
+
+{% if tab == 'integrations' %}
+<div class="card" style="margin-bottom:14px">
+  <div class="card-h"><h3>Connect a CMS</h3>
+    <span class="kpi-sub">per site, never per account</span></div>
+  {% if sites %}
+  <form class="inline" method="post" action="/app/integrations">
+    <select name="site_id" required>
+      {% for s in sites %}<option value="{{ s.id }}">{{ s.hostname }}</option>{% endfor %}
+    </select>
+    <select name="platform" required>
+      <option value="wordpress">WordPress</option>
+      <option value="shopify">Shopify</option>
+      <option value="webflow">Webflow</option>
+      <option value="ghost">Ghost</option>
+      <option value="custom">Custom endpoint</option>
+    </select>
+    <input type="text" name="endpoint" placeholder="https://site.com/wp-json">
+    <input type="password" name="credential" placeholder="API key or token"
+           autocomplete="new-password">
+    <button class="tbtn primary" type="submit">Connect</button>
+  </form>
+  <p class="kpi-sub" style="margin-top:12px">Credentials are held per site because an
+    agency carries keys for forty different clients and one leaking must not expose the
+    rest. FIG stores a reference and a last-four hint, never the key itself &mdash; and a
+    connection stays <b>pending</b> until a secret store and a test call exist, which is
+    why publishing is refused today rather than failing silently against a live site.</p>
+  {% else %}
+  <p class="kpi-sub">Add a site first &mdash; integrations attach to one.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="card-h"><h3>Connected</h3>
+    <span class="kpi-sub">{{ integrations|length }} on this project</span></div>
+  {% if integrations %}
+  <table class="t">
+    <thead><tr><th>Site</th><th>Platform</th><th>Endpoint</th><th>Key</th>
+      <th>State</th><th>Auto-publish</th><th></th></tr></thead>
+    <tbody>{% for i in integrations %}
+      <tr><td><a class="lk" href="/app/sites/{{ i.site_id }}">{{ i.site.hostname }}</a></td>
+        <td><span class="tag">{{ i.platform }}</span></td>
+        <td class="path" style="max-width:220px">{{ i.endpoint or '—' }}</td>
+        <td class="mono">{{ i.credential_hint or '—' }}</td>
+        <td><span class="pill {{ 'good' if i.is_connected() else 'warn' }}">
+          {{ 'live' if i.is_connected() else 'pending' }}</span></td>
+        <td>{{ 'on' if i.auto_publish else 'off' }}</td>
+        <td class="n"><form method="post" action="/app/integrations/{{ i.id }}/disconnect">
+          <button class="tbtn sm" type="submit">Disconnect</button></form></td></tr>
+      {% if i.last_error %}
+      <tr><td colspan="7" class="kpi-sub" style="white-space:normal">{{ i.last_error }}</td></tr>
+      {% endif %}
+    {% endfor %}</tbody>
+  </table>
+  {% else %}
+  <p class="kpi-sub">Nothing connected. Findings with a mechanical fix still queue up in
+    the publish console on <a class="lk" href="/app/seo">SEO</a> and
+    <a class="lk" href="/app/geo">GEO</a> &mdash; they just cannot be written out yet.</p>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if tab == 'roadmap' %}
+<div class="grid row-four" style="margin-bottom:14px">
+  <div class="kpi"><div class="kpi-h">Items on the list</div>
+    <div class="kpi-v"><b>{{ roadmap.total }}</b></div>
+    <div class="kpi-sub">across {{ roadmap.areas|length }} areas</div></div>
+  <div class="kpi"><div class="kpi-h">Built</div>
+    <div class="kpi-v"><b style="color:var(--up)">{{ roadmap.done }}</b></div>
+    <div class="kpi-sub">and exercised</div></div>
+  <div class="kpi"><div class="kpi-h">Partial</div>
+    <div class="kpi-v"><b style="color:var(--amber)">{{ roadmap.partial }}</b></div>
+    <div class="kpi-sub">built, with a named gap</div></div>
+  <div class="kpi"><div class="kpi-h">Not started</div>
+    <div class="kpi-v"><b>{{ roadmap.planned }}</b></div>
+    <div class="kpi-sub">designed, not built</div></div>
+</div>
+
+{% for area, items in roadmap.areas %}
+<div class="card" style="margin-bottom:14px">
+  <div class="card-h"><h3>{{ area }}</h3>
+    <span class="kpi-sub">{{ items|selectattr('1','equalto','done')|list|length }} of
+      {{ items|length }} built</span></div>
+  <table class="t">
+    <tbody>
+    {% for title, state, note in items %}
+      <tr>
+        <td style="width:26px">
+          <span class="ck ck-{{ state }}" title="{{ state }}" aria-hidden="true"></span>
+          <span class="sr-only">{{ state }}</span>
+        </td>
+        <td style="width:34%"><b>{{ title }}</b></td>
+        <td style="white-space:normal;color:var(--muted)">{{ note }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endfor %}
+
+<p class="kpi-sub">Kept in <span class="mono">app/roadmap.py</span> rather than a document,
+  so it is visible inside the product and harder to let drift. If something here says
+  built and is not, that is a bug in that file.</p>
 {% endif %}
 {% endblock %}

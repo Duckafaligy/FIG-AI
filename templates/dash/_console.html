@@ -1,0 +1,81 @@
+{# The publish console. Shared by the SEO and GEO pages.
+   Expects `pub` from publishing.queue() and `layer_name`. #}
+
+<div class="card" style="margin-bottom:14px">
+  <div class="card-h">
+    <h3>Publish console</h3>
+    <span class="kpi-sub">
+      {% if pub.connected %}{{ pub.connected }} of {{ pub.sites }} site{{ '' if pub.sites == 1 else 's' }} connected
+      {% else %}No CMS connected yet{% endif %}
+      &middot; <a class="lk" href="/app/settings?tab=integrations">Manage integrations</a>
+    </span>
+  </div>
+
+  <div class="grid row-four" style="margin-bottom:16px">
+    <div class="kpi"><div class="kpi-h">Waiting for you</div>
+      <div class="kpi-v"><b>{{ pub.counts.proposed }}</b></div>
+      <div class="kpi-sub">proposed, not yet approved</div></div>
+    <div class="kpi"><div class="kpi-h">Approved</div>
+      <div class="kpi-v"><b>{{ pub.counts.approved }}</b></div>
+      <div class="kpi-sub">ready to publish</div></div>
+    <div class="kpi"><div class="kpi-h">Published</div>
+      <div class="kpi-v"><b>{{ pub.counts.published }}</b></div>
+      <div class="kpi-sub">live on the site</div></div>
+    <div class="kpi"><div class="kpi-h">Failed</div>
+      <div class="kpi-v"><b style="{{ 'color:var(--down)' if pub.counts.failed }}">{{ pub.counts.failed }}</b></div>
+      <div class="kpi-sub">see the note on each row</div></div>
+  </div>
+
+  {% if pub.rows %}
+  <table class="t">
+    <thead><tr><th>Change</th><th>Site</th><th>Page</th><th>Kind</th>
+      <th>State</th><th></th></tr></thead>
+    <tbody>
+    {% for r in pub.rows %}
+      <tr>
+        <td style="white-space:normal;max-width:300px"><b>{{ r.title }}</b>
+          {% if r.detail %}<span class="sub">{{ r.detail }}</span>{% endif %}
+          {% if r.error %}<span class="sub" style="color:var(--down)">{{ r.error }}</span>{% endif %}</td>
+        <td><a class="lk" href="/app/sites/{{ r.site_id }}">{{ r.hostname }}</a>
+          {% if r.platform %}<span class="sub">{{ r.platform }}</span>
+          {% else %}<span class="sub">not connected</span>{% endif %}</td>
+        <td class="path" style="max-width:170px">{{ r.page or '—' }}</td>
+        <td><span class="tag">{{ r.kind }}</span></td>
+        <td><span class="pill {{ 'good' if r.state == 'published' else ('bad' if r.state in ('failed','rejected') else ('warn' if r.state == 'approved' else '')) }}">{{ r.state }}</span></td>
+        <td class="n">
+          <div class="inline" style="gap:6px;justify-content:flex-end">
+          {% if r.state == 'proposed' %}
+            <form method="post" action="/app/changes/{{ r.id }}/approve">
+              <button class="tbtn sm primary" type="submit">Approve</button></form>
+            <form method="post" action="/app/changes/{{ r.id }}/reject">
+              <button class="tbtn sm" type="submit">Reject</button></form>
+          {% elif r.state == 'approved' %}
+            <form method="post" action="/app/changes/{{ r.id }}/publish">
+              <button class="tbtn sm primary" type="submit"
+                {{ 'disabled' if not r.can_publish }}>Publish</button></form>
+          {% elif r.state == 'published' %}
+            <form method="post" action="/app/changes/{{ r.id }}/revert">
+              <button class="tbtn sm" type="submit">Revert</button></form>
+          {% endif %}
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="kpi-sub">Nothing queued. Run an audit and any finding with a mechanical fix
+    &mdash; a missing title, an absent canonical, no structured data &mdash; turns up here
+    as a change you can approve.</p>
+  <form method="post" action="/app/changes/propose" style="margin-top:14px">
+    <button class="tbtn" type="submit">Build the queue from the latest audits</button>
+  </form>
+  {% endif %}
+
+  <p class="kpi-sub" style="margin-top:14px">
+    Nothing is written without approval, every change keeps its before-state so it can be
+    reverted, and findings whose fix is a judgement call &mdash; section order, filler
+    copy, a flat type scale &mdash; are reported as advice rather than queued. FIG will
+    not write your copy and publish it.
+  </p>
+</div>

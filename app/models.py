@@ -329,3 +329,88 @@ class PublicRead(Base):
     ip_hash = Column(String, nullable=False, index=True)
 
     created_at = Column(DateTime, default=_now, index=True)
+
+
+# --- publishing to the site itself --------------------------------------
+
+PLATFORMS = ("wordpress", "shopify", "webflow", "ghost", "custom")
+
+
+class Integration(Base):
+    """A CMS FIG is allowed to write back to.
+
+    The whole point of the product is that a finding comes with a fix; an
+    integration is what turns the fix into a change on the actual site instead
+    of a task in somebody's backlog.
+
+    Credentials are stored per site, never per account: an agency holds keys
+    for forty different clients and one leaking must not expose the rest.
+    """
+
+    __tablename__ = "integrations"
+    __table_args__ = (
+        UniqueConstraint("site_id", "platform", name="uq_integration_site_platform"),
+    )
+
+    id = Column(String, primary_key=True, default=_uuid)
+    site_id = Column(String, ForeignKey("sites.id"), nullable=False, index=True)
+    platform = Column(String, nullable=False)
+
+    endpoint = Column(String, nullable=True)          # admin/API base URL
+    # Only ever a reference to the secret, never the secret. Nothing in this
+    # table is enough on its own to write to somebody's site.
+    credential_ref = Column(String, nullable=True)
+    credential_hint = Column(String, nullable=True)   # e.g. "wp_...4f2a"
+
+    # Nothing is written without a person pressing publish unless this is on.
+    auto_publish = Column(Boolean, nullable=False, default=False)
+    # Categories the integration is allowed to touch, e.g. ["meta", "schema"].
+    scopes = Column(JSON, nullable=True)
+
+    connected_at = Column(DateTime, nullable=True)
+    last_publish_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=_now)
+
+    site = relationship("Site")
+
+    def is_connected(self) -> bool:
+        return bool(self.credential_ref and self.connected_at)
+
+
+CHANGE_STATES = ("proposed", "approved", "published", "rejected", "failed", "reverted")
+
+
+class Change(Base):
+    """One proposed edit to a live page, and its history.
+
+    A change starts as `proposed` -- derived from a finding -- and only moves
+    on when somebody approves it. `before` is kept so a publish can be undone:
+    an automated tool that writes to a client site without a way back is not
+    something an agency will ever switch on.
+    """
+
+    __tablename__ = "changes"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    site_id = Column(String, ForeignKey("sites.id"), nullable=False, index=True)
+    finding_id = Column(String, ForeignKey("findings.id"), nullable=True)
+
+    page_url = Column(String, nullable=True)
+    kind = Column(String, nullable=False)             # meta | schema | heading | alt | copy | order
+    layer = Column(String, nullable=False, default="search")
+    title = Column(String, nullable=False)
+    detail = Column(Text, nullable=True)
+
+    before = Column(Text, nullable=True)
+    after = Column(Text, nullable=True)
+
+    state = Column(String, nullable=False, default="proposed", index=True)
+    error = Column(Text, nullable=True)
+
+    proposed_at = Column(DateTime, default=_now)
+    approved_at = Column(DateTime, nullable=True)
+    published_at = Column(DateTime, nullable=True)
+    reverted_at = Column(DateTime, nullable=True)
+
+    site = relationship("Site")

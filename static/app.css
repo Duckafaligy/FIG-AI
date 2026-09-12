@@ -100,8 +100,13 @@ button{font-family:inherit}
 
 /* ---- top bar ---- */
 .main{min-width:0;display:flex;flex-direction:column}
-.top{display:flex;align-items:center;gap:16px;padding:18px 24px 6px}
-.search{position:relative;flex:1;max-width:520px}
+/* The search field and Edit Dashboard read as one centred group with the
+   project selector pinned right -- a plain flex row left them both shoved
+   against the left edge. The two 1fr columns are what does the centring. */
+.top{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;
+  padding:18px 24px 6px}
+.top-mid{grid-column:2;display:flex;align-items:center;gap:14px;justify-content:center}
+.search{position:relative;width:min(520px,44vw);min-width:260px}
 .search svg{position:absolute;left:14px;top:50%;translate:0 -50%;width:17px;height:17px;
   fill:none;stroke:var(--muted);stroke-width:1.8;stroke-linecap:round}
 .search input{width:100%;height:44px;padding:0 68px 0 42px;border-radius:var(--r);
@@ -123,9 +128,9 @@ button{font-family:inherit}
 .tbtn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;
   stroke-linecap:round;stroke-linejoin:round}
 
-.proj{display:inline-flex;align-items:center;gap:10px;height:44px;padding:0 16px;
-  border-radius:var(--r);background:var(--rail);color:#fff;font-size:14.5px;font-weight:550;
-  border:0;cursor:pointer;margin-left:auto;max-width:330px}
+.proj{grid-column:3;justify-self:end;display:inline-flex;align-items:center;gap:10px;
+  height:44px;padding:0 16px;border-radius:var(--r);background:var(--rail);color:#fff;
+  font-size:14.5px;font-weight:550;border:0;cursor:pointer;max-width:330px}
 .proj svg{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;
   stroke-linecap:round;stroke-linejoin:round}
 .proj b{font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -293,8 +298,10 @@ table.t td.path{font-family:var(--f-mono);font-size:12.5px;max-width:150px}
   .rail-trial{display:none}
   .row-main{grid-template-columns:1fr}
   .map-wrap{grid-template-columns:1fr}
-  .top{flex-wrap:wrap}
-  .proj{margin-left:0}
+  .top{grid-template-columns:1fr;gap:10px}
+  .top-mid{grid-column:1;justify-content:flex-start;flex-wrap:wrap}
+  .search{width:100%}
+  .proj{grid-column:1;justify-self:start}
 }
 @media (max-width:640px){
   .kpis{grid-template-columns:1fr}
@@ -430,3 +437,23 @@ td.low,.n.low{color:var(--down);font-weight:600}
 .key{display:block;font-family:var(--f-mono);font-size:12.5px;line-height:1.7;
   background:#F9FAFB;border:1px solid var(--line);border-radius:8px;padding:13px 15px;
   white-space:pre-wrap;word-break:break-all;color:var(--ink-2);margin:0}
+
+/* checklist ticks */
+.ck{display:inline-block;width:15px;height:15px;border-radius:50%;position:relative}
+.ck-done{background:var(--good-bg);box-shadow:inset 0 0 0 1.5px var(--up)}
+.ck-done:after{content:"";position:absolute;left:4px;top:5px;width:6px;height:3px;
+  border-left:1.6px solid var(--up);border-bottom:1.6px solid var(--up);
+  transform:rotate(-45deg)}
+.ck-partial{background:#FFFAEB;box-shadow:inset 0 0 0 1.5px var(--amber)}
+.ck-partial:after{content:"";position:absolute;left:4px;top:6.5px;width:7px;height:2px;
+  background:var(--amber);border-radius:1px}
+.ck-planned{background:var(--card);box-shadow:inset 0 0 0 1.5px var(--line-2)}
+
+select{height:40px;padding:0 11px;border-radius:var(--r);border:1px solid var(--line);
+  background:var(--card);font-family:var(--f);font-size:14px;color:var(--ink);outline:none}
+select:focus{border-color:var(--brand)}
+form.inline input[type=password]{flex:1;min-width:180px;height:40px;padding:0 13px;
+  border-radius:var(--r);border:1px solid var(--line);background:var(--card);
+  font-family:var(--f);font-size:14px;outline:none;color:var(--ink)}
+form.inline input[type=password]:focus{border-color:var(--brand)}
+.tbtn:disabled{opacity:.45;cursor:not-allowed}

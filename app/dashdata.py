@@ -194,8 +194,11 @@ def overview(session: Session, account: Account, days: int = 7) -> dict:
     from app.models import Page
     page_rows = []
     if latest_by_site:
+        # latest_by_site is keyed by SITE id; the query needs SCAN ids, and
+        # passing the wrong ones matched nothing and emptied the panel.
+        scan_ids = [sc.id for sc in latest_by_site.values()]
         rows = session.scalars(
-            select(Page).where(Page.scan_id.in_(list(latest_by_site)))
+            select(Page).where(Page.scan_id.in_(scan_ids))
             .order_by(Page.word_count.desc()).limit(5)
         ).all()
         rng = random.Random(seed + 7)
