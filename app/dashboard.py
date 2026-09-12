@@ -9,20 +9,22 @@ demo account so the thing can be opened and used immediately.
 """
 from __future__ import annotations
 
+from urllib.parse import quote_plus
+
 from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import config, dashdata, publishing, reporting, roadmap
+from app import config, content, dashdata, publishing, reporting, roadmap
 from app.api import hostname_of
 from app.auth import (current_account, end_session, link_user, mint_key,
                       session_user, start_session, verify_access_token)
 from app.billing import price_quote, sync_quantity
 from app.db import get_session
 from app.jobs import enqueue_estate, enqueue_scan, queue_depth
-from app.models import Account, ApiKey, Integration, Site
+from app.models import Account, ApiKey, ContentPost, Integration, Site
 from app.rules.scoring import verdict
 
 router = APIRouter(tags=["dashboard"])
@@ -161,7 +163,20 @@ def audit_all(request: Request, session: Session = Depends(get_session)):
 
 
 @router.get("/app/seo")
-def seo_view(request: Request, session: Session = Depends(get_session)):
+def seo_view(request: Request, session: Session = Depends(get_session),
+             tab: str = "all", category: str = "", err: str = ""):
+    """The content queue. The search-layer audit itself is one page across."""
+    account = _account(request, session)
+    ctx = _ctx(request, session, account, "seo")
+    if tab not in ("all",) + content.STATES:
+        tab = "all"
+    ctx["v"] = content.view(session, account, tab=tab, category=category)
+    ctx["err"] = err
+    return templates.TemplateResponse("dash/seo.html", ctx)
+
+
+@router.get("/app/seo/audit")
+def seo_audit_view(request: Request, session: Session = Depends(get_session)):
     account = _account(request, session)
     ctx = _ctx(request, session, account, "seo")
     ctx["v"] = reporting.layer_view(session, account, "search")
@@ -381,6 +396,97 @@ def change_action(change_id: str, action: str, request: Request,
         raise HTTPException(404, "no such action")
     back = request.headers.get("referer") or "/app/seo"
     return RedirectResponse(back, status_code=303)
+
+
+# --- the content queue ---------------------------------------------------
+
+
+@router.post("/app/content/propose")
+def content_propose(request: Request, session: Session = Depends(get_session)):
+    """Turn every site's latest findings into briefs."""
+    account = _account(request, session)
+    for site in account.sites:
+        if site.is_active:
+            content.propose(session, site)
+    session.commit()
+    return RedirectResponse("/app/seo", status_code=303)
+
+
+@router.post("/app/content/add")
+def content_add(request: Request, site_id: str = Form(...), title: str = Form(...),
+                category: str = Form(default="blog"), priority: str = Form(default="medium"),
+                keyword: str = Form(default=""), body: str = Form(default=""),
+                session: Session = Depends(get_session)):
+    account = _account(request, session)
+    try:
+        content.add(session, account, site_id=site_id, title=title,
+                    category=category, priority=priority, keyword=keyword, body=body)
+    except content.Refused as exc:
+        return RedirectResponse(f"/app/seo?err={quote_plus(str(exc))}", status_code=303)
+    return RedirectResponse("/app/seo", status_code=303)
+
+
+@router.post("/app/content/{post_id}/move")
+def content_move(post_id: str, request: Request, to: str = Form(...),
+                 session: Session = Depends(get_session)):
+    account = _account(request, session)
+    try:
+        content.move(session, account, post_id, to)
+    except content.Refused as exc:
+        return RedirectResponse(f"/app/seo?err={quote_plus(str(exc))}", status_code=303)
+    return RedirectResponse("/app/seo", status_code=303)
+
+
+@router.post("/app/content/{post_id}/draft")
+def content_draft(post_id: str, request: Request,
+                  session: Session = Depends(get_session)):
+    account = _account(request, session)
+    try:
+        content.draft(session, account, post_id)
+    except content.Refused as exc:
+        return RedirectResponse(f"/app/content/{post_id}?err={quote_plus(str(exc))}",
+                                status_code=303)
+    return RedirectResponse(f"/app/content/{post_id}", status_code=303)
+
+
+@router.post("/app/content/{post_id}/body")
+def content_body(post_id: str, request: Request, body: str = Form(default=""),
+                 session: Session = Depends(get_session)):
+    """Paste a draft in. Scored on save."""
+    account = _account(request, session)
+    try:
+        post = content._owned(session, account, post_id)
+    except content.Refused as exc:
+        return RedirectResponse(f"/app/seo?err={quote_plus(str(exc))}", status_code=303)
+    post.body = body.strip() or None
+    content.rescore(post)
+    session.commit()
+    return RedirectResponse(f"/app/content/{post_id}", status_code=303)
+
+
+@router.get("/app/content/{post_id}")
+def content_detail(post_id: str, request: Request, err: str = "",
+                   session: Session = Depends(get_session)):
+    account = _account(request, session)
+    post = session.get(ContentPost, post_id)
+    if post is None:
+        raise HTTPException(404, "no such post")
+    site = session.get(Site, post.site_id)
+    if site is None or site.account_id != account.id:
+        raise HTTPException(404, "no such post")
+    ctx = _ctx(request, session, account, "seo")
+    ctx.update({
+        "post": post,
+        "site": site,
+        "err": err,
+        "report": content.score_post(post),
+        "ring": content.ring(post.seo_score, size=92, stroke=8),
+        "state_label": content.STATE_LABEL.get(post.state, post.state),
+        "tone": content.STATE_TONE.get(post.state, ""),
+        "next": content._next_action(post.state),
+        "checks": content.CHECK_WEIGHTS,
+    })
+    return templates.TemplateResponse("dash/post.html", ctx)
 
 
 @router.post("/app/integrations")

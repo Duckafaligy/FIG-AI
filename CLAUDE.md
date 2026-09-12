@@ -73,7 +73,18 @@ URL → scraper.py       (pure code, $0 — BeautifulSoup, extracts class names,
 ```
 
 **Do not add AI calls anywhere else in the pipeline.** The whole cost model
-depends on 95%+ of the logic being deterministic. If you're tempted to "just
+depends on 95%+ of the logic being deterministic.
+
+This came up for real when the content queue was built. The queue's whole
+purpose is pages that need writing, so "generate the draft" is the obvious
+next button — and it is deliberately not built. `app/content.py:draft()`
+raises `Refused` with an explanation, and the UI says so on the page. A
+900-word generation call is a different cost shape from `ai_explain`'s small
+batched flag-rewrites, and it is a decision to take on purpose rather than one
+that arrives behind a button. **If it gets built: it needs its own cost cap,
+its own file, and Review must stay unskippable** — a queue that writes copy
+and publishes it with nobody reading it is the thing this product exists as a
+reaction to. If you're tempted to "just
 ask the AI" for something a rule could check instead (uniformity, keyword
 presence, color similarity, size ratios), write the rule instead.
 
@@ -147,8 +158,22 @@ configured: SQLite on disk, dashboard at `/app`, API at `/v1`, docs at
 - `app/billing.py` — Stripe: graduated per-site tiers, checkout, portal,
   webhook, and `sync_quantity` so provisioning changes the invoice without a
   renegotiation. Degrades quietly with no key.
-- `app/dashboard.py` + `templates/` — server-rendered estate, site detail,
-  queue, keys and billing views, styled to match the marketing site.
+- `app/dashboard.py` + `templates/dash/` — server-rendered dashboard: an
+  overview built to the Figma design, the sites list and site detail, findings
+  across the estate, notifications, history, and settings (account, billing,
+  keys, integrations, and the checklist from `app/roadmap.py`).
+- `app/publishing.py` — mechanical findings become queued changes. Nothing is
+  written without approval and every change keeps a before-state so it can be
+  reverted. Judgement calls stay advice. No CMS adapter is written yet, so
+  `publish()` refuses out loud rather than pretending.
+- `app/content.py` — the content queue behind `/app/seo`. Findings that need a
+  *page* rather than a field edit (an unanswered question, a thin page, copy
+  with no figures, a site with no structured data) become briefs, which move
+  queued → in progress → review → scheduled → published. `score_post` is nine
+  weighted deterministic rules on the draft. **It does not write the prose:**
+  `draft()` raises `Refused`. See the AI-calls rule below.
+- `app/roadmap.py` — the product checklist, in code so it is visible in the
+  product and hard to let drift. Rendered at `/app/settings?tab=roadmap`.
 - `app/seed.py` — an invented agency with 22 invented client sites. The
   findings are produced by running fixture pages through the real pipeline,
   not typed by hand.
@@ -169,6 +194,10 @@ request to the seeded demo account. It must be 0 before anything is public.
    classification over-matches `pricing` on pages that quote figures in prose.
 4. **Shareable/white-label report output** — a public per-scan URL and a
    branded PDF. This is the growth mechanic, not just a feature.
+4b. **CMS adapters and a secret store** — WordPress first. Both the change
+   queue and the content queue stop at the same missing piece: there is
+   nowhere safe to keep a customer's CMS credential, so `Integration` holds a
+   reference and a last-four hint and nothing else.
 5. **Wire `site/demo.js` to `POST /scan`** — the marketing demo is still a
    scripted read and says so in its own header comment.
 6. **Stripe end to end** — the code is there; it has never run against a live

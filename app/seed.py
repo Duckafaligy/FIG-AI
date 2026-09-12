@@ -18,10 +18,12 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import delete, select
 
+from app import content
 from app.auth import mint_key
 from app.config import DEMO_ACCOUNT_SLUG
 from app.db import init_db, session_scope
-from app.models import Account, ApiKey, Finding, Job, Page, Scan, Site, User
+from app.models import (Account, ApiKey, ContentPost, Finding, Job, Page,
+                        Scan, Site, User)
 from app.rules.checks import run_all_checks
 from app.rules.scoring import summarise
 from app.rules.sections import roles_for
@@ -172,7 +174,7 @@ def _now() -> datetime:
 
 
 def reset(session) -> None:
-    for model in (Finding, Page, Scan, Job, ApiKey, Site):
+    for model in (ContentPost, Finding, Page, Scan, Job, ApiKey, Site):
         session.execute(delete(model))
     session.execute(delete(Account).where(Account.slug == DEMO_ACCOUNT_SLUG))
     session.commit()
@@ -262,11 +264,182 @@ def build(reset_first: bool = False) -> str:
             site.last_scanned_at = finished
             made += 1
 
+        session.flush()
+        session.refresh(account)
+        briefs = seed_content(session, account)
         session.commit()
         session.refresh(account)          # the relationship was loaded empty
         return (f"{account.name}: {account.billable_sites()} sites "
                 f"({made} added this run), "
-                f"estate ${account.monthly_cents() / 100:.2f}/mo")
+                f"estate ${account.monthly_cents() / 100:.2f}/mo, "
+                f"{briefs} content briefs")
+
+
+# --- the content queue --------------------------------------------------
+
+
+def _draft(topic: str, host: str, name: str, quality: str) -> str:
+    """A draft good enough to score honestly.
+
+    `quality` decides which of the nine checks pass, so the rings on the page
+    spread out for a real reason rather than because a number was typed in.
+    """
+    # The opening sentence doubles as the meta description, so it is written
+    # to land inside the 110-158 characters a search result will show.
+    lead = (f"{topic}? Between $1,200 and $4,500 for most jobs, in 3 to 5 days, "
+            f"and here is exactly what moves that number. "
+            f"What follows is what {name} tells people who ring up and ask, in "
+            f"the same order we say it on the phone. None of it is a range "
+            f"invented to look reassuring.")
+    if quality == "high":
+        return "\n\n".join([
+            f"# {topic}",
+            lead,
+            "## The short answer",
+            f"Most jobs run 3 to 5 days and land between $1,200 and $4,500 "
+            f"depending on access and materials. {name} has done 340 of these "
+            f"since 2019, so those are measured figures rather than a range "
+            f"pulled from the air.",
+            "## What actually drives the number",
+            "Three things move the price, in this order: how hard the site is to "
+            "reach, how much of the old work has to come out first, and whether "
+            "the job needs a permit. Access is the one people underestimate — a "
+            "second-floor job with no side entry adds about 8 hours of labour.",
+            "## How long does it take?",
+            "Four days is typical. One day for strip-out, two for the work "
+            "itself, one for making good. Weather adds a day in winter roughly "
+            "one job in five.",
+            "## What you should ask before booking anyone",
+            "Ask for the last three addresses they worked at and ring one. Ask "
+            "whether the quote includes disposal — about 30% of the complaints "
+            "we hear about start there. Ask who is actually on site, because it "
+            "is often not the person quoting, and ask what happens to the price "
+            "if the job runs a day long. A firm answer to all four is a better "
+            "signal than any review page.",
+            "## Why the cheapest quote usually is not",
+            "We get called out to finish somebody else's work about twice a "
+            "month. The pattern is the same nearly every time: the quote left "
+            "out disposal, or it assumed the substrate underneath was sound "
+            "without anybody lifting a board to check. Both come back as a "
+            "variation once the work has started and you have nobody else "
+            "lined up. A quote that names the things it has excluded is worth "
+            "more than one that is 15% lower and silent about them.",
+            "## What the work looks like day by day",
+            "Day one is strip-out and protection. Everything that is coming "
+            "out comes out, the route in gets boarded, and anything staying "
+            "gets sheeted. Day two and three are the work itself, and this is "
+            "the part that varies — if the substrate needs making good first, "
+            "that lands here and it is where a day gets added. Day four is "
+            "making good, cleaning, and walking the job with you before "
+            "anybody leaves. You get photographs of anything that was covered "
+            "up, which matters in two years when somebody asks what is behind "
+            "the wall.",
+            "## Does it need a permit?",
+            "For most jobs, no. Structural changes, anything touching a shared "
+            "wall, and anything in a conservation area do, and that adds two to "
+            "six weeks before a start date. We check this before quoting rather "
+            "than after, because a job that cannot start for a month is a "
+            "different decision than one that can start next week.",
+            "## When is the right time of year",
+            "Between March and October if the work involves anything exterior. "
+            f"{name} still books winter work and about 60% of what we do is "
+            "unaffected by weather, but a job with two days of outside work in "
+            "January should have a day of slack in it and a quote that says so.",
+            "## What we will not do",
+            "We will not quote without seeing photographs at minimum, and for "
+            "anything over $2,500 we will not quote without visiting. A number "
+            "given over the phone with no information is a number that changes, "
+            "and the change always goes one way. If somebody has given you a "
+            "firm price sight unseen, that is worth asking about.",
+            f"See our [pricing](/pricing) for the current schedule and the "
+            f"[process page](/process) for what each day looks like. If you want "
+            f"a figure for your own place, {name} will look at photos first and "
+            f"tell you whether a visit is even needed. Most people who ring us "
+            f"have already had one quote and want to know whether it was fair. "
+            f"That is a reasonable thing to ask and we will tell you when it "
+            f"was, which is more often than you would think.",
+        ])
+    if quality == "mid":
+        return "\n\n".join([
+            f"# {topic}",
+            lead,
+            "## The short answer",
+            "It depends on the property, but most jobs are finished inside a "
+            "week and the cost is in line with what you would expect locally. "
+            "We will give you a firm number before anything starts.",
+            "## What to expect",
+            "We turn up when we say we will, we clear up after ourselves, and "
+            "we tell you if we find something that changes the price rather than "
+            "adding it to the invoice at the end.",
+            "## Getting a number",
+            f"Have a look at our [services](/services) or get in touch and "
+            f"somebody at {name} will talk it through.",
+        ])
+    return "\n\n".join([
+        f"# {topic}",
+        f"Elevate your experience with {name}. Our seamless, innovative approach "
+        f"unlocks the full potential of your property while delivering "
+        f"best-in-class outcomes at every touchpoint.",
+        "Get in touch today to learn more about how we can transform your space.",
+    ])
+
+
+CONTENT_PLAN = [
+    # (state, quality, priority, days from now)
+    ("published", "high", "high", -22),
+    ("published", "high", "medium", -11),
+    ("published", "mid", "low", -4),
+    ("scheduled", "high", "high", 3),
+    ("scheduled", "mid", "medium", 6),
+    ("scheduled", "mid", "low", 9),
+    ("review", "mid", "high", None),
+    ("review", "low", "low", None),
+    ("review", "mid", "medium", None),
+    ("in_progress", "low", "medium", None),
+    ("in_progress", "mid", "high", None),
+    ("in_progress", "low", "low", None),
+]
+
+
+def seed_content(session, account: Account) -> int:
+    """Build briefs from the audits, then take some of them forward.
+
+    Briefs come from `content.propose`, which reads the real findings. The
+    drafts are fixtures; the scores on them are not — every ring on the page is
+    `content.score_post` run over the text that is actually stored.
+    """
+    if session.scalars(select(ContentPost).limit(1)).first() is not None:
+        return 0
+
+    sites = [s for s in account.sites if s.is_active]
+    made = 0
+    for site in sites:
+        made += len(content.propose(session, site, limit=3))
+    session.flush()
+
+    posts = session.scalars(
+        select(ContentPost).where(
+            ContentPost.site_id.in_([s.id for s in sites]))).all()
+    rng = random.Random(7)
+    rng.shuffle(posts)
+    by_id = {s.id: s for s in sites}
+
+    for post, (state, quality, priority, days) in zip(posts, CONTENT_PLAN):
+        site = by_id[post.site_id]
+        topic = (post.target_keyword or post.title).strip().capitalize()
+        post.body = _draft(topic, site.hostname,
+                           site.client_name or site.hostname, quality)
+        post.priority = priority
+        post.state = state
+        if days is not None:
+            when = _now() + timedelta(days=days)
+            post.scheduled_for = when
+            if state == "published":
+                post.published_at = when
+        content.rescore(post)
+
+    session.flush()
+    return made
 
 
 def purge() -> str:

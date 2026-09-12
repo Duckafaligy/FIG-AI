@@ -1,0 +1,268 @@
+{% extends "dash/shell.html" %}
+{% block title %}SEO Content Queue — {{ account.name }}{% endblock %}
+
+{% macro gauge(g, big=false, label="") %}
+<div class="gauge-wrap {{ 'big' if big }}">
+  <svg class="gauge gauge-{{ g.tone }}" width="{{ g.size }}" height="{{ g.size }}"
+       viewBox="0 0 {{ g.size }} {{ g.size }}" aria-hidden="true">
+    <circle class="track" cx="{{ g.c }}" cy="{{ g.c }}" r="{{ g.r }}"
+            stroke-width="{{ g.stroke }}"/>
+    <circle class="arc" cx="{{ g.c }}" cy="{{ g.c }}" r="{{ g.r }}"
+            stroke-width="{{ g.stroke }}" stroke-linecap="round"
+            stroke-dasharray="{{ g.dash }} {{ g.gap }}"/>
+  </svg>
+  <b>{{ g.score if g.score is not none else '—' }}</b>
+  {% if big and label %}<em>{{ label }}</em>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro ic(name) %}
+<svg viewBox="0 0 24 24" aria-hidden="true">
+{%- if name == 'doc' -%}<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>
+{%- elif name == 'check' -%}<circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.2l2.4 2.4 4.6-4.8"/>
+{%- elif name == 'gauge' -%}<path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4-5"/>
+{%- elif name == 'users' -%}<circle cx="9" cy="8" r="3.4"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M17 8.5a3 3 0 0 1 0 5"/>
+{%- elif name == 'eye' -%}<path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>
+{%- elif name == 'plus' -%}<path d="M12 5v14M5 12h14"/>
+{%- elif name == 'dots' -%}<circle cx="12" cy="5.5" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="12" cy="18.5" r="1.3"/>
+{%- endif -%}
+</svg>
+{% endmacro %}
+
+{% block body %}
+<div class="page-h">
+  <div>
+    <h2>SEO Content Queue</h2>
+    <p>The audit finds two kinds of problem. Most are a field to correct, and those
+      go to the <a class="lk" href="/app/seo/audit">search audit</a>. The rest are a
+      page that does not exist yet &mdash; nothing answers a question buyers ask, or a
+      page has no specifics a model could quote. Those arrive here as briefs.</p>
+  </div>
+  <a class="tbtn" href="/app/seo/audit">Search audit &amp; publish console</a>
+</div>
+
+{% if v.empty %}
+<div class="empty"><b>No sites yet</b>
+  Add a site, let FIG read it, and the gaps worth writing about turn up here.
+  <div style="margin-top:16px"><a class="tbtn" href="/app/sites">Add a site</a></div>
+</div>
+{% else %}
+
+<div class="grid row-five" style="margin-bottom:14px">
+  {% for k in v.kpis %}
+  <div class="kpi {{ 'soon' if k.source == 'console' }}">
+    <div class="kpi-h">{{ ic(k.icon) }}{{ k.label }}</div>
+    <div class="kpi-v"><b>{{ k.value }}</b></div>
+    <div class="kpi-sub">{{ k.sub }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<form class="qbar" method="get" action="/app/seo">
+  <nav class="qtabs">
+    {% for key, label, n in v.tabs %}
+    <a href="/app/seo?tab={{ key }}{{ '&category=' ~ v.category if v.category }}"
+       class="{{ 'on' if v.tab == key }}">{{ label }}<i>{{ n }}</i></a>
+    {% endfor %}
+  </nav>
+  <input type="hidden" name="tab" value="{{ v.tab }}">
+  <select name="category" onchange="this.form.submit()">
+    <option value="">All categories</option>
+    {% for key, label in v.categories %}
+    <option value="{{ key }}" {{ 'selected' if v.category == key }}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button class="tbtn primary" type="button" id="np-open">{{ ic('plus') }}New post</button>
+</form>
+
+{% if err %}<div class="card" style="margin-bottom:14px;border-color:#FDA29B;background:#FFFBFA">
+  <p class="kpi-sub" style="margin:0;color:#B42318">{{ err }}</p></div>{% endif %}
+
+<form class="card npf" id="np" method="post" action="/app/content/add" hidden
+      style="margin-bottom:14px">
+  <div class="card-h"><h3>New post</h3>
+    <span class="kpi-sub">A brief is enough to start. Paste a draft and it gets scored.</span>
+  </div>
+  <div class="npgrid" style="margin-bottom:12px">
+    <div><label for="np-site">Site</label>
+      <select id="np-site" name="site_id" required>
+        {% for s in v.sites %}<option value="{{ s.id }}">{{ s.hostname }}</option>{% endfor %}
+      </select></div>
+    <div><label for="np-cat">Category</label>
+      <select id="np-cat" name="category">
+        {% for key, label in v.categories %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+      </select></div>
+    <div><label for="np-pri">Priority</label>
+      <select id="np-pri" name="priority">
+        <option value="high">High</option>
+        <option value="medium" selected>Medium</option>
+        <option value="low">Low</option>
+      </select></div>
+    <div><label for="np-kw">Target phrase</label>
+      <input id="np-kw" name="keyword" placeholder="what people actually type"></div>
+  </div>
+  <div class="npgrid" style="grid-template-columns:1fr;margin-bottom:12px">
+    <div><label for="np-title">Title</label>
+      <input id="np-title" name="title" required
+             placeholder="Answer the question in the words it gets asked"></div>
+  </div>
+  <div style="margin-bottom:14px">
+    <label for="np-body" style="display:block;font-size:12.5px;font-weight:550;
+      color:var(--muted);margin-bottom:6px">Draft <span style="font-weight:400">(optional
+      &mdash; leave empty to keep it as a brief)</span></label>
+    <textarea id="np-body" name="body" placeholder="Markdown or HTML. Scored on nine checks: length, the phrase in the title and the opening, subheadings, quotable specifics, a real question, a usable description, internal links, and not stuffing it."></textarea>
+  </div>
+  <div class="inline" style="gap:8px">
+    <button class="tbtn primary" type="submit">Add to queue</button>
+    <button class="tbtn" type="button" id="np-close">Cancel</button>
+  </div>
+</form>
+
+<div class="card" style="margin-bottom:14px">
+  <div class="card-h">
+    <h3>{{ 'All posts' if v.tab == 'all' else v.tabs|selectattr('0','equalto',v.tab)|map(attribute='1')|first }}</h3>
+    <span class="kpi-sub">{{ v.rows|length }} of {{ v.total }} shown
+      {%- if not v.keyword_source %} &middot; volume and difficulty need a keyword source{% endif %}</span>
+  </div>
+
+  {% if v.rows %}
+  <div class="t-scroll">
+  <table class="t q">
+    <colgroup>
+      <col class="c-post"><col class="c-state"><col class="c-score"><col class="c-kw">
+      <col class="c-pri"><col class="c-when"><col class="c-act">
+    </colgroup>
+    <thead><tr>
+      <th>Blog post</th><th>Status</th><th class="n">SEO score</th>
+      <th>Target keyword</th><th>Priority</th><th>Scheduled for</th><th></th>
+    </tr></thead>
+    <tbody>
+    {% for r in v.rows %}
+      <tr>
+        <td>
+          <div class="post"><span class="post-ic">{{ ic('doc') }}</span>
+            <span><b>{{ r.title }}</b>
+              <span>{{ r.category }} &middot;
+                {% if r.words %}{{ '{:,}'.format(r.words) }} words
+                {% else %}brief only{% endif %} &middot; {{ r.hostname }}</span>
+            </span>
+          </div>
+        </td>
+        <td><span class="pill {{ r.tone }}">{{ r.state_label }}</span></td>
+        <td>
+          <div class="gauge-cell" style="justify-content:flex-end">
+            {{ gauge(r.ring) }}
+          </div>
+        </td>
+        <td><div class="kw"><b>{{ r.keyword }}</b>
+          <span>{% if r.volume %}Volume {{ '{:,}'.format(r.volume) }} &middot;
+            KD {{ r.kd }}{% else %}<em>no volume data</em>{% endif %}</span></div></td>
+        <td><span class="pill {{ 'bad' if r.priority == 'high' else ('warn' if r.priority == 'medium' else '') }}">{{ r.priority|capitalize }}</span></td>
+        <td><div class="when">
+          {% if r.date %}<b>{{ r.date }}</b><span>{{ r.time }}</span>
+          {% else %}<b style="color:var(--muted-2);font-weight:500">not scheduled</b>{% endif %}
+        </div></td>
+        <td class="n">
+          <div class="iact">
+            {% if r.next %}
+            <form method="post" action="/app/content/{{ r.id }}/move">
+              <input type="hidden" name="to" value="{{ r.next.to }}">
+              <button class="tbtn sm" type="submit">{{ r.next.label }}</button>
+            </form>
+            {% endif %}
+            <a class="ibtn" href="/app/content/{{ r.id }}" title="Open">{{ ic('eye') }}</a>
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="kpi-sub">{% if v.total %}Nothing in this state.
+    {% else %}The queue is empty. Build it from the latest audits and every finding
+    that needs a page rather than a field edit &mdash; an unanswered question, a thin
+    page, copy with no figures in it &mdash; becomes a brief.{% endif %}</p>
+  <form method="post" action="/app/content/propose" style="margin-top:14px">
+    <button class="tbtn" type="submit">Build briefs from the latest audits</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="grid row-three">
+  <div class="card">
+    <div class="card-h"><h3>Top performing posts</h3>
+      <span class="kpi-sub">{{ 'by clicks' if v.keyword_source else 'needs Search Console' }}</span></div>
+    {% if v.top_posts %}
+    <ul class="rank">
+      {% for p in v.top_posts %}
+      <li><span class="r">{{ loop.index }}</span>
+        <span class="m"><b>{{ p.title }}</b><span>{{ p.hostname }}</span></span>
+        <span class="v {{ 'pale' if not p.clicks }}">
+          {%- if p.clicks %}{{ '{:,}'.format(p.clicks) }}{% else %}score {{ p.score or '—' }}{% endif -%}
+        </span></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="kpi-sub">Nothing published yet. Once a post goes live through a connected
+      CMS it appears here, and its traffic fills in when Search Console is connected.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h3>Keywords being targeted</h3>
+      <span class="kpi-sub">what the queue is aimed at</span></div>
+    {% if v.top_keywords %}
+    <ul class="rank">
+      {% for k in v.top_keywords %}
+      <li><span class="r">{{ loop.index }}</span>
+        <span class="m"><b>{{ k.keyword }}</b>
+          <span>{{ k.posts }} post{{ '' if k.posts == 1 else 's' }} in the queue</span></span>
+        <span class="v {{ 'pale' if not k.clicks }}">
+          {%- if k.clicks %}{{ '{:,}'.format(k.clicks) }} clicks{% else %}no data{% endif -%}
+        </span></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="kpi-sub">Each brief carries the phrase it is aimed at, taken from the
+      finding that produced it. Connect a keyword source and this ranks by real volume
+      instead of by queue depth.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h3>SEO health score</h3></div>
+    <div class="health">
+      {{ gauge(v.health.ring, big=true, label=v.health.label) }}
+      <p>{% if v.health.score is not none %}
+        The search layer across {{ v.health.sites }}
+        audited site{{ '' if v.health.sites == 1 else 's' }}.
+        {{ v.health.clean }} of them score 80 or better on their own.
+        {% else %}Nothing audited yet, so there is no score to show.{% endif %}</p>
+      <a class="tbtn" href="/app/seo/audit">View full report</a>
+    </div>
+  </div>
+</div>
+
+<p class="kpi-sub" style="margin-top:14px;max-width:80ch">
+  FIG does not write the copy. It finds the gap, states what the piece has to do, names
+  the phrase it is aimed at, and scores the draft on nine checks once one exists &mdash;
+  and nothing reaches a live site without somebody reading it in Review first.
+</p>
+
+<script>
+(function () {
+  var open = document.getElementById('np-open'),
+      form = document.getElementById('np'),
+      close = document.getElementById('np-close');
+  if (!open || !form) return;
+  open.addEventListener('click', function () {
+    form.hidden = false;
+    form.classList.add('newpost');
+    document.getElementById('np-title').focus();
+  });
+  close.addEventListener('click', function () { form.hidden = true; });
+})();
+</script>
+{% endif %}
+{% endblock %}

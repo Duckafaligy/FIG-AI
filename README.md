@@ -111,7 +111,8 @@ so and nothing else is affected.
 ## Tests
 
 ```bash
-python test_local.py     # no network, no API key
+python test_local.py     # the rules engine: no network, no API key
+python test_content.py   # the content queue's scorer and state machine
 ```
 
 Craft checks must stay quiet on hand-made HTML; the hygiene layers are

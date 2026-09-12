@@ -61,8 +61,36 @@ CHECKLIST = [
          "them yet."),
     ]),
 
+    ("The content queue", [
+        ("Briefs from findings", "done",
+         "An unanswered question, a thin page, copy with no figures in it and a "
+         "site with no structured data each become a brief with the phrase it "
+         "is aimed at. One per gap, not one per page."),
+        ("Queued to published", "done",
+         "Queued, In Progress, Review, Scheduled, Published, with only the legal "
+         "moves allowed. Review cannot be skipped and nothing can be sent there "
+         "with no draft in it."),
+        ("Score the draft", "done",
+         "Nine weighted rules -- length for its category, the phrase in the "
+         "title and the opening, subheadings, quotable specifics, a real "
+         "question, a liftable opening paragraph, internal links, and not "
+         "repeating the phrase every other paragraph."),
+        ("Write the draft", "planned",
+         "Deliberately not built. Every model call lives in ai_explain.py and "
+         "receives flagged data, never a page; a generation step is a different "
+         "call with a different cost per run. The button refuses and says so."),
+        ("Keyword volume and difficulty", "planned",
+         "Needs a keyword source. The columns are empty rather than estimated."),
+        ("Publish a post to the CMS", "planned",
+         "Same adapters as the change queue. Refuses until one is connected."),
+        ("Per-post traffic", "planned",
+         "Clicks per published post needs Search Console."),
+    ]),
+
     ("Visibility", [
-        ("SEO report", "done", "Per-layer, leading with what already passes."),
+        ("SEO report", "done",
+         "Per-layer, leading with what already passes. Lives at /app/seo/audit "
+         "now that the content queue is the SEO page."),
         ("GEO report", "done", "Same shape, for what a model can quote."),
         ("Search Console connection", "planned",
          "Clicks, impressions, CTR and position are all measured there. Until it "

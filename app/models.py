@@ -414,3 +414,54 @@ class Change(Base):
     reverted_at = Column(DateTime, nullable=True)
 
     site = relationship("Site")
+
+
+# --- the content queue --------------------------------------------------
+
+POST_STATES = ("queued", "in_progress", "review", "scheduled", "published")
+PRIORITIES = ("high", "medium", "low")
+
+
+class ContentPost(Base):
+    """A blog post or glossary entry moving through the pipeline.
+
+    This is the other half of publishing: the audit says a page is thin or has
+    nothing a model can quote, and the answer is often a page that does not
+    exist yet. A post is drafted, reviewed, scheduled, and pushed to the CMS
+    through the same Integration as any other change.
+
+    `review` is a state on purpose. Generated copy going straight to a live
+    client site with nobody reading it first is exactly the failure this whole
+    product is a reaction to.
+    """
+
+    __tablename__ = "content_posts"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    site_id = Column(String, ForeignKey("sites.id"), nullable=False, index=True)
+
+    title = Column(String, nullable=False)
+    slug = Column(String, nullable=True)
+    category = Column(String, nullable=False, default="blog")   # blog | glossary | guide
+    # Why this piece exists: the finding, in words, carried from the audit.
+    brief = Column(Text, nullable=True)
+    body = Column(Text, nullable=True)
+    word_count = Column(Integer, nullable=False, default=0)
+
+    state = Column(String, nullable=False, default="queued", index=True)
+    priority = Column(String, nullable=False, default="medium")
+
+    # What the piece is aimed at, and how hard that is.
+    target_keyword = Column(String, nullable=True)
+    search_volume = Column(Integer, nullable=True)
+    keyword_difficulty = Column(Integer, nullable=True)
+
+    seo_score = Column(Integer, nullable=True)
+    # Traffic once it is live. Needs Search Console; null until then.
+    clicks = Column(Integer, nullable=True)
+
+    scheduled_for = Column(DateTime, nullable=True)
+    published_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=_now)
+
+    site = relationship("Site")

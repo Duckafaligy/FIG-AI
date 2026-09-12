@@ -1,0 +1,112 @@
+{% extends "dash/shell.html" %}
+{% block title %}{{ post.title }} — {{ account.name }}{% endblock %}
+
+{% block body %}
+<div class="page-h">
+  <div>
+    <a class="lk" href="/app/seo" style="font-size:13px">&larr; Content queue</a>
+    <h2 style="margin-top:8px">{{ post.title }}</h2>
+    <p><span class="pill {{ tone }}">{{ state_label }}</span>
+      &nbsp;{{ post.category|capitalize }} for
+      <a class="lk" href="/app/sites/{{ site.id }}">{{ site.hostname }}</a>
+      {% if post.target_keyword %} &middot; aimed at
+        <b style="color:var(--ink)">{{ post.target_keyword }}</b>{% endif %}</p>
+  </div>
+  {% if next %}
+  <form method="post" action="/app/content/{{ post.id }}/move">
+    <input type="hidden" name="to" value="{{ next.to }}">
+    <button class="tbtn primary" type="submit">{{ next.label }}</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if err %}
+<div class="card" style="margin-bottom:14px;border-color:#FDA29B;background:#FFFBFA">
+  <p class="kpi-sub" style="margin:0;color:#B42318">{{ err }}</p>
+</div>
+{% endif %}
+
+<div class="grid row-main">
+  <div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-h"><h3>Score</h3>
+        <span class="kpi-sub">{{ report.words or 0 }} words</span></div>
+      <div class="health" style="padding:2px 0 0">
+        <div class="gauge-wrap">
+          <svg class="gauge gauge-{{ ring.tone }}" width="{{ ring.size }}"
+               height="{{ ring.size }}" viewBox="0 0 {{ ring.size }} {{ ring.size }}"
+               aria-hidden="true">
+            <circle class="track" cx="{{ ring.c }}" cy="{{ ring.c }}" r="{{ ring.r }}"
+                    stroke-width="{{ ring.stroke }}"/>
+            <circle class="arc" cx="{{ ring.c }}" cy="{{ ring.c }}" r="{{ ring.r }}"
+                    stroke-width="{{ ring.stroke }}" stroke-linecap="round"
+                    stroke-dasharray="{{ ring.dash }} {{ ring.gap }}"/>
+          </svg>
+          <b style="font-size:24px">{{ ring.score if ring.score is not none else '—' }}</b>
+        </div>
+        <p>{% if report.score is none %}No draft yet, so nothing to score. A brief with a
+          red number on it would only be telling you it is a brief.
+          {% else %}{{ report.passed|length }} of {{ checks|length }} checks pass.{% endif %}</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-h"><h3>The nine checks</h3>
+        <span class="kpi-sub">rules, not opinion</span></div>
+      <ul class="good" style="grid-template-columns:1fr">
+        {% for key, weight, label in checks %}
+        {% set ok = label in report.passed %}
+        <li style="{{ '' if ok else 'background:#FFFBFA' }}">
+          <i style="color:{{ 'var(--up)' if ok else 'var(--muted-2)' }}">{{ '✓' if ok else '·' }}</i>
+          <span style="color:{{ 'var(--ink-2)' if ok else 'var(--muted)' }}">{{ label }}</span>
+          <em style="margin-left:auto;font-style:normal;font-size:12px;color:var(--muted-2)">{{ weight }}</em>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Details</h3></div>
+      <dl class="drows">
+        <div><dt>Priority</dt><dd>{{ post.priority|capitalize }}</dd></div>
+        <div><dt>Target phrase</dt><dd>{{ post.target_keyword or '—' }}</dd></div>
+        <div><dt>Volume</dt><dd>{{ post.search_volume or '—' }}
+          <small>Needs a keyword source. Nothing here is estimated.</small></dd></div>
+        <div><dt>Difficulty</dt><dd>{{ post.keyword_difficulty or '—' }}</dd></div>
+        <div><dt>Slug</dt><dd class="mono" style="font-size:12.5px">/{{ post.slug or '' }}</dd></div>
+        <div><dt>Scheduled</dt><dd>{{ post.scheduled_for.strftime('%d %b %Y, %H:%M')
+          if post.scheduled_for else 'not scheduled' }}</dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <div>
+    <form class="card npf" method="post" action="/app/content/{{ post.id }}/body"
+          style="margin-bottom:14px">
+      <div class="card-h"><h3>Draft</h3>
+        <span class="kpi-sub">Markdown or HTML. Re-scored when you save.</span></div>
+      <textarea name="body" style="min-height:420px">{{ post.body or '' }}</textarea>
+      <div class="inline" style="gap:8px;margin-top:14px">
+        <button class="tbtn primary" type="submit">Save and re-score</button>
+        <button class="tbtn" type="submit"
+                formaction="/app/content/{{ post.id }}/draft">Write it for me</button>
+      </div>
+      <p class="kpi-sub" style="margin-top:12px">
+        &ldquo;Write it for me&rdquo; is not built and will tell you so. Every model call in
+        FIG lives in one file and receives flagged data, never a page &mdash; a drafting
+        step is a different call with a different cost per run, and it gets decided
+        deliberately rather than added behind a button.
+      </p>
+    </form>
+
+    {% if report.failed %}
+    <div class="card">
+      <div class="card-h"><h3>What would raise the score</h3></div>
+      <ul class="good" style="grid-template-columns:1fr">
+        {% for f in report.failed %}<li><i>·</i>{{ f }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
