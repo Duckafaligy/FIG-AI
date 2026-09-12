@@ -1,0 +1,100 @@
+{% extends "dash/shell.html" %}
+{% import "dash/_bits.html" as b %}
+{% block title %}{{ site.hostname }} — {{ account.name }}{% endblock %}
+
+{% block body %}
+<div class="page-h">
+  <div>
+    <p class="crumb"><a href="/app/sites">Sites</a> / {{ site.hostname }}</p>
+    <h2>{{ site.label or site.hostname }}</h2>
+    <p>{% if site.client_name %}Delivered for {{ site.client_name }}. {% endif %}
+      {% if scan %}Last audit read {{ scan.pages_crawled }} page{{ '' if scan.pages_crawled == 1 else 's' }}{% if scan.finished_at %}
+      on {{ scan.finished_at.strftime('%d %b %Y, %H:%M') }}{% endif %}.
+      {% else %}Not audited yet.{% endif %}</p>
+  </div>
+  <form method="post" action="/app/sites/{{ site.id }}/scan">
+    <button class="tbtn primary" type="submit">Audit again</button>
+  </form>
+</div>
+
+{% if not scan %}
+<div class="empty"><b>{{ 'An audit is running' if pending else 'Nothing audited yet' }}</b>
+  {{ 'This page refreshes when it lands.' if pending else 'Press Audit again to queue one.' }}</div>
+{% else %}
+
+<div class="grid row-mid" style="margin-bottom:14px">
+  <div class="card">
+    <div class="card-h"><h3>Score</h3>{{ b.vpill(verdict) }}</div>
+    <div class="score-big">{{ scan.score }}<span>/100</span></div>
+    <p class="kpi-sub">{{ findings|length }} finding{{ '' if findings|length == 1 else 's' }}
+      across {{ scan.pages_crawled }} page{{ '' if scan.pages_crawled == 1 else 's' }}</p>
+  </div>
+  <div class="card">
+    <div class="card-h"><h3>Layers</h3></div>
+    {{ b.layerbars(scores, layer_meta) }}
+  </div>
+  <div class="card">
+    <div class="card-h"><h3>Since the last audit</h3></div>
+    {% if delta %}
+      <div class="score-big" style="font-size:32px">{{ delta.from_score }} &rarr; {{ delta.to_score }}
+        {{ b.trend(delta.change) }}</div>
+      <p class="kpi-sub">{{ delta.fixed|length }} gone, {{ delta.new|length }} new</p>
+    {% else %}
+      <p class="kpi-sub">Only one audit on record. Run another and the change shows here.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if chart %}
+<div class="card" style="margin-bottom:14px">
+  <div class="card-h"><h3>Score over time</h3>
+    <span class="kpi-sub">{{ history|length }} audits</span></div>
+  {{ b.linechart(chart, 'Score across recent audits') }}
+</div>
+{% endif %}
+
+{% for key, label, sub in layer_meta %}
+{% set group = grouped[key] %}
+<div class="card" style="margin-bottom:14px">
+  <div class="card-h"><h3>{{ label }}</h3>
+    <span class="kpi-sub">{{ sub }} &middot; {{ scores[key] if scores[key] is not none else '—' }}/100
+      &middot; {{ group|length }} finding{{ '' if group|length == 1 else 's' }}</span></div>
+  {% if group %}
+    {% for f in group %}
+    <div class="finding">
+      <div class="finding-h"><b>{{ f.check.replace('_',' ') }}</b>{{ b.sev(f.severity) }}
+        {% if f.page_url %}<span class="path">{{ f.page_url }}</span>{% endif %}</div>
+      <p>{{ f.summary }}</p>
+      {% if f.why %}<p class="soft">{{ f.why }}</p>{% endif %}
+      {% if f.evidence %}<ul class="ev">{% for e in f.evidence[:6] %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+      {% if f.fix %}<p class="fix"><span>fix</span>{{ f.fix }}</p>{% endif %}
+    </div>
+    {% endfor %}
+  {% else %}<p class="kpi-sub">Nothing flagged on this layer.</p>{% endif %}
+</div>
+{% endfor %}
+
+{% if pages %}
+<div class="card">
+  <div class="card-h"><h3>Pages read</h3><span class="kpi-sub">{{ pages|length }}</span></div>
+  <table class="t">
+    <thead><tr><th>Path</th><th>Title</th><th class="n">Status</th><th class="n">Words</th>
+      <th>Section order</th></tr></thead>
+    <tbody>
+    {% for p in pages %}
+      <tr><td class="path">{{ p.path }}</td>
+        <td style="max-width:260px">{{ p.title or '—' }}</td>
+        <td class="n">{{ p.status_code or '—' }}</td>
+        <td class="n {{ 'low' if p.word_count < 120 }}">{{ p.word_count }}</td>
+        <td class="path" style="max-width:300px">{{ (p.section_roles or [])|join(' → ') }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
+
+{% block script %}
+{% if pending %}setTimeout(function(){location.reload()},4000);{% endif %}
+{% endblock %}

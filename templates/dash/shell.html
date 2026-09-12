@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}FIG{% endblock %}</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css?v=1">
+</head>
+<body>
+<div class="shell">
+
+  <aside class="rail">
+    <a class="rail-brand" href="/app">
+      <span class="rail-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg>
+      </span>
+      Live Analytics
+    </a>
+
+    <nav class="rail-nav">
+      <a href="/app" class="{{ 'on' if page == 'overview' }}">
+        <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"/></svg>
+        Overview</a>
+      <a href="/app/seo" class="{{ 'on' if page == 'seo' }}">
+        <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
+        SEO</a>
+      <a href="/app/geo" class="{{ 'on' if page == 'geo' }}">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 3 3.7 5.8 3.7 9S14.5 21 12 21 8.3 15.2 8.3 12 9.5 6 12 3Z"/></svg>
+        GEO</a>
+      <a href="/app/notifications" class="{{ 'on' if page == 'notifications' }}">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        Notifications
+        {% if counts.alerts %}<span class="count">{{ counts.alerts }}</span>{% endif %}</a>
+
+      <div class="rail-rule"></div>
+
+      <a href="/app/sites" class="{{ 'on' if page == 'sites' }}">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 9v11"/></svg>
+        Sites <span class="count">{{ counts.sites }}</span></a>
+      <a href="/app/findings" class="{{ 'on' if page == 'findings' }}">
+        <svg viewBox="0 0 24 24"><path d="M12 3 22 20H2z"/><path d="M12 9v5M12 17v.5"/></svg>
+        Findings</a>
+    </nav>
+
+    <div class="rail-foot">
+      {% if trial and trial.on_trial %}
+      <div class="rail-trial">
+        <b>{{ trial.days }} day{{ '' if trial.days == 1 else 's' }} of your free week</b>
+        <span>No card on file</span>
+      </div>
+      {% endif %}
+      <a href="/app/history" class="{{ 'on' if page == 'history' }}">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+        History</a>
+      <a href="/app/settings" class="{{ 'on' if page == 'settings' }}">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M22 12h-3M5 12H2M18.4 5.6 16.2 7.8M7.8 16.2 5.6 18.4M18.4 18.4 16.2 16.2M7.8 7.8 5.6 5.6"/></svg>
+        Settings</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="top">
+      <label class="search">
+        <span class="sr-only">Search your dashboard</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4.5 4.5"/></svg>
+        <input type="text" id="dashSearch" placeholder="Search your dashboard…" autocomplete="off">
+        <kbd>&#8984; K</kbd>
+      </label>
+
+      <button class="tbtn" type="button" id="editDash">
+        <svg viewBox="0 0 24 24"><path d="M4 20h4L20 8a2.8 2.8 0 0 0-4-4L4 16z"/></svg>
+        Edit Dashboard
+      </button>
+
+      <button class="proj" type="button" id="projPick">
+        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+        <b>{{ project }}</b>
+        <svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+    </div>
+
+    {% if dev_no_auth %}
+    <div class="devbar">Signed in as nobody &mdash; <b>FIG_DEV_NO_AUTH=1</b> resolves every
+      request to <b>{{ account.name }}</b>. Set it to 0 to use real accounts.</div>
+    {% endif %}
+
+    <div class="page">{% block body %}{% endblock %}</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ⌘K / Ctrl-K focuses the search, the way the shortcut in the field implies
+  var input = document.getElementById('dashSearch');
+  document.addEventListener('keydown', function (e) {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      if (input) input.focus();
+    }
+  });
+})();
+{% block script %}{% endblock %}
+</script>
+</body>
+</html>

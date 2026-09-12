@@ -1,0 +1,89 @@
+{% extends "dash/shell.html" %}
+{% import "dash/_bits.html" as b %}
+{% block title %}History — {{ account.name }}{% endblock %}
+
+{% block body %}
+<div class="page-h">
+  <div><h2>History</h2>
+    <p>Every audit this project has run, and whether the estate is getting better.
+      Direction only becomes meaningful on the second audit of a site.</p></div>
+  <form method="post" action="/app/audit-all">
+    <button class="tbtn primary" type="submit">Audit everything</button>
+  </form>
+</div>
+
+<div class="grid row-four" style="margin-bottom:14px">
+  <div class="kpi"><div class="kpi-h">Audits run</div>
+    <div class="kpi-v"><b>{{ an.total_reads }}</b></div>
+    <div class="kpi-sub">across {{ an.sites }} site{{ '' if an.sites == 1 else 's' }}</div></div>
+  <div class="kpi"><div class="kpi-h">In the queue</div>
+    <div class="kpi-v"><b>{{ depth.queued + depth.running }}</b></div>
+    <div class="kpi-sub">{{ depth.running }} running now</div></div>
+  <div class="kpi"><div class="kpi-h">Improving</div>
+    <div class="kpi-v"><b style="color:var(--up)">{{ an.improving }}</b></div>
+    <div class="kpi-sub">up since the first audit</div></div>
+  <div class="kpi"><div class="kpi-h">Declining</div>
+    <div class="kpi-v"><b style="color:var(--down)">{{ an.declining }}</b></div>
+    <div class="kpi-sub">down since the first audit</div></div>
+</div>
+
+{% if an.with_history %}
+<div class="grid row-four" style="margin-bottom:14px">
+  {% for key, label, sub in an.layer_meta %}
+  {% set then = an.layer_then[key] %}{% set now = an.layer_now[key] %}
+  <div class="kpi">
+    <div class="kpi-h">{{ label }}</div>
+    <div class="kpi-v"><b>{{ now if now is not none else '—' }}</b>
+      {% if then is not none and now is not none %}{{ b.trend(now - then) }}{% endif %}</div>
+    <div class="kpi-sub">{% if then is not none %}was {{ then }}{% else %}{{ sub }}{% endif %}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <div class="card-h"><h3>Tracked sites</h3>
+    <span class="kpi-sub">biggest movement first</span></div>
+  <table class="t">
+    <thead><tr><th>Site</th><th class="n">Audits</th><th class="n">First</th>
+      <th class="n">Latest</th><th class="n">Change</th><th>Since</th></tr></thead>
+    <tbody>{% for t in an.tracked %}
+      <tr><td><a class="lk" href="/app/sites/{{ t.id }}">{{ t.hostname }}</a>
+          {% if t.client %}<span class="sub">{{ t.client }}</span>{% endif %}</td>
+        <td class="n">{{ t.reads }}</td><td class="n">{{ t['from'] }}</td>
+        <td class="n">{{ t.to }}</td><td class="n">{{ b.trend(t.change) }}</td>
+        <td>{{ t.first_at.strftime('%d %b %Y') if t.first_at else '—' }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-h"><h3>Every audit</h3>
+    <span class="kpi-sub">{{ a.total }} on record</span></div>
+  {% if a.rows %}
+  <table class="t">
+    <thead><tr><th>Site</th><th>Status</th><th>Trigger</th><th class="n">Pages</th>
+      <th class="n">Score</th><th class="n">Took</th><th>When</th><th>Note</th></tr></thead>
+    <tbody>{% for r in a.rows %}
+      <tr><td><a class="lk" href="/app/sites/{{ r.site_id }}">{{ r.hostname }}</a>
+          {% if r.client %}<span class="sub">{{ r.client }}</span>{% endif %}</td>
+        <td>{% if r.status in ('queued','running') %}<span class="pill">{{ r.status }}</span>
+            {% elif r.status == 'failed' %}<span class="pill bad">failed</span>
+            {% else %}{{ b.vpill(r.verdict) }}{% endif %}</td>
+        <td class="mono" style="font-size:12px">{{ r.trigger }}</td>
+        <td class="n">{{ r.pages }}</td>
+        <td class="n">{{ r.score if r.score is not none else '—' }}</td>
+        <td class="n">{{ '%.1fs'|format(r.took) if r.took else '—' }}</td>
+        <td>{{ r.at.strftime('%d %b %H:%M') if r.at else '—' }}</td>
+        <td style="max-width:240px">{{ r.error or '' }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% else %}
+  <p class="kpi-sub">No audits yet.</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block script %}
+{% if depth.queued or depth.running %}setTimeout(function(){location.reload()},3500);{% endif %}
+{% endblock %}

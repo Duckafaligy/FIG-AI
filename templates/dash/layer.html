@@ -1,0 +1,107 @@
+{% extends "dash/shell.html" %}
+{% import "dash/_bits.html" as b %}
+{% block title %}{{ 'SEO' if v.layer == 'search' else 'GEO' }} — {{ account.name }}{% endblock %}
+
+{% block body %}
+<div class="page-h">
+  <div>
+    <h2>{% if v.layer == 'search' %}SEO{% else %}GEO &amp; answers{% endif %}</h2>
+    <p>{% if v.layer == 'search' %}What a crawler can reach and understand: titles,
+      descriptions, canonicals, language, alt text and internal links.
+      {% else %}What a model has to work with when it is asked about you: structured data,
+      answerable questions, and specifics it can quote. A site can rank and still be
+      unquotable.{% endif %}</p>
+  </div>
+</div>
+
+{% if not v.sites %}
+<div class="empty"><b>Nothing audited yet</b>This fills in once a site has been read.</div>
+{% else %}
+
+<div class="grid row-four" style="margin-bottom:14px">
+  <div class="kpi"><div class="kpi-h">{{ v.label }} average</div>
+    <div class="kpi-v"><b>{{ v.average }}</b></div>
+    <div class="kpi-sub">across {{ v.sites }} site{{ '' if v.sites == 1 else 's' }}</div></div>
+  <div class="kpi"><div class="kpi-h">Clean on this layer</div>
+    <div class="kpi-v"><b>{{ v.clean_sites }}</b></div>
+    <div class="kpi-sub">scoring 80 or better</div></div>
+  <div class="kpi"><div class="kpi-h">Distinct problems</div>
+    <div class="kpi-v"><b>{{ v.failing|length }}</b></div>
+    <div class="kpi-sub">across the estate</div></div>
+  <div class="kpi"><div class="kpi-h">Passing everywhere</div>
+    <div class="kpi-v"><b>{{ v.passing|length }}</b></div>
+    <div class="kpi-sub">checks with nothing flagged</div></div>
+</div>
+
+{% if v.layer == 'search' %}
+<div class="grid row-mid" style="margin-bottom:14px">
+  <div class="card soon"><div class="card-h"><h3>Top Queries</h3></div>
+    <table class="t"><thead><tr><th>Query</th><th class="n">Clicks</th><th class="n">Impr.</th>
+      <th class="n">CTR</th><th class="n">Pos.</th></tr></thead><tbody>
+      {% for q in d.queries %}<tr><td>{{ q.q }}</td><td class="n">{{ q.clicks }}</td>
+        <td class="n">{{ q.impressions }}</td><td class="n">{{ q.ctr }}</td>
+        <td class="n">{{ q.position }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  <div class="card soon"><div class="card-h"><h3>Traffic Sources</h3></div>
+    <div class="bars-h"><span>Source</span><span></span><span>Visits</span></div>
+    <div class="bars">{% for s in d.sources %}
+      <div class="bar-row"><span class="name">{{ s.name }}</span>
+        <span class="bar-track"><span class="bar-fill" style="width:{{ s.pct }}%"></span></span>
+        <span class="val"><b>{{ '{:,}'.format(s.value) }}</b> {{ s.pct }}%</span></div>
+    {% endfor %}</div></div>
+  <div class="card soon"><div class="card-h"><h3>Core Web Vitals</h3></div>
+    <table class="t"><thead><tr><th>Metric</th><th class="n">Value</th><th class="n">Status</th></tr></thead>
+      <tbody>{% for x in d.vitals %}<tr><td>{{ x.metric }}</td><td class="n">{{ x.value }}</td>
+        <td class="n"><span class="pill {{ x.state }}">{{ 'Good' if x.state == 'good' else 'Needs work' }}</span></td></tr>{% endfor %}
+    </tbody></table></div>
+</div>
+{% else %}
+<div class="card soon" style="margin-bottom:14px">
+  <div class="card-h"><h3>Where answers come from</h3>
+    <span class="kpi-sub">Needs the model-visibility crawl</span></div>
+  <p class="kpi-sub">Once FIG runs your buyer questions against ChatGPT and Claude on a
+    schedule, this panel shows which engine cited you, which cited a competitor, and
+    which page the answer came from. The Answers score below is what the audit can tell
+    you today: whether a model has anything on your pages it could quote at all.</p>
+</div>
+{% endif %}
+
+{% if v.passing %}
+<div class="card" style="margin-bottom:14px">
+  <div class="card-h"><h3>Already working</h3>
+    <span class="kpi-sub">clean on every site audited</span></div>
+  <ul class="good">{% for p in v.passing %}<li><i>&check;</i>{{ p.label }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+{% if v.failing %}
+<div class="card" style="margin-bottom:14px">
+  <div class="card-h"><h3>Needs work</h3>
+    <span class="kpi-sub">ranked by severity &times; sites affected</span></div>
+  <table class="t">
+    <thead><tr><th>Finding</th><th>Severity</th><th class="n">Sites</th><th>Fix</th><th></th></tr></thead>
+    <tbody>{% for c in v.failing %}
+      <tr><td><b>{{ c.label }}</b></td><td>{{ b.sev(c.severity) }}</td>
+        <td class="n">{{ c.sites }}</td>
+        <td style="white-space:normal;max-width:420px">{{ c.fix or c.why }}</td>
+        <td class="n"><a class="lk" href="/app/findings?check={{ c.check }}">Open</a></td></tr>
+    {% endfor %}</tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-h"><h3>Weakest on this layer</h3></div>
+  <table class="t">
+    <thead><tr><th>Site</th><th class="n">{{ v.label }}</th><th class="n">Overall</th>
+      <th>Top finding</th></tr></thead>
+    <tbody>{% for r in v.worst %}
+      <tr><td><a class="lk" href="/app/sites/{{ r.id }}">{{ r.hostname }}</a></td>
+        <td class="n {{ 'low' if r.layers[v.layer] < 55 }}">{{ r.layers[v.layer] }}</td>
+        <td class="n">{{ r.score }}</td>
+        <td style="max-width:360px">{{ r.top.summary if r.top else '—' }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

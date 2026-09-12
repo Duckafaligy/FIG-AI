@@ -1,0 +1,82 @@
+{% extends "dash/shell.html" %}
+{% import "dash/_bits.html" as b %}
+{% block title %}Findings — {{ account.name }}{% endblock %}
+
+{% block body %}
+<div class="page-h">
+  <div><h2>Findings</h2>
+    <p>{{ f.total }} finding{{ '' if f.total == 1 else 's' }}, grouped by what is wrong
+      rather than by which site has it. An estate gets fixed one problem at a time.</p></div>
+  {% if f.selected %}<a class="tbtn" href="/app/findings">Show everything</a>{% endif %}
+</div>
+
+{% if f.groups %}
+<div class="chips">
+  <input type="text" id="fq" class="filter" placeholder="Filter findings…">
+  <button class="chip on" data-layer="all" type="button">All layers</button>
+  {% for key, label, sub in layer_meta %}
+  <button class="chip" data-layer="{{ key }}" type="button">{{ label }}</button>
+  {% endfor %}
+</div>
+
+{% set worst = f.groups[0].impact %}
+{% for g in f.groups %}
+<details class="fgroup card" data-layer="{{ g.layer }}"
+         data-name="{{ (g.label ~ ' ' ~ g.layer_label)|lower }}"
+         {% if f.selected or loop.index == 1 %}open{% endif %}>
+  <summary>
+    <span class="fg-rank">{{ loop.index }}</span>
+    <span class="fg-main">
+      <span class="fg-top"><b>{{ g.label }}</b>{{ b.sev(g.severity) }}
+        <span class="tag">{{ g.layer_label }}</span></span>
+      <span class="sub">{{ g.why or g.fix }}</span>
+    </span>
+    <span class="fg-right"><span class="fg-n">{{ g.site_count }}</span>
+      <span class="fg-l">site{{ '' if g.site_count == 1 else 's' }}</span>
+      <span class="fg-impact"><i style="width:{{ (g.impact / worst * 100)|round(0) }}%"></i></span></span>
+    <svg class="fg-caret" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg>
+  </summary>
+  <div class="fg-inner">
+    {% if g.fix %}<p class="fix"><span>fix</span>{{ g.fix }}</p>{% endif %}
+    <table class="t" style="margin-top:14px">
+      <thead><tr><th>Site</th><th>Page</th><th>What was found</th></tr></thead>
+      <tbody>
+      {% for i in g.instances[:40] %}
+        <tr><td><a class="lk" href="/app/sites/{{ i.site_id }}">{{ i.hostname }}</a></td>
+          <td class="path">{{ i.page or '—' }}</td>
+          <td style="white-space:normal">{{ i.summary }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% if g.instances|length > 40 %}
+      <p class="kpi-sub" style="margin-top:10px">and {{ g.instances|length - 40 }} more</p>
+    {% endif %}
+  </div>
+</details>
+{% endfor %}
+{% else %}
+<div class="empty"><b>Nothing to show yet</b>Findings appear once a site has been audited.</div>
+{% endif %}
+{% endblock %}
+
+{% block script %}
+(function(){
+  var q=document.getElementById('fq'), layer='all';
+  var groups=[].slice.call(document.querySelectorAll('.fgroup'));
+  function apply(){
+    var t=(q?q.value:'').trim().toLowerCase();
+    groups.forEach(function(g){
+      var okN = !t || g.dataset.name.indexOf(t)!==-1;
+      var okL = layer==='all' || g.dataset.layer===layer;
+      g.style.display = (okN&&okL) ? '' : 'none';
+    });
+  }
+  if(q)q.addEventListener('input',apply);
+  document.querySelectorAll('.chip[data-layer]').forEach(function(c){
+    c.addEventListener('click',function(){
+      document.querySelectorAll('.chip[data-layer]').forEach(function(o){o.classList.remove('on')});
+      c.classList.add('on'); layer=c.dataset.layer; apply();
+    });
+  });
+})();
+{% endblock %}

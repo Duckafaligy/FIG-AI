@@ -514,3 +514,68 @@ def chart(points: list[dict], w: int = 720, h: int = 200,
         "ticks": ticks, "baseline": h - pad_b, "pad_l": pad_l,
         "lo": round(lo), "hi": round(hi),
     }
+
+
+def notifications(session: Session, account: Account) -> dict:
+    """What changed that somebody should look at.
+
+    Built from what the app actually knows: audits that failed, scores that
+    moved, high-severity findings that turned up, and sites that have never
+    been read. No inbox to manage yet -- this is a derived feed, so there is
+    nothing to mark as read and the page says so.
+    """
+    sites = [s for s in account.sites if s.is_active]
+    items = []
+
+    for site in sites:
+        failed = [s for s in site.scans if s.status == "failed"]
+        if failed:
+            sc = failed[0]
+            items.append({
+                "kind": "error", "title": f"Audit failed on {site.hostname}",
+                "body": sc.error or "The site could not be read.",
+                "at": _aware(sc.finished_at or sc.created_at),
+                "href": f"/app/sites/{site.id}",
+            })
+
+        delta = site_delta(site)
+        if delta and delta["change"]:
+            direction = "rose" if delta["change"] > 0 else "fell"
+            items.append({
+                "kind": "up" if delta["change"] > 0 else "down",
+                "title": f"{site.hostname} {direction} {abs(delta['change'])} points",
+                "body": (f"{len(delta['fixed'])} finding(s) gone, "
+                         f"{len(delta['new'])} new, since the previous audit."),
+                "at": delta["since"], "href": f"/app/sites/{site.id}",
+            })
+
+        latest = site.latest_scan()
+        if latest:
+            high = [f for f in latest.findings if f.severity == "high"]
+            if high:
+                items.append({
+                    "kind": "warn",
+                    "title": f"{len(high)} high-severity finding(s) on {site.hostname}",
+                    "body": high[0].summary,
+                    "at": _aware(latest.finished_at), "href": f"/app/sites/{site.id}",
+                })
+        else:
+            items.append({
+                "kind": "info", "title": f"{site.hostname} has never been audited",
+                "body": "Run an audit and it will appear across the dashboard.",
+                "at": _aware(site.created_at), "href": f"/app/sites/{site.id}",
+            })
+
+    items.sort(key=lambda i: i["at"] or datetime(1970, 1, 1, tzinfo=timezone.utc),
+               reverse=True)
+    # Keyed "feed" rather than "items": Jinja resolves a.b as an attribute
+    # first, so {{ n.items }} would hand back dict.items instead of this list.
+    return {
+        "feed": items,
+        "counts": {
+            "error": sum(1 for i in items if i["kind"] == "error"),
+            "warn": sum(1 for i in items if i["kind"] == "warn"),
+            "moved": sum(1 for i in items if i["kind"] in ("up", "down")),
+            "info": sum(1 for i in items if i["kind"] == "info"),
+        },
+    }

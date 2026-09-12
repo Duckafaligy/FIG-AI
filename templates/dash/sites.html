@@ -1,0 +1,84 @@
+{% extends "dash/shell.html" %}
+{% import "dash/_bits.html" as b %}
+{% block title %}Sites — {{ account.name }}{% endblock %}
+
+{% block body %}
+<div class="page-h">
+  <div><h2>Sites</h2>
+    <p>{{ e.sites }} site{{ '' if e.sites == 1 else 's' }} on this project, worst first.
+      Every one is read across four layers.</p></div>
+  <form method="post" action="/app/audit-all">
+    <button class="tbtn primary" type="submit">Audit all {{ e.sites }}</button>
+  </form>
+</div>
+
+<div class="grid row-four" style="margin-bottom:14px">
+  <div class="kpi"><div class="kpi-h">Average score</div>
+    <div class="kpi-v"><b>{{ e.average if e.average is not none else '—' }}</b></div>
+    <div class="kpi-sub">{{ e.scanned }} of {{ e.sites }} audited</div></div>
+  <div class="kpi"><div class="kpi-h">Clean</div>
+    <div class="kpi-v"><b>{{ e.buckets.clean }}</b></div>
+    <div class="kpi-sub">scoring 80 or better</div></div>
+  <div class="kpi"><div class="kpi-h">Needs work</div>
+    <div class="kpi-v"><b>{{ e.buckets.fix }}</b></div>
+    <div class="kpi-sub">scoring under 55</div></div>
+  <div class="kpi"><div class="kpi-h">Weakest layer</div>
+    <div class="kpi-v"><b style="font-size:20px">{{ e.weakest_label or '—' }}</b></div>
+    <div class="kpi-sub">{{ e.layer_avg[e.weakest] if e.weakest else '' }} average</div></div>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <div class="card-h"><h3>Add a site</h3></div>
+  <form class="inline" method="post" action="/app/sites">
+    <input type="text" name="hostname" placeholder="clientdomain.com" required>
+    <input type="text" name="client_name" placeholder="Client name (optional)">
+    <button class="tbtn primary" type="submit">Add and audit</button>
+  </form>
+  <p class="kpi-sub" style="margin-top:10px">The same call a partner makes from their own
+    product: <span class="mono">POST /v1/sites</span>. Billing follows the site count.</p>
+</div>
+
+<div class="card">
+  <div class="card-h"><h3>All sites</h3>
+    <input type="text" id="q" class="filter" placeholder="Filter by domain or client…"></div>
+  {% if e.rows %}
+  <table class="t" id="siteTable">
+    <thead><tr><th>Site</th><th>Verdict</th><th class="n">Score</th>
+      <th class="n">Craft</th><th class="n">Struct</th><th class="n">Search</th>
+      <th class="n">Answers</th><th class="n">Findings</th><th>Top finding</th><th></th></tr></thead>
+    <tbody>
+    {% for r in e.rows %}
+      <tr data-name="{{ (r.hostname ~ ' ' ~ (r.client or ''))|lower }}">
+        <td><a href="/app/sites/{{ r.id }}" class="lk">{{ r.hostname }}</a>
+          {% if r.client %}<span class="sub">{{ r.client }}</span>{% endif %}</td>
+        <td>{% if r.busy %}<span class="pill">auditing</span>{% else %}{{ b.vpill(r.verdict) }}{% endif %}</td>
+        <td class="n">{{ r.score if r.score is not none else '—' }} {{ b.trend(r.delta) }}</td>
+        {% for k in ['craft','structure','search','answers'] %}
+        <td class="n {{ 'low' if r.layers and r.layers[k] is not none and r.layers[k] < 55 else '' }}">
+          {{ r.layers[k] if r.layers and r.layers[k] is not none else '—' }}</td>
+        {% endfor %}
+        <td class="n">{{ r.findings or '—' }}</td>
+        <td style="max-width:280px">{{ r.top.summary if r.top else '—' }}</td>
+        <td class="n"><form method="post" action="/app/sites/{{ r.id }}/scan">
+          <button class="tbtn sm" type="submit">Re-audit</button></form></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="kpi-sub">No sites yet. Add one above.</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block script %}
+(function(){
+  var q=document.getElementById('q');
+  if(!q)return;
+  var rows=[].slice.call(document.querySelectorAll('#siteTable tbody tr'));
+  q.addEventListener('input',function(){
+    var t=q.value.trim().toLowerCase();
+    rows.forEach(function(r){r.hidden = !!t && r.dataset.name.indexOf(t)===-1});
+  });
+})();
+{% endblock %}

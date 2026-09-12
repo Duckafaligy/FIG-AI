@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FIG — Find where your website underperforms, and what to change</title>
+<meta name="description" content="Paste a URL. FIG reads your site the way a crawler does — what reads as machine-made, what sits in the wrong order, what search can never reach — and hands you the exact change to make.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+/* applied before first paint so a saved light theme never flashes dark */
+(function(){try{
+  var t=localStorage.getItem('fig_theme');
+  if(!t){var m=document.cookie.match(/(?:^|; )fig_theme=([^;]*)/);t=m?decodeURIComponent(m[1]):null;}
+  if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches)t='light';
+  if(t==='light')document.documentElement.setAttribute('data-theme','light');
+}catch(e){}})();
+</script>
+<link rel="stylesheet" href="styles.css?v=12">
+<script src="config.js?v=12"></script>
+<script src="device.js?v=12" defer></script>
+</head>
+<body>
+
+<canvas id="embers" aria-hidden="true"></canvas>
+
+<!-- ============ NAV ============ -->
+<nav class="nav" id="nav">
+  <div class="nav-pill" id="navPill">
+    <a class="brand" href="#top">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">FIG</span>
+    </a>
+    <span class="nav-sep" aria-hidden="true"></span>
+    <div class="nav-links" id="navLinks">
+      <a href="demo.html" class="nav-demo">Demo</a>
+    </div>
+    <a class="nav-signin" href="#" data-app="/login">Sign in</a>
+    <a class="btn21 btn21-solid btn21-sm" href="#" data-app="/signup"><span>Try For Free</span></a>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero" id="top">
+  <div class="hero-cards" id="heroCards" aria-hidden="true">
+
+    <div class="fcard f1" data-depth="26" style="--rot:-6deg">
+      <div class="fc-head"><span class="fc-title">Accuracy by model</span></div>
+      <div class="fc-bars">
+        <div class="fcb"><span class="mono-sq xs" style="--m:#10A37F">G</span><span class="fcb-track"><i style="width:41%;background:var(--bad)"></i></span><span class="fcb-val mono">41</span></div>
+        <div class="fcb"><span class="mono-sq xs" style="--m:#D97757">C</span><span class="fcb-track"><i style="width:92%;background:var(--ok)"></i></span><span class="fcb-val mono">92</span></div>
+        <div class="fcb"><span class="mono-sq xs" style="--m:#4285F4">G</span><span class="fcb-track"><i style="width:58%;background:var(--warn)"></i></span><span class="fcb-val mono">58</span></div>
+        <div class="fcb"><span class="mono-sq xs" style="--m:#20808D">P</span><span class="fcb-track"><i style="width:66%;background:var(--warn)"></i></span><span class="fcb-val mono">66</span></div>
+      </div>
+    </div>
+
+    <div class="fcard f2" data-depth="16" style="--rot:5deg">
+      <div class="fc-head"><span class="fc-title">AI health</span><span class="fc-delta">+18</span></div>
+      <svg class="fc-area" viewBox="0 0 140 46" preserveAspectRatio="none">
+        <defs><linearGradient id="figArea" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--accent)" stop-opacity=".45"/>
+          <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+        </linearGradient></defs>
+        <path class="fa-fill" d="M0,36 L20,32 L40,34 L60,23 L80,25 L100,13 L120,9 L140,5 L140,46 L0,46 Z"/>
+        <polyline class="fa-line" points="0,36 20,32 40,34 60,23 80,25 100,13 120,9 140,5"/>
+        <circle class="fa-dot" cx="140" cy="5" r="3"/>
+      </svg>
+      <div class="fc-sub">62 &rarr; 80 over 14 days</div>
+    </div>
+
+    <div class="fcard f3 fc-gauge" data-depth="34" style="--rot:7deg">
+      <svg viewBox="0 0 76 76" class="fg-svg">
+        <circle class="fg-bg" cx="38" cy="38" r="30"/>
+        <circle class="fg-fg" cx="38" cy="38" r="30"/>
+      </svg>
+      <div class="fg-center"><span class="fg-num">62</span><span class="fg-lab mono">health</span></div>
+    </div>
+
+    <div class="fcard f4" data-depth="20" style="--rot:-5deg">
+      <div class="fc-head"><span class="fc-title">Answer diff</span><span class="fc-src mono">ChatGPT</span></div>
+      <div class="dl del"><span class="dm">&minus;</span><span class="mono">Pro costs $49/mo</span></div>
+      <div class="dl add"><span class="dm">+</span><span class="mono">Pro costs $29/mo</span></div>
+    </div>
+
+    <div class="fcard f5" data-depth="30" style="--rot:6deg">
+      <div class="fc-head"><span class="fc-title">Crawler access</span></div>
+      <div class="cr"><span class="cr-n mono">GPTBot</span><span class="pillx bad">blocked</span></div>
+      <div class="cr"><span class="cr-n mono">ClaudeBot</span><span class="pillx ok">allowed</span></div>
+      <div class="cr"><span class="cr-n mono">PerplexityBot</span><span class="pillx ok">allowed</span></div>
+    </div>
+
+    <div class="fcard f6 fc-tally" data-depth="14" style="--rot:-8deg">
+      <svg viewBox="0 0 72 72" class="fd-svg">
+        <circle class="fd-track" cx="36" cy="36" r="26"/>
+        <circle class="fd-seg fd-ok"   cx="36" cy="36" r="26" stroke-dasharray="95.3 68.1"  stroke-dashoffset="0"/>
+        <circle class="fd-seg fd-warn" cx="36" cy="36" r="26" stroke-dasharray="27.2 136.2" stroke-dashoffset="-95.3"/>
+        <circle class="fd-seg fd-bad"  cx="36" cy="36" r="26" stroke-dasharray="40.8 122.6" stroke-dashoffset="-122.5"/>
+      </svg>
+      <div class="fd-key">
+        <div><span class="pip bad"></span><b>3</b> critical</div>
+        <div><span class="pip warn"></span><b>2</b> warning</div>
+        <div><span class="pip ok"></span><b>7</b> correct</div>
+      </div>
+    </div>
+
+    <div class="fcard f7" data-depth="24" style="--rot:4deg">
+      <div class="fc-head"><span class="fc-title">Prescribed fix</span></div>
+      <code class="fx add mono">+ &lt;p&gt;Pro &mdash; $29/mo&lt;/p&gt;</code>
+      <code class="fx add mono">+ Offer schema &middot; price 29.00</code>
+      <div class="fc-sub"><span class="tick">&#10003;</span> re-verified 4h later</div>
+    </div>
+
+    <div class="fcard f8" data-depth="18" style="--rot:-4deg">
+      <div class="fc-head"><span class="fc-title">Drift watch</span><span class="live"><i></i>live</span></div>
+      <div class="mrow"><span class="mono mrow-d">Mar 04</span><span class="pip ok"></span><span class="mrow-t">pricing correct</span></div>
+      <div class="mrow"><span class="mono mrow-d">Jun 11</span><span class="pip bad"></span><span class="mrow-t">flipped to $49</span></div>
+      <div class="mrow"><span class="mono mrow-d">Jun 12</span><span class="pip warn"></span><span class="mrow-t">fix shipped</span></div>
+    </div>
+
+    
+
+    
+
+    <div class="fcard g1" data-depth="22" style="--rot:-4deg">
+      <div class="fc-head"><span class="fc-title">Answers checked</span><span class="fc-delta">7d</span></div>
+      <div class="gbars"><i style="height:34%"></i><i style="height:52%"></i><i style="height:44%"></i><i style="height:68%"></i><i style="height:58%"></i><i style="height:81%"></i><i class="hot" style="height:96%"></i></div>
+      <div class="fc-sub">1,284 this week</div>
+    </div>
+
+    <div class="fcard g2" data-depth="18" style="--rot:4deg">
+      <div class="fc-head"><span class="fc-title">Model consensus</span></div>
+      <div class="stackbar"><i class="s-ok" style="width:42%"></i><i class="s-warn" style="width:25%"></i><i class="s-bad" style="width:33%"></i></div>
+      <div class="stackkey"><span><b class="k-ok"></b>42% agree</span><span><b class="k-bad"></b>33% wrong</span></div>
+    </div>
+
+    <div class="fcard g3" data-depth="26" style="--rot:3deg">
+      <div class="fc-head"><span class="fc-title">Live checks</span><span class="live"><i></i>live</span></div>
+      <div class="ticker" id="ticker">
+        <div class="tk"><span class="mono-sq xs" style="--m:#4285F4">G</span><span class="tk-t mono">pricing</span><span class="tk-v bad">wrong</span></div>
+        <div class="tk"><span class="mono-sq xs" style="--m:#D97757">C</span><span class="tk-t mono">hours</span><span class="tk-v ok">correct</span></div>
+        <div class="tk"><span class="mono-sq xs" style="--m:#10A37F">G</span><span class="tk-t mono">refunds</span><span class="tk-v warn">vague</span></div>
+      </div>
+    </div>
+
+    <div class="fcard g4 fc-stat" data-depth="30" style="--rot:-5deg">
+      <div class="gs-num">38<span>%</span></div>
+      <div class="gs-lab">of pricing answers wrong</div>
+      <div class="gs-bar"><i style="width:38%"></i></div>
+    </div>
+
+  </div>
+
+  <div class="herodash" id="heroDash" aria-hidden="true">
+    <div class="hd-win">
+      <div class="hd-bar"><i></i><i></i><i></i><span class="hd-t mono">launchvault.ca &mdash; live audit</span></div>
+      <div class="hd-body">
+        <div class="hd-col">
+          <div class="hd-q"></div>
+          <div class="hd-row"><span class="hd-sq"></span><span class="hd-line w70"></span><span class="hd-pill bad"></span></div>
+          <div class="hd-row"><span class="hd-sq"></span><span class="hd-line w85"></span><span class="hd-pill ok"></span></div>
+          <div class="hd-row"><span class="hd-sq"></span><span class="hd-line w60"></span><span class="hd-pill bad"></span></div>
+          <div class="hd-row"><span class="hd-sq"></span><span class="hd-line w75"></span><span class="hd-pill warn"></span></div>
+        </div>
+        <div class="hd-col hd-feed">
+          <div class="hd-card"><span class="hd-line w40"></span><span class="hd-line w90"></span><span class="hd-line w65"></span></div>
+          <div class="hd-card"><span class="hd-line w35"></span><span class="hd-line w80"></span><span class="hd-line w55"></span></div>
+        </div>
+        <div class="hd-col hd-rep">
+          <div class="hd-dial"></div>
+          <div class="hd-b"><i style="width:26%"></i></div>
+          <div class="hd-b"><i style="width:62%"></i></div>
+          <div class="hd-b"><i style="width:44%"></i></div>
+          <div class="hd-b"><i style="width:55%"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="hero-inner">
+    <h1 class="hero-title">
+      <span class="hl">Understand your</span>
+      <span class="hl grad">Website</span>
+    </h1>
+    <p class="hero-sub">One URL in. FIG reads your site the way a crawler does &mdash; what reads as machine-made, what sits in the wrong order, what search can never reach &mdash; then hands you the exact change to make and pushes it live.</p>
+
+    <div class="urlwrap" id="urlWrap">
+    <form class="urlbar" id="urlForm" autocomplete="off">
+      <span class="urlbar-scheme">https://</span>
+      <input id="urlInput" class="urlbar-input" type="text" placeholder="yourdomain.com" aria-label="Your website domain" spellcheck="false">
+      <button class="btn btn-accent urlbar-btn" id="scanBtn" type="submit">Scan free</button>
+    </form>
+    </div>
+  </div>
+
+  <div class="arc" id="arcBand" aria-hidden="true">
+    <div class="arc-track" id="arcTrack">
+      <a class="arc-item a1" style="--lc:#8972D7" href="https://openai.com" target="_blank" rel="noopener noreferrer"><svg class="am" viewBox="0 0 24 24" aria-hidden="true"><path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/></svg><span>OpenAI</span></a>
+      <a class="arc-item a2" style="--lc:#828282" href="https://www.anthropic.com" target="_blank" rel="noopener noreferrer"><svg class="am" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.3041 3.541h-3.6718l6.696 16.918H24Zm-10.6082 0L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409Zm-.3712 10.2232 2.2914-5.9456 2.2914 5.9456Z"/></svg><span>Anthropic</span></a>
+      <a class="arc-item a3" style="--lc:#4289B7" href="https://www.codecademy.com" target="_blank" rel="noopener noreferrer"><svg class="am" viewBox="0 0 24 24" aria-hidden="true"><path d="M23.827 19.729h-5.595c-.094 0-.17.058-.17.172v1.515c0 .094.058.17.172.17h5.594c.096 0 .172-.044.172-.164v-1.515c0-.105-.057-.166-.173-.166v-.014zM16.463 2.463c.016.034.03.067.047.12v18.79c0 .06-.02.096-.037.114a.168.168 0 01-.135.06H.153c-.038 0-.075 0-.097-.02A.181.181 0 010 21.393V2.564c0-.076.04-.134.096-.15h16.242c.04 0 .096.017.115.034v.016zM1.818 19.573c0 .072.038.135.096.152h12.643c.058-.019.096-.076.096-.154V4.402c0-.073-.039-.134-.098-.15H1.915c-.056.02-.096.073-.096.15l-.003 15.17zm5.174-8.375c.65 0 1.014.177 1.396.62.058.074.153.093.23.034l1.034-.92c.075-.044.058-.164.02-.224-.635-.764-1.554-1.244-2.74-1.244-1.59 0-2.79.795-3.255 2.206-.165.495-.24 1.126-.24 1.98 0 .854.075 1.483.255 1.98.465 1.425 1.665 2.204 3.255 2.204 1.2 0 2.115-.48 2.745-1.216.045-.074.06-.165-.015-.226l-1.037-.915c-.073-.047-.163-.047-.224.027-.39.45-.795.69-1.454.69-.706 0-1.245-.345-1.47-1.035-.136-.39-.166-.87-.166-1.483 0-.615.045-1.068.18-1.47.24-.66.766-1.008 1.486-1.008z"/></svg><span>Codecademy</span></a>
+      <a class="arc-item a4" style="--lc:#257EFF" href="https://www.coursera.org" target="_blank" rel="noopener noreferrer"><svg class="am" viewBox="0 0 24 24" aria-hidden="true"><path d="M11.374 23.977c-4.183-.21-8.006-2.626-9.959-6.347-2.097-3.858-1.871-8.864.732-12.454C4.748 1.338 9.497-.698 14.281.23c4.583.857 8.351 4.494 9.358 8.911 1.122 4.344-.423 9.173-3.925 12.04-2.289 1.953-5.295 2.956-8.34 2.797zm7.705-8.05a588.737 588.737 0 0 0-3.171-1.887c-.903 1.483-2.885 2.248-4.57 1.665-2.024-.639-3.394-2.987-2.488-5.134.801-2.009 2.79-2.707 4.357-2.464a4.19 4.19 0 0 1 2.623 1.669c1.077-.631 2.128-1.218 3.173-1.855-2.03-3.118-6.151-4.294-9.656-2.754-3.13 1.423-4.89 4.68-4.388 7.919.54 3.598 3.73 6.486 7.716 6.404a7.664 7.664 0 0 0 6.404-3.563z"/></svg><span>Coursera</span></a>
+      <a class="arc-item a5" style="--lc:#0892A5" href="https://www.edx.org" target="_blank" rel="noopener noreferrer"><svg class="am" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.359 10.416c.053.162.079.334.079.516a3.154 3.154 0 0 1-.011.231h-3c.065-.236.152-.451.262-.644.109-.193.239-.359.39-.497.15-.138.318-.246.503-.321.184-.075.383-.113.595-.113.209 0 .392.036.549.108.156.071.288.169.394.292.107.123.186.266.239.428zm5.444-.4a1.206 1.206 0 0 0-.436-.305 1.48 1.48 0 0 0-.58-.108c-.284 0-.547.063-.79.19a1.952 1.952 0 0 0-.631.528 2.61 2.61 0 0 0-.421.808 3.305 3.305 0 0 0-.154 1.029c0 .233.033.446.1.641s.16.362.28.5c.12.138.263.246.431.323.168.077.354.116.56.116.287 0 .553-.067.798-.203.244-.135.458-.32.639-.554a2.71 2.71 0 0 0 .426-.826c.102-.316.154-.658.154-1.024 0-.236-.033-.448-.098-.636a1.405 1.405 0 0 0-.278-.479zM24 7.468l-2.398 11.276H10.727l.625-2.852H0L2.227 5.256h13.577l-.462 2.212H24zM7.362 11.045a2.51 2.51 0 0 0-.169-.954 2.069 2.069 0 0 0-.457-.7 1.951 1.951 0 0 0-.669-.434 2.22 2.22 0 0 0-.809-.148 2.73 2.73 0 0 0-1.162.246 2.628 2.628 0 0 0-.911.695c-.253.3-.451.659-.593 1.077a4.346 4.346 0 0 0-.212 1.393c0 .373.059.703.177.99a2.01 2.01 0 0 0 1.198 1.172c.273.101.564.151.872.151.321 0 .616-.039.885-.115a2.55 2.55 0 0 0 .708-.318c.204-.135.372-.295.505-.48a1.84 1.84 0 0 0 .287-.595h-.938a1.279 1.279 0 0 1-.508.513c-.222.126-.517.19-.883.19-.168 0-.333-.028-.497-.085a1.202 1.202 0 0 1-.444-.274 1.41 1.41 0 0 1-.321-.49 1.913 1.913 0 0 1-.123-.726c0-.048.001-.094.003-.138.002-.044.004-.09.008-.138h3.986c.01-.051.019-.114.026-.187l.02-.226a6.153 6.153 0 0 0 .021-.419zm5.036 3.392L14.04 6.71h-.898l-.682 3.217h-.082a1.406 1.406 0 0 0-.228-.454 1.56 1.56 0 0 0-.375-.354 1.786 1.786 0 0 0-.487-.228 1.93 1.93 0 0 0-.567-.082 2.506 2.506 0 0 0-1.45.456 2.892 2.892 0 0 0-.575.534c-.173.208-.32.442-.444.7a3.925 3.925 0 0 0-.285.841c-.066.303-.1.62-.1.952 0 .342.053.652.159.929.106.277.25.513.434.708.183.195.395.345.639.449.243.105.503.157.78.157.352 0 .681-.076.985-.228.304-.152.557-.36.759-.623h.082l-.159.754h.852zm6.116-1.39l3.578-4.125H20.09l-2.184 2.704h-.108l-1.155-2.704h-2.025l1.736 3.928-3.748 4.44h1.976l2.406-2.852h.162l1.3 2.852h1.988l-1.924-4.243z"/></svg><span>edX</span></a>
+      <a class="arc-item a6" style="--lc:#B356F2" href="https://www.udemy.com" target="_blank" rel="noopener noreferrer"><svg class="am" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0L5.81 3.573v3.574l6.189-3.574 6.191 3.574V3.573zM5.81 10.148v8.144c0 1.85.589 3.243 1.741 4.234S10.177 24 11.973 24s3.269-.482 4.448-1.474c1.179-.991 1.768-2.439 1.768-4.314v-8.064h-3.242v7.85c0 2.036-1.509 3.055-2.948 3.055-1.428 0-2.947-.991-2.947-3.027v-7.878z"/></svg><span>Udemy</span></a>
+      <a class="arc-item a7" style="--lc:#14BF96" href="https://www.khanacademy.org" target="_blank" rel="noopener noreferrer"><svg class="am" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.724 4.973L13.418.328a3.214 3.214 0 0 0-2.828 0L2.276 4.973A3.05 3.05 0 0 0 .862 7.371v9.256a3.05 3.05 0 0 0 1.414 2.4l8.306 4.645a3.214 3.214 0 0 0 2.828 0l8.314-4.645a3.05 3.05 0 0 0 1.414-2.4V7.373a3.05 3.05 0 0 0-1.414-2.4zM12 4.921a2.571 2.571 0 1 1 .001 5.143A2.571 2.571 0 0 1 12 4.92zm3.094 13.627a9.119 9.119 0 0 1-3.103.549 8.972 8.972 0 0 1-3.076-.55 8.493 8.493 0 0 1-5.486-7.987v-.857c4.646.017 8.074 3.823 8.074 8.51v.198h.926v-.197c0-4.688 3.445-8.51 8.056-8.51.026.29.043.582.086.856a8.502 8.502 0 0 1-5.477 7.988z"/></svg><span>Khan Academy</span></a>
+      <a class="arc-item a8" style="--lc:#7777D8" href="https://www.freecodecamp.org" target="_blank" rel="noopener noreferrer"><svg class="am" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.885 3.906a.621.621 0 00-.354.12c-.08.08-.161.196-.161.313 0 .2.236.474.673.923 1.822 1.754 2.738 3.903 2.732 6.494-.007 2.867-.97 5.17-2.844 6.954-.394.353-.556.63-.557.867 0 .116.08.237.16.353.076.08.237.162.353.162.434 0 1.04-.512 1.833-1.509 1.542-1.89 2.24-3.978 2.279-6.824.036-2.847-.857-4.777-2.603-6.77-.63-.712-1.153-1.082-1.511-1.083zm-15.769.002c-.358 0-.882.37-1.51 1.083C.858 6.984-.035 8.914.001 11.761c.04 2.846.737 4.933 2.28 6.824.791.997 1.398 1.51 1.832 1.509a.573.573 0 00.352-.162c.08-.116.16-.237.16-.353 0-.237-.162-.514-.556-.866-1.873-1.785-2.837-4.087-2.844-6.955-.006-2.591.91-4.74 2.732-6.494.437-.449.674-.722.673-.923 0-.117-.08-.233-.161-.313a.621.621 0 00-.354-.12zm7.056.895s.655 2.081-2.649 6.727c-3.156 4.433 1.045 7.15 1.432 7.386-.281-.18-2.001-1.5.402-5.423.466-.77 1.076-1.47 1.834-3.041 0 0 .67.946.32 2.998-.523 3.101 2.271 2.214 2.314 2.257.976 1.15-.808 3.17-.917 3.233-.108.061 5.096-3.13 1.399-7.935-.253.253-.582 1.442-1.267 1.266-.684-.174 2.125-3.494-2.868-7.468zM9.955 18.916c.023.016.038.024.038.024l-.038-.024z"/></svg><span>freeCodeCamp</span></a>
+      <a class="arc-item a9" style="--lc:#A9792B" href="https://www.theodinproject.com" target="_blank" rel="noopener noreferrer"><svg class="am" viewBox="0 0 24 24" aria-hidden="true"><path d="m3.002 0 1.9902 7.3867L6.5684 8.963v.5762l.9746 1.9238c.806-1.53 2.8445-2.0638 4.3125-.9688l.2011.1504.2012-.1504c1.469-1.095 3.5075-.5612 4.3145.9688l.9746-1.9258v-.6894l1.461-1.461L20.998 0l-3.6328 1.8594v3.2578c-.655-.395-2.9816-1.6914-5.3086-1.6914-2.494 0-4.9868 1.4887-5.4218 1.7617V1.8594L3.002 0zm6.1113 10.2285c-.18 0-.3262.1443-.3262.3223v.998c0 .267.2192.4844.4902.4844h.5606c.304 0 .5936-.12.8086-.332a1.115 1.115 0 0 0 .336-.7969v-.3535c0-.178-.1472-.3223-.3282-.3223h-1.541zm5.291.3926c-.285 0-.5176.2278-.5176.5098 0 .281.2326.5097.5176.5097.286 0 .5176-.2287.5176-.5097 0-.282-.2316-.5098-.5176-.5098zm-7.836.0234-1.4648 5.414 1.4961 2.9513 1.375-5.1035.1973-.0977-1.6035-3.164zm10.9786 0-1.6035 3.164.1972.0977 1.375 5.1036 1.4961-2.9512-1.4648-5.414zm-5.4903 1.8047-1.828.9024L8.58 22.1953 12.0566 24l3.4766-1.8047-1.6465-8.8437-1.83-.9024zM9.668 13.629l-1.2696.625-1.6543 6.1367 1.4688 1.0489 1.455-7.8106zm4.7793 0 1.455 7.8106 1.4668-1.0489-1.6523-6.1367-1.2695-.625zm-3.0157.084h1.2813v.4512a.623.623 0 0 1-.1875.4453.6434.6434 0 0 1-.4531.1855.6451.6451 0 0 1-.4532-.1855.623.623 0 0 1-.1875-.4453v-.4512z"/></svg><span>The Odin Project</span></a>
+      <a class="arc-item a10" style="--lc:#F15B2A" href="https://www.pluralsight.com" target="_blank" rel="noopener noreferrer"><svg class="am" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.72 1.755C10.08-.301 3.811 2.625 1.771 8.25c-2.071 5.699.854 11.956 6.494 14.01 5.655 2.055 11.956-.87 14.01-6.51 2.057-5.67-.87-11.939-6.524-13.995h-.031zM12 24C5.4 24 0 18.6 0 12S5.4 0 12 0s12 5.4 12 12-5.4 12-12 12M8.926 5.805v12.391L19.68 12 8.926 5.805zm1.049 1.769L17.625 12l-7.65 4.426V7.574M6.449 7.155v9.689L14.85 12 6.449 7.155zm1.051 1.8L12.811 12 7.5 15.061V8.939"/></svg><span>Pluralsight</span></a>
+      <a class="arc-item a11" style="--lc:#58CC02" href="https://www.duolingo.com" target="_blank" rel="noopener noreferrer"><svg class="am" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.484 18.213c1.142 1.033 2.657 1.662 4.316 1.662l.294-.001c1.985-.038 3.749-.976 4.905-2.422v1.98c0 2.522-2.043 4.568-4.567 4.568H4.569C2.045 23.998.002 21.954.002 19.43v-1.92c1.181 1.443 2.976 2.365 4.985 2.365l.35-.001c1.61-.027 3.076-.646 4.191-1.648.555.764 1.456 1.26 2.473 1.26 1.023 0 1.928-.502 2.483-1.273zm-5.349-.996c-.989 1.022-2.375 1.658-3.909 1.658h-.239c-2.229 0-4.146-1.343-4.987-3.262v-7.16c.281-.64.68-1.216 1.169-1.699-.035-.731.132-1.469.511-2.128.256-.44.867-.504 1.21-.124l.766.851c.007-.003.014-.003.021-.005-.098-.78.037-1.587.419-2.308.24-.45.757-.53 1.114-.164 0 0 3.939 3.979 4.035 4.084 1.542 1.348 4.066 1.287 5.686-.18.002-.003.007-.005.009-.007.042-.042 3.855-3.9 3.855-3.9.3361-.3451.8619-.3101 1.113.164.385.724.518 1.535.417 2.32.002.001.003.001.004.002l.007.002c.001 0 .002 0 .003.001l.776-.86c.342-.38.954-.316 1.207.124.387.673.553 1.427.509 2.173.496.501.897 1.099 1.169 1.762v6.941c-.816 1.978-2.761 3.373-5.032 3.373H18.8c-1.547 0-2.945-.648-3.936-1.686a.8386.8386 0 0 0-.009-.067c.313-.017.528-.162.688-.33.152-.16.299-.397.299-.776 0 0-.022-.312-.024-.324.693.767 1.696 1.249 2.811 1.249 2.092 0 3.787-1.696 3.787-3.787v-2.243c0-2.092-1.697-3.787-3.787-3.787-2.093 0-3.787 1.695-3.787 3.787v2.243c0 .266.027.526.079.776-.712-.784-1.744-1.278-2.842-1.278-1.239 0-2.339.523-3.064 1.355.063-.274.097-.56.097-.853v-2.243c0-2.092-1.697-3.787-3.788-3.787-2.09 0-3.787 1.695-3.787 3.787v2.243c0 2.093 1.697 3.787 3.787 3.787 1.151 0 2.182-.513 2.876-1.322-.008.035-.039.395-.039.395 0 .378.147.616.298.775.16.168.374.312.688.331a.7783.7783 0 0 0-.012.097zm.997.073c.729.131 1.733.305 1.792.305h.157c.059 0 1.789-.303 1.789-.303-.327.705-1.041 1.194-1.869 1.194-.829 0-1.543-.49-1.869-1.196zm-.971-1.379c.246-1.313 1.462-2.259 2.918-2.259 1.324 0 2.521.97 2.763 2.259v.105c0 .082-.029.115-.103.106l-2.658.473h-.157l-2.66-.476c-.075.01-.103-.023-.103-.105Zm8.023-6.392c.255-.14.549-.22.861-.22.992 0 1.798.804 1.798 1.798v1.919c0 .991-.804 1.797-1.798 1.797-.991 0-1.797-.803-1.797-1.797v-1.542c.034.003.068.005.103.005.64 0 1.16-.518 1.16-1.156 0-.312-.125-.596-.327-.804zM5.162 9.461c.227-.104.48-.162.746-.162.991 0 1.798.804 1.798 1.798v1.919c0 .991-.804 1.797-1.798 1.797-.991 0-1.797-.803-1.797-1.797v-1.571c.089.022.182.034.278.034.641 0 1.16-.518 1.16-1.156 0-.342-.149-.65-.387-.862ZM.002 6.554V4.568C.002 2.044 2.045 0 4.569 0h14.865c2.522 0 4.565 2.044 4.565 4.568v2.041a5.1847 5.1847 0 0 0-.164-.197 4.8592 4.8592 0 0 0-.646-2.284c-.433-.754-1.315-1.037-2.07-.786a4.785 4.785 0 0 0-.327-.774h-.001c-.287-.54-.758-.835-1.248-.908-.493-.073-1.033.072-1.464.515l-3.82 3.864c-1.226 1.11-3.127 1.199-4.313.205-.103-.109-4.025-4.071-4.025-4.071-.427-.438-.966-.584-1.46-.51-.489.073-.961.367-1.248.907v.002c-.133.25-.241.508-.327.771-.753-.252-1.635.029-2.071.782 0 0-.001.001-.001.002-.4.694-.613 1.459-.645 2.23-.057.065-.113.13-.167.197z"/></svg><span>Duolingo</span></a>
+    </div>
+  </div>
+
+</header>
+
+<!-- ============ SCROLL STAGE: the dashboard assembles itself ============ -->
+<section class="stage" id="stage">
+  <div class="stage-sticky">
+    <div class="stage-inner">
+    <div class="window" id="auditWindow">
+      <div class="titlebar">
+        <span class="tl-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="tl-title mono" id="auditDomain" hidden></span>
+        <span class="status-pill" id="statusPill"><i class="pulse" aria-hidden="true"></i><span id="statusText">Interrogating models</span></span>
+      </div>
+
+      <div class="shell">
+        <aside class="side">
+          <div class="side-org">
+            <span class="org-mark"></span>
+            <span class="org-name" id="orgName">LaunchVault</span>
+            <svg class="org-caret" viewBox="0 0 12 12"><path d="M3 5l3 3 3-3"/></svg>
+          </div>
+          <nav class="side-nav">
+            <a class="sn on" data-view="live" role="button" tabindex="0"><span class="sn-i sn-i-pulse"></span>Live audit</a>
+          </nav>
+          <div class="side-foot">
+            <div class="q-top"><span>Re-checks</span><span class="mono">7/10</span></div>
+            <span class="q-bar"><i style="width:70%"></i></span>
+          </div>
+        </aside>
+
+        <div class="main">
+          <div class="toolbar">
+            <div class="tb-left">
+              <span class="crumb mono" id="crumbDomain">launchvault.ca</span>
+              <span class="crumb-sep">/</span>
+              <span class="crumb mono cur">live audit</span>
+            </div>
+            <div class="dock-slot" id="dockSlot" aria-hidden="true"></div>
+            <div class="tb-right">
+              <span class="tb-meta mono">2 engines &middot; 3 questions</span>
+              <span class="tb-dot"></span>
+              <span class="tb-meta mono">last run 4h ago</span>
+              <button class="tb-btn" type="button">Run audit</button>
+            </div>
+          </div>
+      <div class="window-body dv dv-on" data-view="live">
+        <!-- LEFT -->
+        <div class="col-left">
+
+          <div class="qcard">
+            <div class="qcard-label mono">Section order &mdash; home</div>
+            <ol class="ord" id="ordList">
+              <li class="ord-i"><span class="ord-n mono">1</span><span class="ord-t">Hero</span><span class="ord-v ok mono">ok</span></li>
+              <li class="ord-i bad"><span class="ord-n mono">2</span><span class="ord-t">Call to action</span><span class="ord-v bad mono">too early</span></li>
+              <li class="ord-i bad"><span class="ord-n mono">3</span><span class="ord-t">Pricing</span><span class="ord-v bad mono">before the offer</span></li>
+              <li class="ord-i"><span class="ord-n mono">4</span><span class="ord-t">What we do</span><span class="ord-v mono">should be 2nd</span></li>
+              
+            </ol>
+            <div class="ord-note">You ask for the sale before you say what it is. Move
+              <b>What we do</b> above <b>Pricing</b>.</div>
+          </div>
+
+          <div class="models" id="models">
+            <div class="model-row v-wrong" data-idx="0">
+              <span class="tell-i" aria-hidden="true"></span>
+              <div class="m-main">
+                <div class="m-name">Numbered eyebrows <span class="m-sub mono">6 sections</span></div>
+                <div class="m-answer mono">01 / 02 / 03 above every heading</div>
+              </div>
+              <span class="verdict v-wrong">Slop</span>
+            </div>
+            <div class="model-row v-wrong" data-idx="1">
+              <span class="tell-i" aria-hidden="true"></span>
+              <div class="m-main">
+                <div class="m-name">Flat type scale <span class="m-sub mono">h2 vs body</span></div>
+                <div class="m-answer mono">30px vs 28px &mdash; nothing leads</div>
+              </div>
+              <span class="verdict v-wrong">Slop</span>
+            </div>
+            <div class="model-row v-correct" data-idx="2">
+              <span class="tell-i ok" aria-hidden="true"></span>
+              <div class="m-main">
+                <div class="m-name">Palette <span class="m-sub mono">not a default</span></div>
+                <div class="m-answer mono">chosen, not accepted from the framework</div>
+              </div>
+              <span class="verdict v-correct">Clean</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT -->
+        <div class="col-right">
+          <div class="findings">
+            <div class="panel-head">
+              <span class="panel-title">Findings</span>
+              <span class="panel-count mono" id="findCount">3</span>
+            </div>
+            <div class="feed" id="feed">
+              <article class="finding sev-critical">
+                <header class="f-head"><span class="sev">Critical</span><span class="f-src mono">ChatGPT &middot; pricing</span></header>
+                <p class="f-exp">Quoted <b>$49/mo</b> against an actual <b>$29/mo</b> &mdash; 69% over. Traced to a 2022 launch post that still outranks you; your live <span class="mono">/pricing</span> renders client-side and returns an empty shell to crawlers.</p>
+                <p class="f-fix"><span class="fix-label">Fix</span> Server-render <span class="mono">/pricing</span> and add Product + Offer schema with <span class="mono">price: 29.00</span>.</p>
+              </article>
+              <article class="finding sev-critical">
+                <header class="f-head"><span class="sev">Critical</span><span class="f-src mono">Gemini &middot; pricing</span></header>
+                <p class="f-exp">Same stale source, rounded differently &mdash; &ldquo;around $50&rdquo;. Two models agreeing on a wrong number is what makes it look authoritative to a buyer.</p>
+                <p class="f-fix"><span class="fix-label">Fix</span> Request a correction on the 2022 post, or publish a dated pricing-history page that supersedes it.</p>
+              </article>
+              <article class="finding sev-warning">
+                <header class="f-head"><span class="sev">Warning</span><span class="f-src mono">Perplexity &middot; coverage</span></header>
+                <p class="f-exp">No number returned at all. Your price never appears as plain crawlable text &mdash; it is painted into an image on the homepage and injected by JS everywhere else.</p>
+                <p class="f-fix"><span class="fix-label">Fix</span> Put the figure in body copy once, in text, above the fold.</p>
+              </article>
+            </div>
+          </div>
+
+          <aside class="report">
+            <div class="dial-wrap">
+              <svg class="dial" viewBox="0 0 120 120" aria-hidden="true">
+                <circle class="dial-bg" cx="60" cy="60" r="52"/>
+                <circle class="dial-fg" id="dialFg" cx="60" cy="60" r="52"/>
+              </svg>
+              <div class="dial-center">
+                <span class="dial-num" id="dialNum">58</span>
+                <span class="dial-label mono">AI health</span>
+              </div>
+            </div>
+            <div class="tallies">
+              <div class="tally"><span class="t-num t-bad" id="tCritical">2</span><span class="t-lab">Critical</span></div>
+              <div class="tally"><span class="t-num t-warn" id="tWarning">1</span><span class="t-lab">Warning</span></div>
+              <div class="tally"><span class="t-num t-ok" id="tCorrect">1</span><span class="t-lab">Correct</span></div>
+            </div>
+            <div class="cats" id="cats">
+              <div class="cat"><span class="cat-lab">Pricing accuracy</span><span class="cat-bar"><i style="width:25%"></i></span></div>
+              <div class="cat"><span class="cat-lab">Product facts</span><span class="cat-bar"><i style="width:70%"></i></span></div>
+              <div class="cat"><span class="cat-lab">Crawler access</span><span class="cat-bar"><i style="width:40%"></i></span></div>
+              <div class="cat"><span class="cat-lab">Answer coverage</span><span class="cat-bar"><i style="width:55%"></i></span></div>
+            </div>
+            <div class="rhist">
+              <div class="rh-head"><span class="rh-lab">90-day history</span><span class="mono rh-delta">+18</span></div>
+              <svg class="rh-svg" viewBox="0 0 160 40" preserveAspectRatio="none">
+                <defs><linearGradient id="figHist" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="var(--accent)" stop-opacity=".38"/>
+                  <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+                </linearGradient></defs>
+                <path class="rh-fill" d="M0,30 L23,27 L46,31 L69,20 L92,23 L115,12 L138,9 L160,6 L160,40 L0,40 Z"/>
+                <polyline class="rh-line" points="0,30 23,27 46,31 69,20 92,23 115,12 138,9 160,6"/>
+              </svg>
+            </div>
+          </aside>
+ 
+          
+
+          
+
+          
+
+          
+
+          
+       </div>
+      </div>
+
+          <div class="panels">
+
+            <section class="pnl">
+              <div class="pnl-head"><span class="pnl-t">Source trace</span><span class="pnl-m mono">what taught them</span></div>
+              <div class="src-list" id="srcList">
+                <div class="src"><span class="src-n mono">blog/launch-2022</span><span class="src-b"><i class="bad" style="width:61%"></i></span><span class="src-v mono">61</span></div>
+                <div class="src"><span class="src-n mono">g2.com listing</span><span class="src-b"><i class="warn" style="width:27%"></i></span><span class="src-v mono">27</span></div>
+                <div class="src"><span class="src-n mono">/pricing (JS)</span><span class="src-b"><i class="dim" style="width:12%"></i></span><span class="src-v mono">12</span></div>
+              </div>
+            </section>
+            <section class="pnl">
+              <div class="pnl-head"><span class="pnl-t">Crawler access</span><span class="pnl-m mono">robots.txt</span></div>
+              <div class="cr2"><span class="cr-n mono">GPTBot</span><span class="pillx bad">blocked</span></div>
+              <div class="cr2"><span class="cr-n mono">ClaudeBot</span><span class="pillx ok">allowed</span></div>
+              <div class="cr2"><span class="cr-n mono">Google-Extended</span><span class="pillx ok">allowed</span></div>
+              <div class="cr2"><span class="cr-n mono">PerplexityBot</span><span class="pillx ok">allowed</span></div>
+            </section>
+
+            <section class="pnl">
+              <div class="pnl-head"><span class="pnl-t">Fix queue</span><span class="pnl-m mono" id="fixCount">3 open</span></div>
+              <div class="fixq" id="fixList">
+                <div class="fq"><span class="fq-box"></span><span class="fq-t">Server-render /pricing</span></div>
+                <div class="fq"><span class="fq-box"></span><span class="fq-t">Add Offer schema</span></div>
+                <div class="fq done"><span class="fq-box"></span><span class="fq-t">Unblock GPTBot</span></div>
+              </div>
+            </section>
+
+            <section class="pnl">
+              <div class="pnl-head"><span class="pnl-t">Run cost</span><span class="pnl-m mono">this audit</span></div>
+              <div class="cost-num mono" id="costNum">$0.014</div>
+              <div class="cost-rows">
+                <div class="cost-r"><span>Rules engine</span><span class="mono ok-t">$0.000</span></div>
+                <div class="cost-r"><span>Model queries</span><span class="mono" id="costQ">12</span></div>
+                <div class="cost-r"><span>Explanations</span><span class="mono" id="costE">6</span></div>
+              </div>
+            </section>
+
+            <section class="pnl">
+              <div class="pnl-head"><span class="pnl-t">Source freshness</span><span class="pnl-m mono">last changed</span></div>
+              <div class="sf"><span class="sf-n mono">/pricing</span><span class="sf-a ok">2d</span></div>
+              <div class="sf"><span class="sf-n mono">blog/launch-2022</span><span class="sf-a bad">3y</span></div>
+              <div class="sf"><span class="sf-n mono">g2.com listing</span><span class="sf-a warn">8mo</span></div>
+              <div class="sf"><span class="sf-n mono">/about</span><span class="sf-a warn">11mo</span></div>
+            </section>
+
+          </div>
+          <div class="statusbar">
+            <span class="mono" id="sbProgress">question 1 of 3</span>
+            <span class="sb-right mono">next scheduled run in 20h</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WHAT IT CATCHES (horizontal scroller) ============ -->
+<section class="rail" id="catches">
+  <div class="rail-sticky">
+    <div class="wrap rail-head reveal">
+      <h2 class="sec-title">What it catches.</h2>
+      <p class="sec-sub">Four layers, sixteen checks. How the page reads, whether it is ordered like an argument, what a crawler can reach, and what the models then say.</p>
+    </div>
+    <div class="rail-view">
+      <div class="rail-track" id="railTrack">
+
+      <article class="bcard">
+        <div class="b-ill ill-hall" aria-hidden="true">
+          <div class="ih-line"><span class="ih-q">&ldquo;Pro costs</span> <span class="ih-wrong">$49<i></i></span><span class="ih-q">&rdquo;</span></div>
+          <div class="ih-corr mono">actual &rarr; $29</div>
+        </div>
+        <span class="b-layer mono">answers</span><h3 class="b-title">Hallucinated facts</h3>
+        <p class="b-desc">Invented prices, wrong founders, features you never shipped. Each one checked against the facts you declared, not a guess.</p>
+      </article>
+
+      <article class="bcard">
+        <div class="b-ill ill-cmp" aria-hidden="true">
+          <div class="ic-row"><span class="mono-sq sm" style="--m:#10A37F">G</span><span class="ic-bar"><i style="width:41%;background:var(--bad)"></i></span></div>
+          <div class="ic-row"><span class="mono-sq sm" style="--m:#D97757">C</span><span class="ic-bar"><i style="width:92%;background:var(--ok)"></i></span></div>
+          <div class="ic-row"><span class="mono-sq sm" style="--m:#4285F4">G</span><span class="ic-bar"><i style="width:58%;background:var(--warn)"></i></span></div>
+          <div class="ic-row"><span class="mono-sq sm" style="--m:#20808D">P</span><span class="ic-bar"><i style="width:66%;background:var(--warn)"></i></span></div>
+        </div>
+        <span class="b-layer mono">craft</span><h3 class="b-title">One card treatment everywhere</h3>
+        <p class="b-desc">The same radius and shadow on every block, so nothing sits forward or back. The page reads flat no matter how much is on it.</p>
+      </article>
+
+      <article class="bcard">
+        <div class="b-ill ill-robots mono" aria-hidden="true">
+          <div>User-agent: <span class="ir-ok">GPTBot</span></div>
+          <div class="ir-deny">Disallow: /</div>
+          <div class="ir-dim">User-agent: *</div>
+          <div class="ir-dim">Allow: /</div>
+        </div>
+        <span class="b-layer mono">search</span><h3 class="b-title">What crawlers can actually reach</h3>
+        <p class="b-desc">Half of all bad answers are a blocked bot or a JS-only page. FIG fetches your site the way Googlebot and GPTBot do.</p>
+      </article>
+
+      <article class="bcard">
+        <div class="b-ill ill-gap" aria-hidden="true">
+          <div class="ig-q mono">&ldquo;refund policy?&rdquo;</div>
+          <div class="ig-slot"></div>
+          <div class="ig-slot short"></div>
+          <div class="ig-none mono">no source found</div>
+        </div>
+        <span class="b-layer mono">structure</span><h3 class="b-title">Answer gaps in your own copy</h3>
+        <p class="b-desc">Questions buyers ask that no page on your site answers in text a crawler can read.</p>
+      </article>
+
+      <article class="bcard">
+        <div class="b-ill ill-mon" aria-hidden="true">
+          <svg viewBox="0 0 120 44" preserveAspectRatio="none"><polyline class="im-line" points="0,34 20,30 40,33 60,20 80,22 100,10 120,7"/></svg>
+          <div class="im-dots"><i></i><i></i><i class="hot"></i></div>
+        </div>
+        <span class="b-layer mono">answers</span><h3 class="b-title">Drift after you ship</h3>
+        <p class="b-desc">Models retrain and sources change. A fact that was right in March is wrong by June, and you get told when it flips.</p>
+      </article>
+
+      <article class="bcard">
+        <div class="b-ill ill-fix" aria-hidden="true">
+          <div class="if-col"><span class="if-tag mono if-before">before</span><code class="mono">&lt;div id="price"&gt;&lt;/div&gt;</code></div>
+          <div class="if-arrow"></div>
+          <div class="if-col"><span class="if-tag mono if-after">after</span><code class="mono">&lt;p&gt;Pro &mdash; $29/mo&lt;/p&gt; + Offer schema</code></div>
+        </div>
+        <span class="b-layer mono">craft</span><h3 class="b-title">Prescribed fixes, not scores</h3>
+        <p class="b-desc">Every finding ends in a concrete change: the file, the markup, the sentence. A number on its own never fixed a page.</p>
+      </article>
+          <article class="bcard">
+        <div class="b-ill" aria-hidden="true"><div class="ill-quote"><span class="iq-old">$49/mo</span><span class="iq-tag mono">2022 post</span></div><div class="ih-corr mono">live &rarr; $29/mo</div></div>
+        <span class="b-layer mono">craft</span><h3 class="b-title">Numbered eyebrow labels</h3>
+        <p class="b-desc">01 / 02 / 03 above every section. It fills space without deciding what matters, and readers skip straight past it.</p>
+      </article>
+      <article class="bcard">
+        <div class="b-ill" aria-hidden="true"><div class="ill-rows"><div class="ir2"><span class="mono">phone</span><span class="pillx bad">outdated</span></div><div class="ir2"><span class="mono">address</span><span class="pillx ok">correct</span></div><div class="ir2"><span class="mono">hours</span><span class="pillx bad">outdated</span></div></div></div>
+        <span class="b-layer mono">craft</span><h3 class="b-title">Filler marketing phrasing</h3>
+        <p class="b-desc">&ldquo;Elevate&rdquo;, &ldquo;seamless&rdquo;, &ldquo;unlock&rdquo;. Verbs that describe no product in particular, which is why they are everywhere.</p>
+      </article>
+      <article class="bcard">
+        <div class="b-ill" aria-hidden="true"><div class="ill-split"><span class="is-you">you</span><span class="is-arrow"></span><span class="is-them">competitor</span></div><div class="ig-none mono">attributed to the wrong site</div></div>
+        <span class="b-layer mono">craft</span><h3 class="b-title">Flat type scale</h3>
+        <p class="b-desc">Headings within a few pixels of body text. Nothing tells a reader what to look at first, so they look at nothing.</p>
+      </article>
+      <article class="bcard">
+        <div class="b-ill" aria-hidden="true"><div class="ill-rows"><div class="ir2"><span class="mono">SOC 2</span><span class="pillx ok">held</span></div><div class="ir2"><span class="mono">HIPAA</span><span class="pillx bad">claimed</span></div></div></div>
+        <span class="b-layer mono">structure</span><h3 class="b-title">A CTA before you say what it is</h3>
+        <p class="b-desc">Asking for the sale in section two, with the offer at four. The price lands with nothing to weigh it against.</p>
+      </article>
+      <article class="bcard">
+        <div class="b-ill" aria-hidden="true"><div class="ill-list"><div class="il-row"><span class="il-x">&times;</span><span class="mono">offline mode</span></div><div class="il-row"><span class="il-x">&times;</span><span class="mono">SSO</span></div><div class="il-row ok"><span class="il-c">&check;</span><span class="mono">API access</span></div></div></div>
+        <span class="b-layer mono">structure</span><h3 class="b-title">Pricing above the product</h3>
+        <p class="b-desc">A plan table before the thing being sold reads as expensive by default. Order changes how a number feels.</p>
+      </article>
+      <article class="bcard">
+        <div class="b-ill" aria-hidden="true"><div class="ill-quote"><span class="iq-old">“a crypto wallet”</span></div><div class="ih-corr mono">actual &rarr; launch checklists</div></div>
+        <span class="b-layer mono">structure</span><h3 class="b-title">Proof stranded at the bottom</h3>
+        <p class="b-desc">Testimonials and case studies below the fold on a long page are read by almost nobody who has not already decided.</p>
+      </article>
+      <article class="bcard">
+        <div class="b-ill" aria-hidden="true"><div class="ill-geo"><span class="ig-dot on"></span><span class="ig-dot on"></span><span class="ig-dot"></span><span class="ig-dot on"></span><span class="ig-dot"></span><span class="ig-dot on"></span></div><div class="fc-sub">3 of 6 regions missing</div></div>
+        <span class="b-layer mono">structure</span><h3 class="b-title">Sections that repeat themselves</h3>
+        <p class="b-desc">Three blocks making the same claim in different words. Each one costs a reader attention and returns nothing.</p>
+      </article>
+      <article class="bcard">
+        <div class="b-ill" aria-hidden="true"><div class="ill-stars"><span>&starf;</span><span>&starf;</span><span>&starf;</span><span>&starf;</span><span class="dim">&starf;</span><span class="mono st-n">4.1</span></div><div class="ig-none mono">source: a different company</div></div>
+        <span class="b-layer mono">search</span><h3 class="b-title">Content that only exists in JavaScript</h3>
+        <p class="b-desc">If the price renders client-side, a crawler fetches an empty shell. The page indexes as though it says nothing.</p>
+      </article>
+      <article class="bcard">
+        <div class="b-ill" aria-hidden="true"><div class="ill-robots mono"><div class="ir-dim">{ "@type": "Product",</div><div class="ir-deny">  "offers": missing</div><div class="ir-dim">}</div></div></div>
+        <span class="b-layer mono">search</span><h3 class="b-title">Missing structured data</h3>
+        <p class="b-desc">No Product, Offer, FAQ or Organization schema. Facts stay in prose where a machine has to infer them instead of read them.</p>
+      </article>
+      <article class="bcard">
+        <div class="b-ill" aria-hidden="true"><div class="src-list"><div class="src"><span class="src-n mono">g2 listing</span><span class="src-b"><i class="bad" style="width:64%"></i></span></div><div class="src"><span class="src-n mono">/pricing</span><span class="src-b"><i class="warn" style="width:22%"></i></span></div><div class="src"><span class="src-n mono">docs</span><span class="src-b"><i class="dim" style="width:14%"></i></span></div></div></div>
+        <span class="b-layer mono">search</span><h3 class="b-title">Thin titles, empty descriptions</h3>
+        <p class="b-desc">Duplicate h1s and no meta description. Search writes its own snippet, and it will not write the one you wanted.</p>
+      </article>
+        
+      <span class="rail-tail" aria-hidden="true"></span>
+      </div>
+    </div>
+    <div class="rail-line">
+      <svg class="rl-svg" id="railSvg" viewBox="0 0 1000 40" preserveAspectRatio="none" aria-hidden="true">
+        <path id="railPath" d="M0,28 C 160,14 320,34 500,22 C 680,10 840,30 1000,18" />
+      </svg>
+      <span class="rl-dot" id="railDot"><i class="rl-hit"></i><i class="rl-core" id="railCore"></i></span>
+      <span class="rl-count mono" id="railCount">1 / 16</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRICING (scroll-driven branches) ============ -->
+<section class="plans" id="pricing">
+  <div class="plans-sticky">
+    <div class="plans-stage">
+      <div class="tier-card" id="tierCard">
+        <div class="tier-top">
+          <span class="tier-name" id="tierName"><span class="tier-roll"><b>Solo</b><b>Entrepreneur</b><b>Brand</b></span></span>
+        </div>
+        <div class="tier-price">$<span class="tier-num" id="tierNum">20</span><span class="tier-per">/mo</span></div>
+        <p class="tier-desc" id="tierDesc"><span class="tier-roll"><i>Everything you need to check a site you look after yourself.</i><i>For a business where a wrong answer costs a booking or a signup.</i><i>Agencies and teams answering for more than one brand at a time.</i></span></p>
+        <a class="btn21 btn21-solid btn21-wide" href="#plans-detail" id="tierBtn">
+          <span class="tier-btn-label"><span class="tier-roll"><i>Start With Solo</i><i>Start A Trial</i><i>Start With Brand</i></span></span></a>
+        <div class="tier-dots" id="tierDots" aria-hidden="true">
+          <i class="on"></i><i></i><i></i>
+        </div>
+      </div>
+
+      <ul class="wg-field" id="wgField">
+        <li class="wg" data-tier="0"><span class="wg-txt"><b>Any public URL</b><span>check any site, no ownership proof needed</span></span><span class="wg-vis"><span class="wgt"><span class="wgt-head"><i class="wgt-lab mono">scan target</i><i class="wgt-pill mono ok">ready</i></span><span class="wgt-body"><span class="w-omni"><i class="dot r"></i><i class="dot y"></i><i class="dot g"></i><b class="mono"><s>https://</s>anything.com</b><i class="w-tick">&check;</i></span><span class="w-sub mono">214 pages crawled &middot; no verification needed</span></span></span></span></li>
+        <li class="wg" data-tier="0"><span class="wg-txt"><b>Both engines, every run</b><span>ChatGPT and Claude answer the same questions</span></span><span class="wg-vis"><span class="wgt"><span class="wgt-head"><i class="wgt-lab mono">engines</i><i class="wgt-pill mono ok">2 live</i></span><span class="wgt-body"><span class="w-eng"><i class="eb"><svg class="eg-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.6581zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.2914-1.4998 2.2914 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997z"/></svg></i><b>ChatGPT</b><s class="mono">gpt-5.2</s><u class="w-bar"><i style="--w:88%"></i></u></span><span class="w-eng"><i class="eb c"><svg class="eg-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.3041 3.541h-3.6718l6.696 16.918H24Zm-10.6082 0L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409Zm-.3712 10.2427 2.2914-5.9456 2.2914 5.9456Z"/></svg></i><b>Claude</b><s class="mono">opus 4.6</s><u class="w-bar"><i style="--w:71%"></i></u></span></span></span></span></li>
+        <li class="wg" data-tier="0"><span class="wg-txt"><b>An AI-slop read on your own pages</b><span>the patterns that make a page look machine-made</span></span><span class="wg-vis"><span class="wgt"><span class="wgt-head"><i class="wgt-lab mono">slop scan</i><i class="wgt-pill mono warn">3 patterns</i></span><span class="wgt-body"><span class="w-slop"><i class="sf mono">01 / 02 / 03 eyebrows</i><s class="mono">6 sections</s></span><span class="w-slop"><i class="sf mono">&ldquo;Elevate your workflow&rdquo;</i><s class="mono">generic copy</s></span><span class="w-slop"><i class="sf mono">rounded-2xl + shadow-lg</i><s class="mono">every card</s></span><span class="w-sub mono">patterns commonly associated with AI-generated layouts</span></span></span></span></li>
+        <li class="wg" data-tier="0"><span class="wg-txt"><b>Prescribed fixes</b><span>the exact markup or sentence to publish</span></span><span class="wg-vis"><span class="wgt"><span class="wgt-head"><i class="wgt-lab mono">pricing.html</i><i class="wgt-pill mono ">diff</i></span><span class="wgt-body"><span class="w-diff"><i class="ln mono">41</i><s class="mono del">- &lt;div id="price"&gt;&lt;/div&gt;</s></span><span class="w-diff"><i class="ln mono">41</i><s class="mono add">+ &lt;p&gt;Solo &mdash; $20/mo&lt;/p&gt;</s></span><span class="w-diff"><i class="ln mono">42</i><s class="mono add">+ &lt;script type="application/ld+json"&gt;</s></span></span></span></span></li>
+        <li class="wg" data-tier="1"><span class="wg-txt"><b>Daily re-checks</b><span>the full question set, every morning</span></span><span class="wg-vis"><span class="wgt"><span class="wgt-head"><i class="wgt-lab mono">cadence</i><i class="wgt-pill mono ok">daily 06:00</i></span><span class="wgt-body"><span class="w-week"><i class="on">M</i><i class="on">T</i><i class="on">W</i><i class="on">T</i><i class="on">F</i><i class="on">S</i><i class="on">S</i></span><span class="w-sub mono">18 questions &times; 2 engines &middot; 36 answers a day</span></span></span></span></li>
+        <li class="wg" data-tier="1"><span class="wg-txt"><b>Drift alerts</b><span>told the moment a right answer turns wrong</span></span><span class="wg-vis"><span class="wgt"><span class="wgt-head"><i class="wgt-lab mono">alert</i><i class="wgt-pill mono bad">just now</i></span><span class="wgt-body"><span class="w-alert"><i class="al"></i><b>Founding year changed</b></span><span class="w-was mono">was <s>2019</s> &rarr; now <b class="wrong">2016</b></span><span class="w-sub mono">ChatGPT &middot; 4 minutes ago</span></span></span></span></li>
+        <li class="wg" data-tier="1"><span class="wg-txt"><b>An SEO read on every finding</b><span>whether the fix moves ranking, AI answers, or both</span></span><span class="wg-vis"><span class="wgt"><span class="wgt-head"><i class="wgt-lab mono">impact</i><i class="wgt-pill mono ok">both</i></span><span class="wgt-body"><span class="w-imp"><s class="mono">organic search</s><u class="w-bar"><i style="--w:74%"></i></u><b class="mono">74</b></span><span class="w-imp"><s class="mono">AI answers</s><u class="w-bar"><i style="--w:41%"></i></u><b class="mono">41</b></span><span class="w-sub mono">schema fix helps both surfaces</span></span></span></span></li>
+        <li class="wg" data-tier="1"><span class="wg-txt"><b>Why it reads that way, in plain English</b><span>what the pattern is, why it lands flat, and the fix</span></span><span class="wg-vis"><span class="wgt"><span class="wgt-head"><i class="wgt-lab mono">explain</i><i class="wgt-pill mono ">plain english</i></span><span class="wgt-body"><span class="w-exp"><i class="ex-q mono">flat type scale</i></span><span class="w-exp-why">Every heading sits within 2px, so nothing tells a reader what matters first.</span><span class="w-exp-fix mono">&rarr; drop body to 15px, lift h2 to 30px</span><span class="w-sub mono">a reason you can learn from, not a score</span></span></span></span></li>
+        <li class="wg" data-tier="2"><span class="wg-txt"><b>Unlimited verified domains</b><span>every property you own, in one account</span></span><span class="wg-vis"><span class="wgt"><span class="wgt-head"><i class="wgt-lab mono">domains</i><i class="wgt-pill mono ok">15 live</i></span><span class="wgt-body"><span class="w-dom"><b class="mono">acme.com</b><s class="mono">62%</s></span><span class="w-dom"><b class="mono">acme.ca</b><s class="mono">48%</s></span><span class="w-dom"><b class="mono">shop.acme.com</b><s class="mono">71%</s></span></span></span></span></li>
+        <li class="wg" data-tier="2"><span class="wg-txt"><b>Shared queue and roles</b><span>hand a fix to whoever owns that page</span></span><span class="wg-vis"><span class="wgt"><span class="wgt-head"><i class="wgt-lab mono">team</i><i class="wgt-pill mono ">3 editors</i></span><span class="wgt-body"><span class="w-row"><i class="av">A</i><b>Ada</b><s class="mono">owns /pricing</s></span><span class="w-row"><i class="av">M</i><b>Mo</b><s class="mono">owns /blog</s></span><span class="w-row"><i class="av">R</i><b>Ren</b><s class="mono">admin</s></span></span></span></span></li>
+        <li class="wg" data-tier="2"><span class="wg-txt"><b>A crawling curriculum for your team</b><span>how a model reads a page, and what makes one unreadable</span></span><span class="wg-vis"><span class="wgt"><span class="wgt-head"><i class="wgt-lab mono">rulebook</i><i class="wgt-pill mono ">8 lessons</i></span><span class="wgt-body"><span class="w-les done"><i class="cb"></i>How a model reads a page</span><span class="w-les done"><i class="cb"></i>Text a crawler can parse</span><span class="w-les"><i class="cb"></i>Spotting AI slop in your own copy</span></span></span></span></li>
+        <li class="wg" data-tier="2"><span class="wg-txt"><b>API and webhooks</b><span>pipe findings straight into your own build</span></span><span class="wg-vis"><span class="wgt"><span class="wgt-head"><i class="wgt-lab mono">api</i><i class="wgt-pill mono ok">200 ok</i></span><span class="wgt-body"><span class="w-req mono"><i class="verb">POST</i>/v1/audits</span><span class="w-res mono">{ "findings": 4, "fixed": 1 }</span><span class="w-sub mono">webhook &rarr; deploy pipeline</span></span></span></span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EVERY PLAN, SIDE BY SIDE ============ -->
+<!-- ============ COMPETITION ============ -->
+<section class="section comp-sec" id="competition">
+  <div class="wrap">
+    <div class="comp-top reveal">
+      <div>
+        <p class="comp-eyebrow mono">Competition</p>
+        <h2 class="sec-title">See exactly what competitors<br>do better, then close the gap.</h2>
+      </div>
+      <div class="comp-stat">
+        <div class="cs-item"><b>#2</b><span class="mono">your rank</span></div>
+        <div class="cs-item"><b class="up">+8%</b><span class="mono">this week</span></div>
+      </div>
+    </div>
+
+    <div class="comp-grid">
+      <div class="comp-card reveal">
+        <div class="comp-h"><h3>AI visibility leaderboard</h3><span class="comp-chip mono">last 7 days</span></div>
+        <ol class="lb">
+        <li class="lb-row"><span class="lb-rank mono">1</span><span class="lb-name">Competitor A</span><span class="lb-bar"><i style="--w:91%"></i></span><span class="lb-delta up mono">+5%</span><span class="lb-pct mono">91%</span></li>
+        <li class="lb-row is-you"><span class="lb-rank mono">2</span><span class="lb-name">Your business<i class="lb-you mono">you</i></span><span class="lb-bar"><i style="--w:72%"></i></span><span class="lb-delta up mono">+8%</span><span class="lb-pct mono">72%</span></li>
+        <li class="lb-row"><span class="lb-rank mono">3</span><span class="lb-name">Competitor B</span><span class="lb-bar"><i style="--w:68%"></i></span><span class="lb-delta dn mono">-2%</span><span class="lb-pct mono">68%</span></li>
+        <li class="lb-row"><span class="lb-rank mono">4</span><span class="lb-name">Competitor C</span><span class="lb-bar"><i style="--w:61%"></i></span><span class="lb-delta up mono">+3%</span><span class="lb-pct mono">61%</span></li>
+        <li class="lb-row"><span class="lb-rank mono">5</span><span class="lb-name">Competitor D</span><span class="lb-bar"><i style="--w:54%"></i></span><span class="lb-delta dn mono">-4%</span><span class="lb-pct mono">54%</span></li>
+        <li class="lb-row"><span class="lb-rank mono">6</span><span class="lb-name">Competitor E</span><span class="lb-bar"><i style="--w:47%"></i></span><span class="lb-delta up mono">+1%</span><span class="lb-pct mono">47%</span></li>
+        </ol>
+      </div>
+
+      <div class="comp-card reveal">
+        <div class="comp-h"><h3>Platform comparison</h3>
+          <span class="pc-key mono"><i class="k1"></i>you<i class="k2"></i>Comp. A<i class="k3"></i>Comp. B</span>
+        </div>
+        <div class="pc">
+        <div class="pc-row"><span class="pc-name mono">ChatGPT</span><span class="pc-bars"><i class="pc-b1" style="--w:82%"></i><i class="pc-b2" style="--w:91%"></i><i class="pc-b3" style="--w:71%"></i></span><span class="pc-vals mono"><b>82%</b><s>91%</s><s>71%</s></span></div>
+        <div class="pc-row"><span class="pc-name mono">Claude</span><span class="pc-bars"><i class="pc-b1" style="--w:76%"></i><i class="pc-b2" style="--w:88%"></i><i class="pc-b3" style="--w:65%"></i></span><span class="pc-vals mono"><b>76%</b><s>88%</s><s>65%</s></span></div>
+        <div class="pc-row"><span class="pc-name mono">Perplexity</span><span class="pc-bars"><i class="pc-b1" style="--w:79%"></i><i class="pc-b2" style="--w:87%"></i><i class="pc-b3" style="--w:63%"></i></span><span class="pc-vals mono"><b>79%</b><s>87%</s><s>63%</s></span></div>
+        <div class="pc-row"><span class="pc-name mono">Gemini</span><span class="pc-bars"><i class="pc-b1" style="--w:81%"></i><i class="pc-b2" style="--w:90%"></i><i class="pc-b3" style="--w:68%"></i></span><span class="pc-vals mono"><b>81%</b><s>90%</s><s>68%</s></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="comp-close reveal">
+      <p class="comp-close-l mono">How we close the gap</p>
+      <p class="comp-close-t">Every gap above becomes a ranked fix in your queue, not just a number on a report.</p>
+      <div class="comp-chips">
+        <span class="comp-pill mono">Citation gaps <i>&rarr;</i> Fix queue</span>
+        <span class="comp-pill mono">Missing schema <i>&rarr;</i> Prescribed markup</span>
+        <span class="comp-pill mono">Answer gaps <i>&rarr;</i> Content to write</span>
+      </div>
+      <p class="comp-note">Competitor tracking runs on the Brand plan once your domains are verified.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section plans-detail" id="plans-detail">
+  <div class="wrap">
+    <h2 class="sec-title reveal">Every plan, side by side.</h2>
+    <p class="sec-sub reveal">The same three plans in full, and exactly what separates them.</p>
+
+    <div class="pbox-grid">
+      <article class="pbox reveal">
+        <div class="pbox-top"><span class="pbox-name">Solo</span><span class="pbox-tag mono">one site</span></div>
+        <div class="pbox-price">$20<span>/mo</span></div>
+        <p class="pbox-sub">Everything you need to check a site you look after yourself.</p>
+        <ul class="pbox-list">
+          <li>Any public URL, no ownership proof</li>
+          <li>ChatGPT and Claude on every run</li>
+          <li>An AI-slop read on your own pages</li>
+          <li>Traced findings and prescribed fixes</li>
+          <li>Weekly refresh, cached per domain</li>
+        </ul>
+        <a class="btn21 btn21-wide" href="#top"><span>Start With Solo</span><svg class="b21-arw" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7h9M7.5 3.5 11 7l-3.5 3.5"/></svg></a>
+      </article>
+      <article class="pbox featured reveal">
+        <div class="pbox-top"><span class="pbox-name">Entrepreneur</span><span class="pbox-tag mono accent">most picked</span></div>
+        <div class="pbox-price">$79<span>/mo</span></div>
+        <p class="pbox-sub">For a business where a wrong answer costs a booking or a signup.</p>
+        <ul class="pbox-list">
+          <li>Everything in Solo</li>
+          <li>Daily scheduled runs and drift alerts</li>
+          <li>Why it reads that way, in plain English</li>
+          <li>An SEO read on every finding</li>
+          <li>10 on-demand re-checks a month</li>
+        </ul>
+        <a class="btn21 btn21-wide btn21-solid" href="#top"><span>Start A Trial</span></a>
+      </article>
+      <article class="pbox reveal">
+        <div class="pbox-top"><span class="pbox-name">Brand</span><span class="pbox-tag mono">multi-domain</span></div>
+        <div class="pbox-price">$199<span>/mo</span></div>
+        <p class="pbox-sub">Agencies and teams answering for more than one brand at a time.</p>
+        <ul class="pbox-list">
+          <li>Everything in Entrepreneur</li>
+          <li>Unlimited verified domains</li>
+          <li>Shared queue, roles, API and webhooks</li>
+          <li>A crawling curriculum for your team</li>
+          <li>Priority re-verification and estate digest</li>
+        </ul>
+        <a class="btn21 btn21-wide" href="#top"><span>Start With Brand</span><svg class="b21-arw" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7h9M7.5 3.5 11 7l-3.5 3.5"/></svg></a>
+      </article>
+    </div>
+
+    
+
+    <p class="ptable-foot">Every plan starts on the same free scan. <a href="demo.html">Run one now</a> before you pick a tier.</p>
+  </div>
+</section>
+
+<section class="section quotes-sec">
+  <div class="wrap sec-head reveal">
+    <h2 class="sec-title">From people who found out.</h2>
+  </div>
+  <div class="wrap proof-row reveal">
+    <div class="pfp-stack"><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="38" height="38"><defs><linearGradient id="f122592" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1F2E33"/><stop offset="100%" stop-color="#141F24"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f122592)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#F472B6"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#F2C9A0"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#F2C9A0"/><path d="M8.5,17.5 C8.5,10 13,6.5 20,6.5 C27,6.5 31.5,10 31.5,17.5 C31.5,14 27.5,12 20,12 C12.5,12 8.5,14 8.5,17.5 Z" fill="#4A3728"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><path d="M17.4,26.4 h5.2" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="38" height="38"><defs><linearGradient id="f399215" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1F2E33"/><stop offset="100%" stop-color="#141F24"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f399215)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#F472B6"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#C68642"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#C68642"/><path d="M7.5,26 C6.5,12 12,5.5 20,5.5 C28,5.5 33.5,12 32.5,26 C31.5,22 30,15 20,15 C10,15 8.5,22 7.5,26 Z" fill="#4A3728"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><g fill="none" stroke="#20202A" stroke-width="1" opacity=".85"><circle cx="16.6" cy="21.3" r="3.1"/><circle cx="23.4" cy="21.3" r="3.1"/><path d="M19.7,21.3 h0.6"/></g><path d="M17.4,26.4 h5.2" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="38" height="38"><defs><linearGradient id="f153919" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2A2F3D"/><stop offset="100%" stop-color="#171922"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f153919)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#3D82FF"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#E0A878"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#E0A878"/><path d="M7.5,26 C6.5,12 12,5.5 20,5.5 C28,5.5 33.5,12 32.5,26 C31.5,22 30,15 20,15 C10,15 8.5,22 7.5,26 Z" fill="#C9803A"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><path d="M17.4,26.4 h5.2" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="38" height="38"><defs><linearGradient id="f325078" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2E2A38"/><stop offset="100%" stop-color="#1B1826"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f325078)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#A78BFA"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#8D5524"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#8D5524"/><path d="M7.5,26 C6.5,12 12,5.5 20,5.5 C28,5.5 33.5,12 32.5,26 C31.5,22 30,15 20,15 C10,15 8.5,22 7.5,26 Z" fill="#1B1B22"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><path d="M17.4,26.4 h5.2" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="38" height="38"><defs><linearGradient id="f426207" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1F2E33"/><stop offset="100%" stop-color="#141F24"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f426207)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#A78BFA"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#F2C9A0"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#F2C9A0"/><path d="M8.5,17.5 C8.5,10 13,6.5 20,6.5 C27,6.5 31.5,10 31.5,17.5 C31.5,14 27.5,12 20,12 C12.5,12 8.5,14 8.5,17.5 Z" fill="#8C5A2B"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><path d="M17,26.2 q3,2.2 6,0" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span></div>
+    <div class="proof-meta">
+      <div class="stars" role="img" aria-label="Five out of five"><svg class="star" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.6l2.47 5.6 6.09.56-4.6 4.04 1.35 5.96L10 14.6l-5.31 3.16 1.35-5.96-4.6-4.04 6.09-.56z"/></svg><svg class="star" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.6l2.47 5.6 6.09.56-4.6 4.04 1.35 5.96L10 14.6l-5.31 3.16 1.35-5.96-4.6-4.04 6.09-.56z"/></svg><svg class="star" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.6l2.47 5.6 6.09.56-4.6 4.04 1.35 5.96L10 14.6l-5.31 3.16 1.35-5.96-4.6-4.04 6.09-.56z"/></svg><svg class="star" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.6l2.47 5.6 6.09.56-4.6 4.04 1.35 5.96L10 14.6l-5.31 3.16 1.35-5.96-4.6-4.04 6.09-.56z"/></svg><svg class="star" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.6l2.47 5.6 6.09.56-4.6 4.04 1.35 5.96L10 14.6l-5.31 3.16 1.35-5.96-4.6-4.04 6.09-.56z"/></svg></div>
+      <p class="proof-line">Used by <b>176</b> solo users, <b>214</b> entrepreneurs and <b>22</b> brands</p>
+    </div>
+  </div>
+  <div class="marquee q-marquee" data-speed="70">
+    <div class="marquee-track">
+      <blockquote class="tcard"><p>ChatGPT had been quoting a price we retired in 2022. Two years. Nobody told us.</p><cite><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="32" height="32"><defs><linearGradient id="f122592" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1F2E33"/><stop offset="100%" stop-color="#141F24"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f122592)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#F472B6"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#F2C9A0"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#F2C9A0"/><path d="M8.5,17.5 C8.5,10 13,6.5 20,6.5 C27,6.5 31.5,10 31.5,17.5 C31.5,14 27.5,12 20,12 C12.5,12 8.5,14 8.5,17.5 Z" fill="#4A3728"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><path d="M17.4,26.4 h5.2" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span>Ilse V. &mdash; Northwind</cite></blockquote>
+      <blockquote class="tcard"><p>GPTBot was blocked in our robots.txt by a contractor. One line, three wrong answers.</p><cite><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="32" height="32"><defs><linearGradient id="f399215" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1F2E33"/><stop offset="100%" stop-color="#141F24"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f399215)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#F472B6"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#C68642"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#C68642"/><path d="M7.5,26 C6.5,12 12,5.5 20,5.5 C28,5.5 33.5,12 32.5,26 C31.5,22 30,15 20,15 C10,15 8.5,22 7.5,26 Z" fill="#4A3728"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><g fill="none" stroke="#20202A" stroke-width="1" opacity=".85"><circle cx="16.6" cy="21.3" r="3.1"/><circle cx="23.4" cy="21.3" r="3.1"/><path d="M19.7,21.3 h0.6"/></g><path d="M17.4,26.4 h5.2" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span>Marcus O. &mdash; Oakline</cite></blockquote>
+      <blockquote class="tcard"><p>We were told we were HIPAA compliant. By a robot. To a hospital procurement lead.</p><cite><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="32" height="32"><defs><linearGradient id="f153919" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2A2F3D"/><stop offset="100%" stop-color="#171922"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f153919)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#3D82FF"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#E0A878"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#E0A878"/><path d="M7.5,26 C6.5,12 12,5.5 20,5.5 C28,5.5 33.5,12 32.5,26 C31.5,22 30,15 20,15 C10,15 8.5,22 7.5,26 Z" fill="#C9803A"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><path d="M17.4,26.4 h5.2" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span>Dana R. &mdash; Lumenworks</cite></blockquote>
+      <blockquote class="tcard"><p>The fix list is the part that matters. Everything else is a dashboard I would ignore.</p><cite><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="32" height="32"><defs><linearGradient id="f325078" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2E2A38"/><stop offset="100%" stop-color="#1B1826"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f325078)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#A78BFA"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#8D5524"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#8D5524"/><path d="M7.5,26 C6.5,12 12,5.5 20,5.5 C28,5.5 33.5,12 32.5,26 C31.5,22 30,15 20,15 C10,15 8.5,22 7.5,26 Z" fill="#1B1B22"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><path d="M17.4,26.4 h5.2" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span>Priya N. &mdash; Parabola</cite></blockquote>
+    <blockquote class="tcard"><p>We fixed one line of robots.txt and our booking calls went up the next week. Nobody warns you about this.</p><cite><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="32" height="32"><defs><linearGradient id="f964418" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1F2E33"/><stop offset="100%" stop-color="#141F24"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f964418)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#FF8A3D"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#E0A878"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#E0A878"/><path d="M9.5,16.5 C9.5,11 14,8 20,8 C26,8 30.5,11 30.5,16.5 C29,13.5 25,12.5 20,12.5 C15,12.5 11,13.5 9.5,16.5 Z" fill="#E8C07D"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><path d="M17,26.2 q3,2.2 6,0" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span>Nadia F. — Oakline Dental</cite></blockquote><blockquote class="tcard"><p>Our own support team was quoting the model's answer back at customers. That was the moment it clicked.</p><cite><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="32" height="32"><defs><linearGradient id="f809575" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#332C22"/><stop offset="100%" stop-color="#1F1B15"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f809575)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#FF8A3D"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#A9714B"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#A9714B"/><path d="M8,17 C8,9.5 13,6 20,6 C28,6 32,10.5 31.5,17 C30,13.5 26,11.5 17,12.5 C12,13 9.5,15 8,17 Z" fill="#5B5B66"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><path d="M17,26.2 q3,2.2 6,0" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span>Ben C. — Parabola</cite></blockquote><blockquote class="tcard"><p>I check FIG before I check analytics now. It is the only thing that tells me what people are actually being told.</p><cite><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="32" height="32"><defs><linearGradient id="f484261" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2E2A38"/><stop offset="100%" stop-color="#1B1826"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f484261)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#F87171"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#8D5524"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#8D5524"/><path d="M8.5,17.5 C8.5,10 13,6.5 20,6.5 C27,6.5 31.5,10 31.5,17.5 C31.5,14 27.5,12 20,12 C12.5,12 8.5,14 8.5,17.5 Z" fill="#7A3E2E"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><path d="M17,26.2 q3,2.2 6,0" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span>Sofia L. — Kestrel and Co</cite></blockquote><blockquote class="tcard"><p>The traced source is the whole product. Knowing it came from a 2022 press release told me exactly what to kill.</p><cite><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="32" height="32"><defs><linearGradient id="f101374" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2A2F3D"/><stop offset="100%" stop-color="#171922"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f101374)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#A78BFA"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#C68642"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#C68642"/><path d="M8,17 C8,9.5 13,6 20,6 C28,6 32,10.5 31.5,17 C30,13.5 26,11.5 17,12.5 C12,13 9.5,15 8,17 Z" fill="#C9803A"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><path d="M17,26.2 q3,2.2 6,0" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span>Marcus O. — Oakline</cite></blockquote></div>
+  </div>
+  <div class="marquee q-marquee" data-speed="58" data-reverse="1">
+    <div class="marquee-track">
+      <blockquote class="tcard"><p>Patients kept calling to ask if we were closed Saturdays. We are not. Gemini thought so.</p><cite><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="32" height="32"><defs><linearGradient id="f687487" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#332C22"/><stop offset="100%" stop-color="#1F1B15"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f687487)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#F472B6"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#8D5524"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#8D5524"/><path d="M8.5,17.5 C8.5,10 13,6.5 20,6.5 C27,6.5 31.5,10 31.5,17.5 C31.5,14 27.5,12 20,12 C12.5,12 8.5,14 8.5,17.5 Z" fill="#4A3728"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><g fill="none" stroke="#20202A" stroke-width="1" opacity=".85"><circle cx="16.6" cy="21.3" r="3.1"/><circle cx="23.4" cy="21.3" r="3.1"/><path d="M19.7,21.3 h0.6"/></g><path d="M17,26.2 q3,2.2 6,0" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span>Dr. Aria S. &mdash; Acme Dental</cite></blockquote>
+      <blockquote class="tcard"><p>Watching four models disagree about your own company is a genuinely upsetting demo.</p><cite><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="32" height="32"><defs><linearGradient id="f689307" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#33262B"/><stop offset="100%" stop-color="#1E1A1F"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f689307)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#FBBF24"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#8D5524"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#8D5524"/><path d="M8,17 C8,9.5 13,6 20,6 C28,6 32,10.5 31.5,17 C30,13.5 26,11.5 17,12.5 C12,13 9.5,15 8,17 Z" fill="#1B1B22"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><path d="M17,26.2 q3,2.2 6,0" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span>Tom A. &mdash; Northwind</cite></blockquote>
+      <blockquote class="tcard"><p>We shipped the schema change on a Tuesday. The answers flipped by Friday.</p><cite><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="32" height="32"><defs><linearGradient id="f119147" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1F2E33"/><stop offset="100%" stop-color="#141F24"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f119147)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#3D82FF"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#F2C9A0"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#F2C9A0"/><path d="M8.5,17.5 C8.5,10 13,6.5 20,6.5 C27,6.5 31.5,10 31.5,17.5 C31.5,14 27.5,12 20,12 C12.5,12 8.5,14 8.5,17.5 Z" fill="#4A3728"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><path d="M17.4,26.4 h5.2" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span>Jonah K. &mdash; Kestrel and Co</cite></blockquote>
+      <blockquote class="tcard"><p>It found a competitor price being attributed to us. That one paid for the year.</p><cite><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="32" height="32"><defs><linearGradient id="f68719" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2E2A38"/><stop offset="100%" stop-color="#1B1826"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f68719)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#22D3EE"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#6B4226"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#6B4226"/><path d="M9.5,16.5 C9.5,11 14,8 20,8 C26,8 30.5,11 30.5,16.5 C29,13.5 25,12.5 20,12.5 C15,12.5 11,13.5 9.5,16.5 Z" fill="#4A3728"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><path d="M17,26.2 q3,2.2 6,0" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span>Elise M. &mdash; Signalbay</cite></blockquote>
+    <blockquote class="tcard"><p>Three engines said we were closed on Sundays. We have never been closed on Sundays.</p><cite><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="32" height="32"><defs><linearGradient id="f266103" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2E2A38"/><stop offset="100%" stop-color="#1B1826"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f266103)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#22D3EE"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#FFD9B3"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#FFD9B3"/><path d="M9.5,16.5 C9.5,11 14,8 20,8 C26,8 30.5,11 30.5,16.5 C29,13.5 25,12.5 20,12.5 C15,12.5 11,13.5 9.5,16.5 Z" fill="#5B5B66"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><g fill="none" stroke="#20202A" stroke-width="1" opacity=".85"><circle cx="16.6" cy="21.3" r="3.1"/><circle cx="23.4" cy="21.3" r="3.1"/><path d="M19.7,21.3 h0.6"/></g><path d="M17,26.2 q3,2.2 6,0" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span>Reggie T. — Northbound Coffee</cite></blockquote><blockquote class="tcard"><p>Cheaper than one wasted ad month, and it found a competitor's pricing attached to our brand.</p><cite><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="32" height="32"><defs><linearGradient id="f939649" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#332C22"/><stop offset="100%" stop-color="#1F1B15"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f939649)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#FF8A3D"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#FFD9B3"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#FFD9B3"/><path d="M9.5,16.5 C9.5,11 14,8 20,8 C26,8 30.5,11 30.5,16.5 C29,13.5 25,12.5 20,12.5 C15,12.5 11,13.5 9.5,16.5 Z" fill="#8C5A2B"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><g fill="none" stroke="#20202A" stroke-width="1" opacity=".85"><circle cx="16.6" cy="21.3" r="3.1"/><circle cx="23.4" cy="21.3" r="3.1"/><path d="M19.7,21.3 h0.6"/></g><path d="M17,26.2 q3,2.2 6,0" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span>Elise M. — Signalbay</cite></blockquote><blockquote class="tcard"><p>As a solo founder I do not have time to audit this by hand. It runs and I get a list.</p><cite><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="32" height="32"><defs><linearGradient id="f860026" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2E2A38"/><stop offset="100%" stop-color="#1B1826"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f860026)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#22D3EE"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#FFD9B3"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#FFD9B3"/><path d="M7.5,26 C6.5,12 12,5.5 20,5.5 C28,5.5 33.5,12 32.5,26 C31.5,22 30,15 20,15 C10,15 8.5,22 7.5,26 Z" fill="#7A3E2E"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><path d="M17,26.2 q3,2.2 6,0" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span>Dev A. — Bytecamp</cite></blockquote><blockquote class="tcard"><p>The before/after proof is what got budget approved internally. Screenshots of the model changing its mind.</p><cite><span class="pfp" aria-hidden="true"><svg viewBox="0 0 40 40" width="32" height="32"><defs><linearGradient id="f29211" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2E2A38"/><stop offset="100%" stop-color="#1B1826"/></linearGradient></defs><rect width="40" height="40" rx="20" fill="url(#f29211)"/><path d="M6.5,40 C6.5,32.5 12,29 20,29 C28,29 33.5,32.5 33.5,40 Z" fill="#FF8A3D"/><rect x="17.6" y="24" width="4.8" height="6" rx="2.4" fill="#F2C9A0"/><ellipse cx="20" cy="20.6" rx="7.4" ry="8.2" fill="#F2C9A0"/><path d="M8.5,17 C8.5,10 13,6.5 20,6.5 C27,6.5 31.5,10 31.5,17 C31,13.5 27,12 20,12 C13,12 9,13.5 8.5,17 ZM26.5,6.2 a2.6,2.6 0 1,1 0.01,0 Z" fill="#E8C07D"/><g fill="#2A1F1A"><circle cx="16.6" cy="21.4" r="1.15"/><circle cx="23.4" cy="21.4" r="1.15"/></g><g fill="none" stroke="#20202A" stroke-width="1" opacity=".85"><circle cx="16.6" cy="21.3" r="3.1"/><circle cx="23.4" cy="21.3" r="3.1"/><path d="M19.7,21.3 h0.6"/></g><path d="M17.4,26.4 h5.2" fill="none" stroke="#3A2A22" stroke-width="1.1" stroke-linecap="round"/></svg></span>Hana W. — Lumenworks</cite></blockquote></div>
+  </div>
+</section>
+
+<!-- ============ CLOSING CTA ============ -->
+<section class="closer" id="closer">
+
+  <div class="wrap closer-inner">
+    <h2 class="closer-title">Are you in?</h2>
+    <p class="closer-sub">New to any of this? <a href="rulebook.html">Read the AI slop rulebook</a> &rarr;</p>
+    <div class="closer-actions">
+      <a class="btn21 btn21-solid" href="#top"><span>Run A Free Audit</span></a>
+      <a class="btn21" href="pricing.html"><span>See Plans</span><svg class="b21-arw" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7h9M7.5 3.5 11 7l-3.5 3.5"/></svg></a>
+    </div>
+  </div>
+
+  <div class="wrap closer-box">
+    <div class="cbox">
+      <aside class="cbox-side">
+        <div class="cbox-side-head mono">Modelled outcomes</div>
+        <button class="copt is-on" type="button" data-i="0">
+          <span class="copt-name">Dental Clinic</span>
+          <span class="copt-days mono">90 days</span>
+          <span class="copt-delta mono">+217%</span>
+        </button>
+        <button class="copt" type="button" data-i="1">
+          <span class="copt-name">Law Firm</span>
+          <span class="copt-days mono">60 days</span>
+          <span class="copt-delta mono">+82%</span>
+        </button>
+        <button class="copt" type="button" data-i="2">
+          <span class="copt-name">Local Services</span>
+          <span class="copt-days mono">120 days</span>
+          <span class="copt-delta mono">+156%</span>
+        </button>
+        <div class="copt-stat">
+          <div class="cs-big" id="csBig">+217%</div>
+          <div class="cs-lab mono">AI mention rate</div>
+          <p class="cs-note" id="csNote">Modelled from closing directory, schema, and review-response gaps.</p>
+        </div>
+      </aside>
+
+      <div class="cbox-main">
+        <div class="cbox-bar">
+          <span class="cbox-title mono">AI visibility report &middot; <b id="cbWho">Dental Clinic</b></span>
+          <span class="cbox-range mono"><i id="cbFrom">18%</i> &rarr; <b id="cbTo">57%</b></span>
+        </div>
+        <div class="cbox-plot">
+          <svg class="cplot" viewBox="0 0 640 260" preserveAspectRatio="none" aria-hidden="true">
+            <g class="cp-grid">
+              <line x1="0" y1="40" x2="640" y2="40"/><line x1="0" y1="95" x2="640" y2="95"/>
+              <line x1="0" y1="150" x2="640" y2="150"/><line x1="0" y1="205" x2="640" y2="205"/>
+            </g>
+            <defs>
+              <linearGradient id="cpGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#ffffff" stop-opacity=".22"/>
+                <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path class="cp-area" id="cpArea" d=""/>
+            <polyline class="cp-line" id="cpLine" points=""/>
+            <g class="cp-marks" id="cpMarks"></g>
+          </svg>
+          <div class="cp-ylab mono"><span>65%</span><span>52%</span><span>39%</span><span>25%</span></div>
+          <div class="cp-notes" id="cpNotes"></div>
+          <div class="cp-layer" id="cpHit" role="img" aria-label="AI visibility over time. Hover the chart to read any day.">
+            <span class="cp-cross" id="cpCross"></span>
+            <span class="cp-dot" id="cpDot"></span>
+            <div class="cp-tip" id="cpTip">
+              <span class="tip-day mono" id="tipDay">day 0</span>
+              <span class="tip-val" id="tipVal">0%</span>
+            </div>
+          </div>
+          <div class="cp-xlab mono"><span>day 0</span><span id="cbEnd">day 90</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"></span><span class="brand-name">FIG</span></a>
+        <p class="foot-blurb">Find out what AI gets wrong about your website, where the answer came from, and exactly what to change.</p>
+        <form class="foot-sub" autocomplete="off">
+          <input type="email" class="foot-input mono" placeholder="you@company.com" aria-label="Email for the drift digest">
+          <button class="btn21 btn21-solid btn21-sm" type="submit"><span>Get The Digest</span></button>
+        </form>
+        <p class="foot-note">A weekly read on how models are describing the web. No spam.</p>
+      </div>
+
+      <nav class="foot-col">
+        <h4>Product</h4>
+        <a href="#plans-detail">Compare plans</a>
+        <a href="#catches">What it catches</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="#plans-detail">Compare plans</a>
+        <a href="changelog.html">Changelog</a>
+        <a href="status.html">Status</a>
+      </nav>
+
+      <nav class="foot-col" id="learn">
+        <h4>Learn</h4>
+        <a href="blog.html">Blog</a>
+        <a href="glossary.html">Glossary</a>
+        <a href="rulebook.html">The AI slop rulebook</a>
+        <a href="spotting-ai-pages.html">Spotting AI-written pages</a>
+        <a href="schema-for-crawlers.html">Schema for AI crawlers</a>
+        <a href="robots-reference.html">robots.txt reference</a>
+      </nav>
+
+      <nav class="foot-col">
+        <h4>Build</h4>
+        <a href="docs.html">Docs</a>
+        <a href="domain-verification.html">Domain verification</a>
+        <a href="api.html">API reference</a>
+        <a href="webhooks.html">Webhooks</a>
+        <a href="fix-recipes.html">Fix recipes</a>
+      </nav>
+
+      <nav class="foot-col">
+        <h4>Company</h4>
+        <a href="about.html">About</a>
+        <a href="contact.html">Contact</a>
+        <a href="privacy.html">Privacy policy</a>
+        <a href="terms.html">Terms of service</a>
+        <a href="cookies.html">Cookie notice</a>
+        <a href="security.html">Security</a>
+      </nav>
+    </div>
+
+    <div class="foot-bar">
+      <span class="mono foot-left">&copy; 2026 FIG &middot; Built for people who publish on the web</span>
+      <span class="foot-right">
+        <a href="privacy.html">Privacy</a><i>&middot;</i><a href="terms.html">Terms</a><i>&middot;</i><a href="cookies.html">Cookies</a><i>&middot;</i><a href="https://github.com/Duckafaligy/FIG-AI">GitHub</a>
+      </span>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="app.js?v=12"></script>
+<div class="theme-switch" role="group" aria-label="Colour theme">
+  <button class="ts-btn" type="button" data-theme-set="dark" aria-pressed="true" title="Dark">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+    <span class="sr-only">Dark</span>
+  </button>
+  <button class="ts-btn" type="button" data-theme-set="light" aria-pressed="false" title="Light">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>
+    <span class="sr-only">Light</span>
+  </button>
+</div>
+</body>
+</html>

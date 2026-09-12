@@ -1,0 +1,59 @@
+{% extends "dash/shell.html" %}
+{% import "dash/_bits.html" as b %}
+{% block title %}Notifications — {{ account.name }}{% endblock %}
+
+{% block body %}
+<div class="page-h">
+  <div><h2>Notifications</h2>
+    <p>What changed that somebody should look at. Derived from your audits rather than
+      an inbox, so there is nothing to mark as read &mdash; an item disappears when the
+      thing it describes stops being true.</p></div>
+  <form method="post" action="/app/audit-all">
+    <button class="tbtn" type="submit">Re-audit everything</button>
+  </form>
+</div>
+
+<div class="grid row-four" style="margin-bottom:14px">
+  <div class="kpi"><div class="kpi-h">Failed audits</div>
+    <div class="kpi-v"><b>{{ n.counts.error }}</b></div>
+    <div class="kpi-sub">a site could not be read</div></div>
+  <div class="kpi"><div class="kpi-h">High severity</div>
+    <div class="kpi-v"><b>{{ n.counts.warn }}</b></div>
+    <div class="kpi-sub">sites carrying one or more</div></div>
+  <div class="kpi"><div class="kpi-h">Scores moved</div>
+    <div class="kpi-v"><b>{{ n.counts.moved }}</b></div>
+    <div class="kpi-sub">since the previous audit</div></div>
+  <div class="kpi"><div class="kpi-h">Never audited</div>
+    <div class="kpi-v"><b>{{ n.counts.info }}</b></div>
+    <div class="kpi-sub">added but not yet read</div></div>
+</div>
+
+{% if n.feed %}
+<div class="card">
+  <div class="card-h"><h3>Feed</h3><span class="kpi-sub">newest first</span></div>
+  <div class="notes">
+    {% for i in n.feed %}
+    <a class="note note-{{ i.kind }}" href="{{ i.href }}">
+      <span class="note-dot" aria-hidden="true"></span>
+      <span class="note-b">
+        <b>{{ i.title }}</b>
+        <span>{{ i.body }}</span>
+      </span>
+      <time>{{ i.at.strftime('%d %b, %H:%M') if i.at else '' }}</time>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="empty"><b>Nothing to report</b>
+  No failed audits, no high-severity findings, and nothing has moved.</div>
+{% endif %}
+
+<div class="card" style="margin-top:14px">
+  <div class="card-h"><h3>Alerts by email</h3>
+    <span class="kpi-sub">Not built yet</span></div>
+  <p class="kpi-sub">Scheduled monitoring on a verified domain will send these as they
+    happen rather than waiting for you to open the dashboard. Until then this page is the
+    only place they appear.</p>
+</div>
+{% endblock %}
