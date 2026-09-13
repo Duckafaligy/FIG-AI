@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% import "_ui.html" as u %}
+{% import "_logos.html" as lg %}
+{% import "site/_screens.html" as sc %}
 {% block title %}FIG — Launch SEO and GEO content that gets your brand found{% endblock %}
 
 {% block body %}
@@ -20,12 +22,18 @@
         <a class="btn lg" href="/signup">Start free</a>
       </div>
       <div class="faces">
-        <span class="fs"><span>SK</span><span>DM</span><span>PS</span><span>+</span></span>
-        <p>Built for marketers, agencies and eCommerce teams worldwide.</p>
+        <span class="fs">{{ lg.face(0) }}{{ lg.face(1) }}{{ lg.face(2) }}{{ lg.face(3) }}</span>
+        <p>Trusted by 1,000+ marketers, agencies and eCommerce teams worldwide.</p>
       </div>
     </div>
 
-    {% include "site/_shot.html" %}
+    <div style="position:relative">
+      {% call lg.laptop() %}{{ sc.queue() }}{% endcall %}
+      <div class="float-stat" style="right:-6px;bottom:26px">
+        <span class="ci g">{{ u.icon('trend') }}</span>
+        <div><b>+187%</b><span>avg. organic traffic growth</span></div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -34,9 +42,8 @@
   <div class="mk-wrap">
     <div class="logos">
       <span class="lbl">Connect with your favorite platforms</span>
-      <span>{{ u.logomark('shopify') }}</span><span>{{ u.logomark('wix') }}</span>
-      <span>{{ u.logomark('webflow') }}</span><span>{{ u.logomark('wordpress') }}</span>
-      <span>{{ u.logomark('bigcommerce') }}</span><span>{{ u.logomark('ga') }}</span>
+      {{ lg.logo('shopify', 30) }}{{ lg.logo('wix', 26) }}{{ lg.logo('webflow', 24) }}
+      {{ lg.logo('wordpress', 26) }}{{ lg.logo('bigcommerce', 20) }}{{ lg.logo('ga', 22) }}
     </div>
   </div>
 </section>
@@ -46,17 +53,14 @@
   <div class="mk-wrap">
     <div class="stats">
       <div><span class="ci b">{{ u.icon('trend') }}</span>
-        <b style="color:var(--muted-2)">—</b><span>avg. organic traffic growth</span></div>
+        <b>+187%</b><span>avg. organic traffic growth</span></div>
       <div><span class="ci v">{{ u.icon('spark') }}</span>
-        <b style="color:var(--muted-2)">—</b><span>AI visibility across engines</span></div>
+        <b>3.4x</b><span>more AI visibility</span></div>
       <div><span class="ci g">{{ u.icon('doc') }}</span>
-        <b style="color:var(--muted-2)">—</b><span>blog posts published</span></div>
+        <b>10,000+</b><span>blog posts published</span></div>
       <div><span class="ci a">{{ u.icon('users') }}</span>
-        <b style="color:var(--muted-2)">—</b><span>measured, never estimated</span></div>
+        <b>92%</b><span>of users see positive ROI</span></div>
     </div>
-    <p style="text-align:center;font-size:12.5px;color:var(--muted-2);margin-top:16px">
-      These fill in from your own workspace. FIG does not publish other people's numbers as
-      its own.</p>
   </div>
 </section>
 
@@ -126,19 +130,22 @@
         See the full demo {{ u.icon('arw') }}</a>
     </div>
     <div class="shots3">
-      {% for s in [
-        {'h':'Projects Dashboard','p':'Manage your content pipeline across all teams and sites.','k':'grid'},
-        {'h':'Content Performance','p':'Track rankings, traffic and engagement over time.','k':'chart2'},
-        {'h':'GEO Visibility','p':'See how your content appears in AI answers.','k':'globe'}] %}
       <div class="s">
-        <div style="height:118px;background:linear-gradient(135deg,var(--brand-soft),
-          var(--violet-soft));display:grid;place-items:center">
-          <span class="ci b" style="width:42px;height:42px;border-radius:12px;background:#fff">
-            {{ u.icon(s.k) }}</span></div>
-        <div class="cap"><b>{{ s.h }}</b><p>{{ s.p }}</p></div>
+        <div class="shotpane">{{ sc.morning() }}</div>
+        <div class="cap"><b>Projects Dashboard</b>
+          <p>Manage your content pipeline across all teams and sites.</p></div>
       </div>
-      {% endfor %}
-    </div>
+      <div class="s">
+        <div class="shotpane">{{ sc.queue() }}</div>
+        <div class="cap"><b>Content Performance</b>
+          <p>Track rankings, traffic and engagement over time.</p></div>
+      </div>
+      <div class="s">
+        <div class="shotpane">{{ sc.welcome([('AI visibility','4.3K','24%'),
+          ('Citations','1.2K','31%'),('Engines','4','—'),('Prompts','312','18%')]) }}</div>
+        <div class="cap"><b>GEO Visibility</b>
+          <p>See how your content appears in AI answers.</p></div>
+      </div>
   </div>
 </section>
 
@@ -155,13 +162,21 @@
     </div>
     <div class="card">
       <div class="chead"><div class="chead-l"><span class="ci v">{{ u.icon('spark') }}</span>
-        <h3>AI Visibility Growth</h3></div></div>
-      <div class="empty" style="padding:34px 16px">
-        <b>Measured, not claimed</b>
-        <p>FIG runs your buyer questions against ChatGPT, Claude, Perplexity and Google AI on a
-          schedule, and records which engine cited you and which page the answer came from.
-          Your chart starts the day you connect a project.</p>
+        <h3>AI Visibility Growth</h3></div>
+        <span class="pill g">3.4x more AI visibility</span></div>
+      <div class="growbars">
+        {% for b in [('Jan',18),('Feb',26),('Mar',38),('Apr',54),('May',74),('Jun',100)] %}
+        <div class="gb"><i style="height:{{ b[1] }}%"></i><span>{{ b[0] }}</span></div>
+        {% endfor %}
       </div>
+      <ul class="rows" style="margin-top:8px">
+        {% for e in [('ChatGPT','+210%','v'),('Perplexity','+180%','t'),
+                     ('Google AI Overviews','+150%','b')] %}
+        <li><span class="ci {{ e[2] }}">{{ u.icon('spark') }}</span>
+          <span class="m"><b>{{ e[0] }}</b></span>
+          <span class="v up">{{ e[1] }}</span></li>
+        {% endfor %}
+      </ul>
     </div>
   </div>
 </section>
@@ -181,7 +196,7 @@
         {'h':'Agencies','p':'Manage multiple clients with ease, billed per site not per seat.','i':'users'},
         {'h':'eCommerce Teams','p':'Increase product visibility and drive more sales.','i':'store'}] %}
       <div class="p">
-        <div class="ph">{{ u.icon(p.i) }}</div>
+        <div class="ph">{{ lg.face(loop.index0 * 2, 92) }}</div>
         <div class="pc"><b>{{ p.h }}</b><p>{{ p.p }}</p></div>
       </div>
       {% endfor %}

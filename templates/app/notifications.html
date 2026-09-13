@@ -159,12 +159,13 @@
     <div class="chan">
       <span class="nm"><span class="ci {{ c.tone }}" style="width:26px;height:26px">{{ u.icon(c.icon) }}</span>
         {{ c.name }}</span>
-      <span class="pc"><span class="zero">—</span></span>
-      <span class="bar"><i style="width:0%"></i></span>
+      <span class="pc">{{ u.val(c.value, suffix='%') }}</span>
+      <span class="bar"><i class="{{ 'g' if c.value and c.value >= 95 else ('a' if c.value and c.value >= 90 else '') }}"
+        style="width:{{ c.value or 0 }}%"></i></span>
     </div>
     {% endfor %}
-    <p class="chead-sub" style="margin:14px 0 0">No delivery transport is wired up yet — no
-      email, Slack or push. Delivery rates appear once one is.</p>
+    {% if not channels[0].value %}<p class="chead-sub" style="margin:14px 0 0">No delivery
+      transport is wired up yet — no email, Slack or push.</p>{% endif %}
   </div>
 
   <div class="card">
@@ -175,7 +176,7 @@
     <div class="tog">
       <span class="ci {{ r.tone }}" style="width:26px;height:26px">{{ u.icon(r.icon) }}</span>
       <span><b>{{ r.name }}</b><span>{{ r.sub }}</span></span>
-      <label class="sw"><input type="checkbox" {{ 'checked' if r.on }} disabled><i></i></label>
+      <label class="sw"><input type="checkbox" {{ 'checked' if r.on }}><i></i></label>
     </div>
     {% endfor %}
   </div>
@@ -187,7 +188,12 @@
   <div class="tw"><table class="t">
     <thead><tr><th>Issue</th><th>Type</th><th>Resolved At</th><th>Resolved By</th>
       <th>Notes</th></tr></thead>
-    <tbody>{{ u.norows(5, 'Nothing has been resolved yet, because nothing has failed yet.') }}</tbody>
+    <tbody>
+    {% for r in resolved %}
+      <tr><td><b>{{ r.issue }}</b></td><td>{{ r.type }}</td><td class="nowrap">{{ r.at }}</td>
+        <td>{{ r.by }}</td><td style="white-space:normal">{{ r.note }}</td></tr>
+    {% else %}{{ u.norows(5, 'Nothing has been resolved yet, because nothing has failed yet.') }}{% endfor %}
+    </tbody>
   </table></div>
 </div>
 {% endblock %}

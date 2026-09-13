@@ -1,0 +1,154 @@
+{% import "_ui.html" as u %}
+{% import "_logos.html" as lg %}
+
+{# The dashboard screens that sit inside the device frames.
+
+   Three variants, matching the three shown in the designs. They are real
+   markup rather than images, so they stay sharp and never drift from the
+   product. The figures are the sample set from the designs. #}
+
+{# ---------- shared mini rail ---------- #}
+{% macro rail(items, on) %}
+<div class="ms-rail">
+  <div class="ms-brand"><span class="ms-mark">
+    <svg viewBox="0 0 24 24"><path d="M13.5 2.5 5 13.6h5.4L9.8 21.5 18.5 10h-5.4z"/></svg></span>FIG</div>
+  {% for i in items %}
+  <div class="ms-nav {{ 'on' if i[1] == on }}">
+    <svg viewBox="0 0 24 24">{{ u.icon(i[0]) }}</svg>{{ i[1] }}</div>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+
+{# ---------- 1. the SEO content queue (homepage hero) ---------- #}
+{% macro queue() %}
+<div class="ms">
+  {{ rail([('home','Overview'),('doc','Content'),('search','SEO'),('globe','GEO'),
+           ('chart','Analytics'),('bell','Notifications'),('gear','Settings')], 'SEO') }}
+  <div class="ms-body">
+    <div class="ms-top">
+      <div class="ms-search">{{ u.icon('search') }}Search your content…</div>
+      <div class="ms-btn">+ New Post</div>
+    </div>
+    <div class="ms-h1">SEO Content Queue</div>
+    <div class="ms-sub">Manage and monitor your AI-generated blog posts and content</div>
+
+    <div class="ms-kpis">
+      {% for k in [('Posts in Queue','12','+3 from yesterday'),('Published (This Month)','28','+15.6%'),
+                   ('Avg. SEO Score','84','+6 points'),('Organic Traffic','4.2K','+18.7%'),
+                   ('Impressions','42.7K','+21.4%')] %}
+      <div class="ms-kpi"><span>{{ k[0] }}</span><b>{{ k[1] }}</b><em>↑ {{ k[2] }}</em></div>
+      {% endfor %}
+    </div>
+
+    <div class="ms-card">
+      <div class="ms-tabs"><i class="on">All</i><i>Queued</i><i>In Progress</i><i>Review</i>
+        <i>Scheduled</i><i>Published</i></div>
+      <div class="ms-thead"><span>Blog Post</span><span>Status</span><span>SEO Score</span>
+        <span>Target Keyword</span><span>Scheduled For</span></div>
+      {% for r in [('10 Proven Strategies to Boost Organic Traffic','In Progress','a','92','increase organic traffic','May 17, 2025'),
+                   ('How to Build Backlinks That Actually Drive Results','Queued','','80','building quality backlinks','May 18, 2025'),
+                   ('Technical SEO Checklist for Higher Rankings','Review','s','76','technical seo checklist','May 19, 2025')] %}
+      <div class="ms-row">
+        <span class="ms-ttl"><i class="ms-ic">
+          <svg viewBox="0 0 24 24">{{ u.icon('doc') }}</svg></i>{{ r[0] }}</span>
+        <span><i class="ms-pill {{ r[2] }}">{{ r[1] }}</i></span>
+        <span><i class="ms-score {{ 'g' if r[3]|int >= 80 else 'a' }}">{{ r[3] }}</i></span>
+        <span class="ms-dim">{{ r[4] }}</span>
+        <span class="ms-dim">{{ r[5] }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+
+{# ---------- 2. the home dashboard (pricing hero) ---------- #}
+{% macro morning() %}
+<div class="ms">
+  {{ rail([('home','Home'),('doc','Content'),('target','Optimize'),('chart','Analytics'),
+           ('route','Workflows'),('docs','Library'),('gear','Settings')], 'Home') }}
+  <div class="ms-body">
+    <div class="ms-top">
+      <div class="ms-search">{{ u.icon('search') }}Search content, projects, or insights…</div>
+      <div class="ms-btn">+ New content</div>
+    </div>
+    <div class="ms-h1">Good morning</div>
+    <div class="ms-sub">Here's what's happening with your content.</div>
+
+    <div class="ms-kpis four">
+      {% for k in [('Total content','248','+12%'),('Avg. SEO score','78','+6%'),
+                   ('AI visibility','4.3K','+24%'),('Organic traffic','92K','+18%')] %}
+      <div class="ms-kpi"><span>{{ k[0] }}</span><b>{{ k[1] }}</b><em>↑ {{ k[2] }}</em></div>
+      {% endfor %}
+    </div>
+
+    <div class="ms-split">
+      <div class="ms-card pad">
+        <div class="ms-ch">Content performance</div>
+        {{ spark() }}
+        <div class="ms-axis"><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span>
+          <span>May</span><span>Jun</span></div>
+      </div>
+      <div class="ms-card pad">
+        <div class="ms-ch">Top opportunities</div>
+        {% for o in [('Improve for AI results','chart'),('Add internal links','link'),
+                     ('Update content','pencil')] %}
+        <div class="ms-opp"><i class="ms-ic"><svg viewBox="0 0 24 24">{{ u.icon(o[1]) }}</svg></i>
+          <span>{{ o[0] }}</span><b>›</b></div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+
+{# ---------- 3. welcome back (sign in / sign up) ---------- #}
+{% macro welcome(stats) %}
+<div class="ms">
+  {{ rail([('grid','Dashboard'),('doc','Content'),('search','SEO & GEO'),('chart','Analytics'),
+           ('docs','Library'),('gear','Settings')], 'Dashboard') }}
+  <div class="ms-body">
+    <div class="ms-top" style="justify-content:space-between">
+      <div><div class="ms-h1" style="margin:0">Welcome back</div>
+        <div class="ms-sub" style="margin:2px 0 0">Here's what's happening with your content.</div></div>
+      <div class="ms-btn">+ New content</div>
+    </div>
+
+    <div class="ms-kpis four" style="margin-top:12px">
+      {% for k in stats %}
+      <div class="ms-kpi"><span>{{ k[0] }}</span><b>{{ k[1] }}</b><em>↑ {{ k[2] }}</em></div>
+      {% endfor %}
+    </div>
+
+    <div class="ms-card pad">
+      <div class="ms-ch spread">Recent content <i class="ms-link">View all →</i></div>
+      {% for r in [('The Future of Search','Blog post · Published · 2.4K views','+187%','doc'),
+                   ('How to Build a Content Engine','Guide · Published · 1.2K views','+92%','book'),
+                   ('GEO for Modern Brands','Article · Published · 980 views','+64%','globe')] %}
+      <div class="ms-rec">
+        <i class="ms-ic"><svg viewBox="0 0 24 24">{{ u.icon(r[3]) }}</svg></i>
+        <span><b>{{ r[0] }}</b><em>{{ r[1] }}</em></span>
+        <i class="ms-up">↑ {{ r[2] }}</i>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+
+{# a small sparkline used inside the mini dashboards #}
+{% macro spark() %}
+<svg class="ms-spark" viewBox="0 0 240 74" preserveAspectRatio="none">
+  <defs><linearGradient id="msg" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#7C5CFC" stop-opacity=".26"/>
+    <stop offset="100%" stop-color="#7C5CFC" stop-opacity="0"/>
+  </linearGradient></defs>
+  <path d="M4 58 L44 52 L84 44 L124 30 L164 22 L204 12 L236 6 L236 74 L4 74 Z" fill="url(#msg)"/>
+  <path d="M4 58 L44 52 L84 44 L124 30 L164 22 L204 12 L236 6" fill="none" stroke="#7C5CFC"
+        stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+{% endmacro %}

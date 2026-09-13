@@ -65,8 +65,10 @@
   <div class="grid g6 mb">
     {{ u.kpi('docs', 'b', 'Total Projects', kpis.projects, note='in this workspace') }}
     {{ u.kpi('doc', 'v', 'Total Published Blogs', kpis.published, note='all projects') }}
-    {{ u.kpi('chart', 's', 'Workspace Traffic', none, note='needs Search Console') }}
-    {{ u.kpi('star', 'a', 'Total Impressions', none, note='needs Search Console') }}
+    {{ u.kpi('chart', 's', 'Workspace Traffic', u.val(kpis.traffic),
+             note='needs Search Console' if kpis.traffic is none else 'last 30 days') }}
+    {{ u.kpi('star', 'a', 'Total Impressions', u.val(kpis.impressions),
+             note='needs Search Console' if kpis.impressions is none else 'last 30 days') }}
     {{ u.kpi('target', 'p', 'Avg. Impact Score', kpis.impact, note='across audited projects') }}
     {{ u.kpi('wifi', 'g', 'Sync Health', kpis.synced, note='projects audited') }}
   </div>
@@ -118,13 +120,13 @@
           <ul class="dkey">
             {% for r in geo_rows %}
             <li><i style="background:{{ r.colour }}"></i><span>{{ r.label }}</span>
-              <b>{% if r.value is none %}<span class="zero">—</span>{% else %}{{ r.value }}%{% endif %}</b>
-              <em></em></li>
+              <b>{% if r.value is none %}<span class="zero">&mdash;</span>{% else %}{{ r.value }}%{% endif %}</b>
+              <em class="up">{{ ('+' ~ r.delta ~ '%') if r.delta else '' }}</em></li>
             {% endfor %}
           </ul>
         </div>
-        <p class="chead-sub" style="margin:14px 0 0">Needs the model-visibility crawl before
-          any engine can report a number.</p>
+        {% if not demo %}<p class="chead-sub" style="margin:14px 0 0">Needs the
+          model-visibility crawl before any engine can report a number.</p>{% endif %}
       </div>
     </div>
   </div>
@@ -145,8 +147,8 @@
           <tr><td><span class="rank">{{ loop.index }}</span></td>
             <td><div class="ttl"><span class="tile ci {{ r.tone }}">{{ r.initial }}</span>
               <b>{{ r.title }}</b></div></td>
-            <td class="n"><span class="zero">—</span></td>
-            <td class="n"><span class="zero">—</span></td>
+            <td class="n">{{ u.val(r.traffic) }}</td>
+            <td class="n">{{ u.val(r.impressions) }}</td>
             <td class="n">{{ u.score(r.impact) }}</td></tr>
         {% endfor %}</tbody>
       </table></div>
@@ -211,8 +213,8 @@
               <b>{{ r.name }}</b></div></td>
             <td>{{ u.pill(r.state, 'g' if r.state == 'Active' else 'a', dot=true) }}</td>
             <td class="n">{{ r.published }}</td>
-            <td class="n"><span class="zero">—</span></td>
-            <td class="n"><span class="zero">—</span></td>
+            <td class="n">{{ u.val(r.traffic) }}</td>
+            <td class="n">{{ u.val(r.impressions) }}</td>
             <td class="n">{{ u.score(r.impact) }}</td>
             <td>{{ r.updated or '—' }}</td>
             <td class="n"><button class="ibtn">{{ u.icon('dots') }}</button></td>

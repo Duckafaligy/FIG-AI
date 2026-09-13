@@ -104,6 +104,14 @@
 
 
 {# ---------- numbers ---------- #}
+{# `val` is the one place a missing value turns into an em dash. Pass a
+   number, a pre-formatted string, or none. #}
+{% macro val(v, suffix='', comma=true) %}
+{%- if v is none -%}<span class="zero">&mdash;</span>
+{%- elif comma and v is number and v is not string -%}{{ '{:,}'.format(v) }}{{ suffix }}
+{%- else -%}{{ v }}{{ suffix }}{%- endif -%}
+{% endmacro %}
+
 {% macro num(v, zero='0') %}{% if v is none %}<span class="zero">—</span>{% elif v is number %}{{ '{:,}'.format(v) }}{% else %}{{ v }}{% endif %}{% endmacro %}
 
 {% macro trend(v, unit='%', suffix='') %}

@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% import "_ui.html" as u %}
+{% import "_logos.html" as lg %}
+{% import "site/_screens.html" as sc %}
 {% block title %}Sign in — FIG{% endblock %}
 
 {% block body %}
@@ -47,10 +49,10 @@
 
       <div class="divider">Or continue with</div>
       <button class="oauth" type="button" data-oauth="google">
-        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.9h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.4z"/><path fill="#34A853" d="M12 22c2.7 0 4.9-.9 6.6-2.4l-3.2-2.5c-.9.6-2 .9-3.4.9-2.6 0-4.8-1.7-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z"/><path fill="#FBBC05" d="M6.4 13.9a6 6 0 0 1 0-3.8V7.5H3.1a10 10 0 0 0 0 9z"/><path fill="#EA4335" d="M12 6c1.5 0 2.8.5 3.8 1.5l2.8-2.8A10 10 0 0 0 3.1 7.5l3.3 2.6C7.2 7.7 9.4 6 12 6z"/></svg>
+        {{ lg.logo('google') }}
         Continue with Google</button>
       <button class="oauth" type="button" data-oauth="shopify">
-        <svg viewBox="0 0 24 24" style="fill:#5A8E3F"><path d="M15.3 5.6c-.2-1.4-1-2.4-2.2-2.4-1 0-1.6.6-2 1.3-.4-.1-.8-.2-1.2-.2-1.6 0-2.5 1.3-2.8 3L5 8.1 4 20.8l8 2 8-2-1-12.7z"/></svg>
+        {{ lg.logo('shopify-mark') }}
         Continue with Shopify</button>
 
       <p style="text-align:center;font-size:13.5px;color:var(--muted);margin-top:22px">
@@ -77,14 +79,19 @@
         {% endfor %}
       </div>
 
-      <div class="card" style="margin-top:12px">
-        <div class="row" style="gap:12px">
-          <span class="ci g">{{ u.icon('trend') }}</span>
-          <div><b style="font-size:14.5px">Your numbers, not ours</b>
-            <p style="font-size:13px;color:var(--muted);margin-top:5px;line-height:1.55">
-              Every figure in FIG is measured from your own workspace. Nothing on these pages
-              is a projection.</p></div>
+      <div style="position:relative;margin-top:18px">
+        <span class="note-hand" style="position:absolute;left:0;top:52px;z-index:3;
+          max-width:160px;line-height:1.2">Turn ideas<br>into real growth</span>
+        <svg style="position:absolute;left:134px;top:80px;width:60px;height:46px;z-index:3;
+          fill:none;stroke:var(--brand);stroke-width:1.9;stroke-linecap:round"
+          viewBox="0 0 62 48"><path d="M3 4c15 3 27 15 33 36"/><path d="M28 32l8 10 7-11"/></svg>
+        <div class="float-stat" style="right:2px;top:-10px">
+          <span class="ci g">{{ u.icon('chart') }}</span>
+          <div><b>+187%</b><span>avg. organic traffic growth</span></div>
         </div>
+        {% call lg.laptop() %}{{ sc.welcome([('Total content','142','24%'),
+          ('Organic traffic','48.2K','187%'),('AI visibility','10.0K','3.4x'),
+          ('Conversions','4.8K','92%')]) }}{% endcall %}
       </div>
     </div>
   </div>
@@ -101,9 +108,8 @@
   <div class="mk-wrap">
     <div class="logos">
       <span class="lbl">Trusted by modern brands on every platform</span>
-      <span>{{ u.logomark('shopify') }}</span><span>{{ u.logomark('wix') }}</span>
-      <span>{{ u.logomark('webflow') }}</span><span>{{ u.logomark('wordpress') }}</span>
-      <span>{{ u.logomark('bigcommerce') }}</span><span>{{ u.logomark('ga') }}</span>
+      {{ lg.logo('shopify', 30) }}{{ lg.logo('wix', 26) }}{{ lg.logo('webflow', 24) }}
+      {{ lg.logo('wordpress', 26) }}{{ lg.logo('bigcommerce', 20) }}{{ lg.logo('ga', 22) }}
     </div>
   </div>
 </section>

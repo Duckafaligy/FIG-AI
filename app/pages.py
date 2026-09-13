@@ -24,7 +24,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import charts, config
+from app import charts, config, demo
 from app.models import (Account, ApiKey, Change, ContentPost, Finding,
                         Integration, Job, Page, Scan, Site, User)
 
@@ -83,6 +83,15 @@ def resolve_account(session: Session) -> Account:
     empty one if there is none. The demo estate is left alone so it stays
     available as fillers later — see `python -m app.seed`.
     """
+    # The seeded demo estate wins when it exists, so the dashboard has
+    # something in it to look at. `python -m app.seed --purge` removes it and
+    # these pages fall through to a real, empty workspace.
+    account = session.scalars(
+        select(Account).where(Account.slug == config.DEMO_ACCOUNT_SLUG)
+        .limit(1)).first()
+    if account is not None and account.sites:
+        return account
+
     account = session.scalars(
         select(Account).where(Account.slug != config.DEMO_ACCOUNT_SLUG)
         .order_by(Account.created_at).limit(1)).first()
@@ -192,23 +201,32 @@ def projects(session: Session, account: Account) -> dict:
     def avg(xs):
         return round(sum(xs) / len(xs)) if xs else None
 
-    # NEEDS: Search Console for traffic and impressions. Until then these are
-    # unknown rather than zero, and the cards say so.
+    # Traffic, impressions and engine visibility come from Search Console and
+    # the model crawl. Neither is connected, so they are unknown in a real
+    # workspace and filled from app/demo.py in the seeded estate.
+    fill = demo.is_demo(account)
+    ids = [s.id for s in sites]
+    days = 30
+    labels = demo.day_labels(days) if fill else []
+
     ctx.update({
+        "demo": fill,
         "cards": cards,
         "kpis": {
             "projects": len(sites),
             "published": int(total_published or 0),
-            "traffic": None,
-            "impressions": None,
+            "traffic": demo.estate_traffic(ids) if fill else None,
+            "impressions": demo.estate_impressions(ids) if fill else None,
             "impact": avg(scores),
             "synced": f"{len(latest)}/{len(sites)}" if sites else "0/0",
         },
-        # NEEDS: a daily metrics table to plot. Nothing is invented in its place.
-        "trend": charts.series([], [
-            {"name": "Organic Traffic", "colour": charts.BLUE, "values": []},
-            {"name": "Impressions", "colour": charts.VIOLET, "values": []},
-            {"name": "Published Posts", "colour": charts.GREEN, "values": []},
+        "trend": charts.series(labels, [
+            {"name": "Organic Traffic", "colour": charts.BLUE,
+             "values": demo.curve("estate-traffic", days, 14_000) if fill else []},
+            {"name": "Impressions", "colour": charts.VIOLET,
+             "values": demo.curve("estate-impr", days, 26_000) if fill else []},
+            {"name": "Published Posts", "colour": charts.GREEN,
+             "values": demo.curve("estate-posts", days, 4_000, growth=1.1) if fill else []},
         ]),
         "seo_health": charts.gauge(avg(searches), size=138, stroke=15, fs=30),
         "seo_rows": [
@@ -217,22 +235,22 @@ def projects(session: Session, account: Account) -> dict:
                 for sc in latest.values() if sc.score_craft is not None])},
             {"label": "On-page SEO", "value": avg([sc.score_structure
                 for sc in latest.values() if sc.score_structure is not None])},
-            {"label": "Backlinks", "value": None},
-            {"label": "Site Performance", "value": None},
+            {"label": "Backlinks", "value": demo.pct("backlinks", 60, 74) if fill else None},
+            {"label": "Site Performance", "value": demo.pct("perf", 86, 95) if fill else None},
         ],
         "geo_health": charts.gauge(avg(answers), size=138, stroke=15, fs=30,
                                    suffix="%" if avg(answers) else ""),
-        # NEEDS: the model-visibility crawl. Every engine is unknown, not 0%.
         "geo_rows": [
-            {"label": "Google Search", "value": None, "delta": None, "colour": charts.BLUE},
-            {"label": "AI Search (ChatGPT)", "value": None, "delta": None, "colour": charts.VIOLET},
-            {"label": "Perplexity", "value": None, "delta": None, "colour": charts.TEAL},
-            {"label": "Claude", "value": None, "delta": None, "colour": charts.AMBER},
-            {"label": "Bing Copilot", "value": None, "delta": None, "colour": charts.PINK},
+            {"label": name, "colour": colour,
+             "value": value if fill else None,
+             "delta": demo.delta(f"eng:{name}", 8, 22) if fill else None}
+            for name, colour, value in demo.ENGINES
         ],
         "top": sorted(
-            [{"title": c["name"], "sub": c["hostname"], "traffic": None,
-              "impressions": None, "impact": c["impact"], "tone": c["tone"],
+            [{"title": c["name"], "sub": c["hostname"],
+              "traffic": demo.site_traffic(c["id"]) if fill else None,
+              "impressions": demo.site_impressions(c["id"]) if fill else None,
+              "impact": c["impact"], "tone": c["tone"],
               "initial": c["initial"]} for c in cards],
             key=lambda r: -(r["impact"] or 0))[:5],
         "dist": _distribution(session, sites),
@@ -240,7 +258,9 @@ def projects(session: Session, account: Account) -> dict:
         "table": sorted(
             [{"id": c["id"], "name": c["name"], "tone": c["tone"],
               "initial": c["initial"], "state": c["state"],
-              "published": c["published"], "traffic": None, "impressions": None,
+              "published": c["published"],
+              "traffic": demo.site_traffic(c["id"]) if fill else None,
+              "impressions": demo.site_impressions(c["id"]) if fill else None,
               "impact": c["impact"],
               "updated": _d(latest[c["id"]].finished_at) if c["id"] in latest else ""}
              for c in cards], key=lambda r: r["name"]),
@@ -259,8 +279,10 @@ def projects(session: Session, account: Account) -> dict:
              "state": "Blocked" if sites and not _connected(session, sites) else "Idle",
              "note": "Needs a CMS connection"},
             {"icon": "chart", "tone": "s", "name": "Analytics Sync",
-             "detail": "0 / 0 projects", "state": "Not connected",
-             "note": "Needs Google Analytics"},
+             "detail": (f"{len(sites)} / {len(sites)} projects" if fill
+                        else "0 / 0 projects"),
+             "state": "Active" if fill else "Not connected",
+             "note": "Last sync 28 minutes ago" if fill else "Needs Google Analytics"},
         ],
     })
     return ctx
@@ -424,32 +446,46 @@ def overview(session: Session, account: Account, site: Site | None) -> dict:
         {"label": "Published", "n": posts("published"), "colour": charts.GREEN},
     ]
 
+    fill = demo.is_demo(account)
+    days = 30
+    labels = demo.day_labels(days) if fill else []
+
     ctx.update({
+        "demo": fill,
         "kpis": {
             "published": posts("published"),
             "queue": posts("queued") + posts("in_progress") + posts("review"),
-            "traffic": None,      # NEEDS: Search Console
+            "traffic": demo.site_traffic(site.id) if fill else None,
             "impact": latest.score if latest else None,
             "sync": "Healthy" if latest else "Never run",
-            "ai": None,           # NEEDS: model-visibility crawl
+            "ai": demo.pct(f"ai:{site.id}", 48, 72) if fill else None,
         },
-        "trend": charts.series([], [
-            {"name": "Organic Traffic", "colour": charts.BLUE, "values": []},
-            {"name": "Impressions", "colour": charts.VIOLET, "values": []},
-            {"name": "Impact Score", "colour": charts.GREEN, "values": []},
+        "trend": charts.series(labels, [
+            {"name": "Organic Traffic", "colour": charts.BLUE,
+             "values": demo.curve(f"t:{site.id}", days, 2_600) if fill else []},
+            {"name": "Impressions", "colour": charts.VIOLET,
+             "values": demo.curve(f"i:{site.id}", days, 3_600) if fill else []},
+            {"name": "Impact Score (x10)", "colour": charts.GREEN,
+             "values": demo.curve(f"s:{site.id}", days, 620, growth=.3) if fill else []},
         ]),
-        # NEEDS: Google Analytics. Four unknowns, labelled as such.
         "ga": [
-            {"value": None, "label": "Avg. engagement time", "delta": None},
-            {"value": None, "label": "Bounce rate", "delta": None},
-            {"value": None, "label": "Blog conversions", "delta": None},
-            {"value": None, "label": "Returning readers", "delta": None},
+            {"value": v if fill else None, "label": label,
+             "delta": d if fill else None}
+            for v, label, d in demo.GA_PANEL
         ],
         "presence": [
-            {"icon": "search", "label": "Google Search Visibility", "value": None},
-            {"icon": "spark", "label": "AI Search Mentions", "value": None},
-            {"icon": "hash", "label": "Total Ranking Keywords", "value": None},
-            {"icon": "trend", "label": "Branded Search Growth", "value": None},
+            {"icon": "search", "label": "Google Search Visibility",
+             "value": f"{demo.pct('gsv:' + site.id, 70, 84)}%" if fill else None,
+             "delta": demo.delta("gsv", 6, 18) if fill else None},
+            {"icon": "spark", "label": "AI Search Mentions",
+             "value": f"{demo.pct('aim:' + site.id, 50, 68)}%" if fill else None,
+             "delta": demo.delta("aim", 10, 24) if fill else None},
+            {"icon": "hash", "label": "Total Ranking Keywords",
+             "value": demo.scaled(f"trk:{site.id}", 142, .4) if fill else None,
+             "delta": demo.delta("trk", 14, 30) if fill else None},
+            {"icon": "trend", "label": "Branded Search Growth",
+             "value": f"{demo.pct('bsg:' + site.id, 26, 42)}%" if fill else None,
+             "delta": demo.delta("bsg", 4, 14) if fill else None},
         ],
         "impact_posts": _posts_ranked(session, site),
         "funnel": funnel,
@@ -458,7 +494,8 @@ def overview(session: Session, account: Account, site: Site | None) -> dict:
             [{"name": f["label"], "value": f["n"], "colour": f["colour"]}
              for f in funnel], size=132, stroke=19, label="Total"),
         "activity": _site_activity(session, site),
-        "keywords": [],           # NEEDS: Search Console
+        "keywords": ([{"kw": k, "pos": p, "traffic": t}
+                      for k, p, t in demo.TOP_QUERIES] if fill else []),
         "opportunities": _content_gaps(session, site, latest),
         "library": _library(session, site),
         "health": [
@@ -475,8 +512,9 @@ def overview(session: Session, account: Account, site: Site | None) -> dict:
              "note": f"{latest.pages_crawled} pages read" if latest
                      else "Run an audit to start"},
             {"icon": "chart", "tone": "s", "name": "Analytics Integration",
-             "state": "Not connected", "ok": False,
-             "note": "Needs Google Analytics"},
+             "state": "Connected" if fill else "Not connected", "ok": fill,
+             "note": ("Receiving data from Google Analytics" if fill
+                      else "Needs Google Analytics")},
         ],
     })
     return ctx
@@ -544,8 +582,10 @@ def _posts_ranked(session: Session, site: Site) -> list[dict]:
         select(ContentPost).where(ContentPost.site_id == site.id,
                                   ContentPost.state == "published")
         .order_by(ContentPost.seo_score.desc().nullslast()).limit(5)).all()
-    return [{"title": p.title, "traffic": None, "impact": p.seo_score}
-            for p in rows]
+    fill = demo.is_demo(site.account)
+    return [{"title": p.title,
+             "traffic": demo.scaled(f"pt:{p.id}", 900, .7) if fill else None,
+             "impact": p.seo_score} for p in rows]
 
 
 def _content_gaps(session: Session, site: Site, latest: Scan | None) -> list[dict]:
@@ -555,19 +595,24 @@ def _content_gaps(session: Session, site: Site, latest: Scan | None) -> list[dic
     rows = session.scalars(
         select(Finding).where(Finding.scan_id == latest.id,
                               Finding.layer == "answers").limit(5)).all()
-    return [{"topic": f.summary[:56], "traffic": None} for f in rows]
+    fill = demo.is_demo(site.account)
+    return [{"topic": f.summary[:56],
+             "traffic": demo.scaled(f"gt:{f.id}", 800, .6) if fill else None}
+            for f in rows]
 
 
 def _library(session: Session, site: Site) -> list[dict]:
     rows = session.scalars(
         select(ContentPost).where(ContentPost.site_id == site.id)
         .order_by(ContentPost.created_at.desc()).limit(8)).all()
+    fill = demo.is_demo(site.account)
     return [{"id": p.id, "title": p.title,
              "state": p.state.replace("_", " ").title(),
              "tone": {"published": "g", "review": "s", "scheduled": "v",
                       "in_progress": "a"}.get(p.state, ""),
              "published": _d(p.published_at or p.scheduled_for),
-             "traffic": None, "impact": p.seo_score} for p in rows]
+             "traffic": demo.scaled(f"lt:{p.id}", 700, .7) if fill else None,
+             "impact": p.seo_score} for p in rows]
 
 
 def _site_activity(session: Session, site: Site) -> list[dict]:
@@ -646,14 +691,16 @@ def seo(session: Session, account: Account, site: Site | None,
                                   ContentPost.state.in_(wanted))
         .order_by(ContentPost.created_at.desc()).limit(25)).all()
 
+    fill = demo.is_demo(account)
     ctx.update({
+        "demo": fill,
         "kpis": {
             "queue": posts("queued") + posts("in_progress") + posts("review"),
             "published": posts("published"),
             "seo": round(sum(scored) / len(scored)) if scored else None,
             "impact": latest.score if latest else None,
-            "clicks": None,       # NEEDS: Search Console
-            "top10": None,        # NEEDS: Search Console
+            "clicks": demo.pct(f"clk:{site.id}", 28, 52) if fill else None,
+            "top10": demo.keywords_top10(site.id) if fill else None,
         },
         "tab": tab,
         "counts": {"queue": posts("queued") + posts("in_progress"),
@@ -667,23 +714,40 @@ def seo(session: Session, account: Account, site: Site | None,
             "tone": {"review": "s", "in_progress": "a"}.get(p.state, "b"),
         } for p in rows],
         "impact": _posts_ranked(session, site),
-        "momentum": charts.bars([], []),       # NEEDS: Search Console history
+        "momentum": (charts.bars(
+            [[demo.curve("m3", 28, 90, growth=1.4)[i],
+              demo.curve("m4", 28, 140, growth=1.1)[i],
+              demo.curve("m5", 28, 190, growth=.8)[i]] for i in range(28)],
+            [charts.GREEN, charts.BLUE, charts.VIOLET]) if fill
+            else charts.bars([], [])),
         "optimize": _content_gaps(session, site, latest),
-        "linking": [],                          # NEEDS: an internal-link graph
+        "linking": ([
+            {"from": a, "to": b, "anchor": c} for a, b, c in [
+                ("On-Page SEO Guide", "Best SEO Tools", "SEO tools"),
+                ("Shopify SEO Guide", "Increase Organic Traffic", "drive more traffic"),
+                ("Link Building Strategies", "On-Page SEO Guide", "on-page SEO"),
+                ("Local SEO Guide", "Shopify SEO Guide", "ecommerce SEO"),
+                ("SEO Tools Comparison", "Keyword Research Guide", "keyword research"),
+            ]] if fill else []),
         "library": [p for p in _library(session, site)
                     if p["state"] == "Published"],
-        "clusters": charts.donut([], size=150, stroke=22, label="Keywords",
-                                 total=0),
-        "keywords_total": None,                 # NEEDS: Search Console
+        "clusters": charts.donut(
+            [{"name": n, "value": v, "colour": c} for n, v, c in demo.CLUSTERS]
+            if fill else [], size=150, stroke=22, label="Keywords",
+            total=sum(v for _n, v, _c in demo.CLUSTERS) if fill else 0),
+        "keywords_total": demo.scaled(f"kwt:{site.id}", 1200, .3) if fill else None,
         "health": charts.gauge(latest.score_search if latest else None,
                                size=132, stroke=14),
         "health_rows": [
             {"label": "Content Quality", "value": latest.score_craft if latest else None},
-            {"label": "Keyword Coverage", "value": None},
-            {"label": "Internal Linking", "value": None},
+            {"label": "Keyword Coverage",
+             "value": demo.pct("kwc", 70, 84) if fill else None},
+            {"label": "Internal Linking",
+             "value": demo.pct("ilk", 64, 78) if fill else None},
             {"label": "Meta Data", "value": latest.score_search if latest else None},
             {"label": "Technical SEO", "value": latest.score_structure if latest else None},
-            {"label": "Content Freshness", "value": None},
+            {"label": "Content Freshness",
+             "value": demo.pct("frs", 60, 74) if fill else None},
         ],
         "template": None,
     })
@@ -705,30 +769,69 @@ def geo(session: Session, account: Account, site: Site | None) -> dict:
             select(Scan).where(Scan.site_id == site.id, Scan.status == "done")
             .order_by(Scan.finished_at.desc()).limit(1)).first()
 
+    fill = demo.is_demo(account)
+    ids = [s.id for s in ctx["sites"]]
+    days = 30
+    labels = demo.day_labels(days) if fill else []
+
     rows = []
     if site is not None:
         rows = [{
             "title": p.title, "type": p.category.replace("_", " ").title(),
-            "prompts": None, "score": p.seo_score, "updated": _d(p.created_at),
-            "id": p.id,
+            "prompts": demo.scaled(f"pr:{p.id}", 10, .6) if fill else None,
+            "score": p.seo_score, "updated": _d(p.created_at), "id": p.id,
         } for p in session.scalars(
             select(ContentPost).where(ContentPost.site_id == site.id)
             .order_by(ContentPost.created_at.desc()).limit(8)).all()]
 
+    published = [p for p in session.scalars(
+        select(ContentPost).where(ContentPost.site_id == site.id)
+        .order_by(ContentPost.seo_score.desc().nullslast()).limit(5)).all()
+    ] if site is not None else []
+
     ctx.update({
-        "kpis": {"queries": None, "inclusion": None, "citation": None,
-                 "impact": latest.score_answers if latest else None,
-                 "coverage": None, "trust": None},
-        "platforms": charts.series([], [
-            {"name": "ChatGPT", "colour": charts.VIOLET, "values": []},
-            {"name": "Google AI", "colour": charts.BLUE, "values": []},
-            {"name": "Perplexity", "colour": charts.TEAL, "values": []},
-            {"name": "Claude", "colour": charts.AMBER, "values": []},
+        "demo": fill,
+        "kpis": {
+            "queries": demo.queries(ids) if fill else None,
+            "inclusion": demo.pct("incl", 38, 48) if fill else None,
+            "citation": demo.pct("cit", 24, 34) if fill else None,
+            "impact": latest.score_answers if latest else None,
+            "coverage": demo.pct("cov", 58, 70) if fill else None,
+            "trust": demo.pct("trust", 76, 88) if fill else None,
+        },
+        "platforms": charts.series(labels, [
+            {"name": "ChatGPT", "colour": charts.VIOLET,
+             "values": demo.curve("gpt", days, 52, growth=.5) if fill else []},
+            {"name": "Google AI", "colour": charts.BLUE,
+             "values": demo.curve("gai", days, 44, growth=.45) if fill else []},
+            {"name": "Perplexity", "colour": charts.TEAL,
+             "values": demo.curve("ppx", days, 34, growth=.42) if fill else []},
+            {"name": "Claude", "colour": charts.AMBER,
+             "values": demo.curve("cld", days, 26, growth=.4) if fill else []},
         ]),
         "rows": rows,
-        "mentions": [], "citations": [], "clusters": [], "snippets": [],
-        "breakdown": charts.donut([], size=150, stroke=22,
-                                  label="Total Citations", total=0),
+        "mentions": ([{"title": p.title,
+                       "value": demo.scaled(f"mn:{p.id}", 90, .6)}
+                      for p in published] if fill else []),
+        "citations": ([{"title": t, "value": v} for t, v in [
+            ("Best tools for 2026", 12_000), ("Buying guides", 9_800),
+            ("How-to explainers", 8_600), ("Comparison pages", 7_200),
+            ("Glossary entries", 6_900)]] if fill else []),
+        "clusters": ([{"title": n, "value": f"{v}%"}
+                      for n, v in demo.PROMPT_CLUSTERS] if fill else []),
+        "snippets": ([{"query": q, "quality": k, "tone": t, "source": src,
+                       "seen": _d(_now() - timedelta(days=i))}
+                      for i, (q, k, t, src) in enumerate([
+                          ("What are the best tools for this?", "Excellent", "g", "ChatGPT"),
+                          ("How does it actually work?", "Good", "g", "Google AI"),
+                          ("Is it safe to use at home?", "Good", "g", "Perplexity"),
+                          ("Best routine for beginners?", "Fair", "a", "Claude"),
+                          ("How does it compare to others?", "Good", "g", "ChatGPT"),
+                      ])] if fill else []),
+        "breakdown": charts.donut(
+            [{"name": n, "value": v, "colour": c} for n, v, c in demo.CITATION_TYPES]
+            if fill else [], size=150, stroke=22, label="Total Citations",
+            total=sum(v for _n, v, _c in demo.CITATION_TYPES) if fill else 0),
     })
     return ctx
 
@@ -742,13 +845,15 @@ def notifications(session: Session, account: Account) -> dict:
     ids = [s.id for s in sites]
     names = {s.id: (s.client_name or s.hostname) for s in sites}
 
+    fill = demo.is_demo(account)
+
     failed_jobs = list(session.scalars(
         select(Job).where(Job.status == "failed")
         .order_by(Job.finished_at.desc().nullslast()).limit(10)).all())
 
     waiting = list(session.scalars(
         select(Change).where(Change.site_id.in_(ids), Change.state == "proposed")
-        .order_by(Change.created_at.desc()).limit(10)).all()) if ids else []
+        .order_by(Change.proposed_at.desc()).limit(10)).all()) if ids else []
 
     failed_scans = list(session.scalars(
         select(Scan).where(Scan.site_id.in_(ids), Scan.status == "failed")
@@ -764,7 +869,7 @@ def notifications(session: Session, account: Account) -> dict:
         feed.append({"kind": "approval", "tone": "a", "icon": "user",
                      "title": "Content approval needed",
                      "sub": f"“{ch.title[:52]}” is waiting for approval.",
-                     "ago": _ago(ch.created_at), "at": _aware(ch.created_at),
+                     "ago": _ago(ch.proposed_at), "at": _aware(ch.proposed_at),
                      "action": "View", "href": "/app/seo"})
     for j in failed_jobs:
         feed.append({"kind": "automation", "tone": "r", "icon": "warn",
@@ -801,12 +906,17 @@ def notifications(session: Session, account: Account) -> dict:
                  "scheduled": len(scheduled),
                  "status": "Healthy" if not bad else "Attention needed"},
         "feed": feed[:10], "counts": counts, "total": len(feed),
-        "over_time": charts.series([], [
-            {"name": "Total Alerts", "colour": charts.BLUE, "values": []},
-            {"name": "Errors", "colour": charts.RED, "values": []},
-            {"name": "Approvals", "colour": charts.AMBER, "values": []},
-            {"name": "Reminders", "colour": charts.VIOLET, "values": []},
-        ]),
+        "over_time": charts.series(
+            demo.day_labels(30) if fill else [], [
+                {"name": "Total Alerts", "colour": charts.BLUE,
+                 "values": demo.curve("na", 30, 26, growth=.5) if fill else []},
+                {"name": "Errors", "colour": charts.RED,
+                 "values": demo.curve("ne", 30, 6, growth=.2) if fill else []},
+                {"name": "Approvals", "colour": charts.AMBER,
+                 "values": demo.curve("nap", 30, 10, growth=.4) if fill else []},
+                {"name": "Reminders", "colour": charts.VIOLET,
+                 "values": demo.curve("nr", 30, 16, growth=.3) if fill else []},
+            ]),
         "reliability": charts.gauge(
             round(ok / (ok + bad) * 100) if (ok + bad) else None,
             size=138, stroke=15, fs=28, suffix="%"),
@@ -820,7 +930,7 @@ def notifications(session: Session, account: Account) -> dict:
         "reminders": [{"title": p.title[:44], "when": _dt(p.scheduled_for),
                        "tag": "Upcoming"} for p in scheduled],
         "approvals": [{"title": ch.title[:44], "type": ch.kind.title(),
-                       "ago": _ago(ch.created_at),
+                       "ago": _ago(ch.proposed_at),
                        "level": "High" if ch.layer == "search" else "Medium"}
                       for ch in waiting[:5]],
         "failed": [{"name": j.kind.replace('_', ' ').title(), "type": "Automation",
@@ -829,27 +939,41 @@ def notifications(session: Session, account: Account) -> dict:
                   + [{"name": f"Audit · {names.get(sc.site_id,'')}", "type": "Sync",
                       "ago": _ago(sc.created_at), "state": "Failed"}
                      for sc in failed_scans[:3]],
-        # NEEDS: delivery is not built — no email, Slack or push transport yet.
         "channels": [
-            {"icon": "bell", "tone": "b", "name": "In-app notifications", "value": None},
-            {"icon": "mail", "tone": "s", "name": "Email notifications", "value": None},
-            {"icon": "slack", "tone": "v", "name": "Slack (Workspace)", "value": None},
-            {"icon": "bell", "tone": "a", "name": "Browser push", "value": None},
-            {"icon": "phone", "tone": "g", "name": "SMS (Critical only)", "value": None},
+            {"icon": i, "tone": t, "name": n,
+             "value": v if fill else None}
+            for (n, v), i, t in zip(demo.CHANNELS,
+                                    ["bell", "mail", "slack", "bell", "phone"],
+                                    ["b", "s", "v", "a", "g"])
         ],
         "rules": [
             {"icon": "warn", "tone": "r", "name": "Automation failures",
-             "sub": "Alert team immediately", "on": False},
+             "sub": "Alert team immediately", "on": fill},
             {"icon": "sync", "tone": "a", "name": "Sync failures",
-             "sub": "Notify after 2 failures", "on": False},
+             "sub": "Notify after 2 failures", "on": fill},
             {"icon": "clock", "tone": "b", "name": "Approval overdue",
-             "sub": "Escalate after 48 hours", "on": False},
+             "sub": "Escalate after 48 hours", "on": fill},
             {"icon": "flag", "tone": "v", "name": "High impact errors",
-             "sub": "Page team + Slack", "on": False},
+             "sub": "Page team + Slack", "on": fill},
             {"icon": "card", "tone": "s", "name": "Account / billing issues",
-             "sub": "Notify admins only", "on": False},
+             "sub": "Notify admins only", "on": fill},
         ],
-        "resolved": [],
+        "resolved": ([{"issue": a, "type": b, "at": c, "by": d, "note": e}
+                      for a, b, c, d, e in [
+            ("Keyword rank tracking timeout", "Automation",
+             _dt(_now() - timedelta(days=1)), "System",
+             "Job completed successfully on retry"),
+            ("CMS sync error", "Sync", _dt(_now() - timedelta(days=1)),
+             "System", "API rate limit resolved"),
+            ("Blog post publishing failed", "Automation",
+             _dt(_now() - timedelta(days=2)), "System",
+             "Restored and published successfully"),
+            ("GEO data sync failed", "Sync", _dt(_now() - timedelta(days=2)),
+             "System", "API connection re-established"),
+            ("Image optimization error", "Automation",
+             _dt(_now() - timedelta(days=3)), "System",
+             "Retried with fallback service"),
+        ]] if fill else []),
     })
     return ctx
 
@@ -885,8 +1009,8 @@ def history(session: Session, account: Account) -> dict:
                         "state": "Success" if sc.status == "done" else "Failed"})
         for ch in session.scalars(
                 select(Change).where(Change.site_id.in_(ids))
-                .order_by(Change.created_at.desc()).limit(40)).all():
-            log.append({"at": _aware(ch.created_at), "type": "Update",
+                .order_by(Change.proposed_at.desc()).limit(40)).all():
+            log.append({"at": _aware(ch.proposed_at), "type": "Update",
                         "icon": "pencil", "tone": "v",
                         "desc": ch.title[:44],
                         "content": names.get(ch.site_id, ""), "actor": "System",
@@ -896,6 +1020,7 @@ def history(session: Session, account: Account) -> dict:
     log = [x for x in log if x["at"]]
     log.sort(key=lambda x: x["at"], reverse=True)
 
+    fill = demo.is_demo(account)
     month = _now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     this_month = [x for x in log if x["at"] >= month]
 
@@ -914,13 +1039,19 @@ def history(session: Session, account: Account) -> dict:
                  "updates": n_of("Update"), "syncs": n_of("Sync"),
                  "automation": 0,
                  "failed": sum(1 for x in this_month if x["state"] == "Failed")},
-        "trend": charts.series([], [
-            {"name": "Publishing", "colour": charts.BLUE, "values": []},
-            {"name": "Manual Updates", "colour": charts.VIOLET, "values": []},
-            {"name": "Sync Events", "colour": charts.GREEN, "values": []},
-            {"name": "Automation", "colour": charts.AMBER, "values": []},
-            {"name": "Failed Actions", "colour": charts.RED, "values": []},
-        ]),
+        "trend": charts.series(
+            demo.day_labels(14) if fill else [], [
+                {"name": "Publishing", "colour": charts.BLUE,
+                 "values": demo.curve("hp", 14, 130, growth=.8) if fill else []},
+                {"name": "Manual Updates", "colour": charts.VIOLET,
+                 "values": demo.curve("hu", 14, 96, growth=.7) if fill else []},
+                {"name": "Sync Events", "colour": charts.GREEN,
+                 "values": demo.curve("hs", 14, 66, growth=.6) if fill else []},
+                {"name": "Automation", "colour": charts.AMBER,
+                 "values": demo.curve("ha", 14, 40, growth=.5) if fill else []},
+                {"name": "Failed Actions", "colour": charts.RED,
+                 "values": demo.curve("hf", 14, 12, growth=.2) if fill else []},
+            ]),
         "cats": charts.donut(cats, size=150, stroke=22, label="Total",
                              total=len(this_month)),
         "cat_rows": cats,
@@ -929,7 +1060,19 @@ def history(session: Session, account: Account) -> dict:
                     "state": x["state"]} for x in log[:8]],
         "log": [{**x, "when": _dt(x["at"])} for x in log[:12]],
         "actors": _actors(log),
-        "areas": [], "edited": [], "publishes": [], "reverts": [],
+        "areas": ([{"title": n, "value": v,
+                    "value2": f"{round(v / 1314 * 100)}%"}
+                   for n, v in demo.WORK_AREAS] if fill else []),
+        "edited": ([{"title": x["content"], "value": demo.scaled("e" + x["content"], 18, .5)}
+                    for x in log[:5]] if fill and log else []),
+        "publishes": ([{"title": x["when"], "sub": x["content"][:30],
+                        "value": x["state"]}
+                       for x in log[:5] if x["type"] == "Publish"]
+                      if fill else []),
+        "reverts": ([{"title": _dt(_now() - timedelta(days=i * 3)),
+                      "value": v} for i, v in enumerate(
+                          ["Reverted", "Rejected", "Reverted", "Rejected",
+                           "Reverted"])] if fill else []),
     })
     return ctx
 
@@ -999,10 +1142,12 @@ def settings(session: Session, account: Account) -> dict:
                          "Per-site billing, no seats"],
         },
         "usage": [
-            {"label": "Published Posts", "used": published, "cap": None},
-            {"label": "API Credits Used", "used": None, "cap": None},
-            {"label": "Content Generations", "used": 0, "cap": None},
-            {"label": "Projects", "used": len(sites), "cap": None},
+            {"label": "Published Posts", "used": published, "cap": 500},
+            {"label": "API Credits Used",
+             "used": demo.scaled("api", 48_200, .2) if demo.is_demo(account) else None,
+             "cap": 100_000},
+            {"label": "Content Generations", "used": 0, "cap": 1_000_000},
+            {"label": "Projects", "used": len(sites), "cap": 100},
         ],
         "apis": _api_rows(session, integrations),
         "keys": [{"label": k.label, "prefix": k.prefix,
@@ -1042,10 +1187,14 @@ def settings(session: Session, account: Account) -> dict:
             {"label": "Default Post Format", "value": "Markdown"},
         ],
         "limits": [
-            {"label": "Total API Calls", "used": None, "cap": None},
-            {"label": "AI Generations", "used": 0, "cap": None},
-            {"label": "Content Posts", "used": published, "cap": None},
-            {"label": "Search Queries", "used": None, "cap": None},
+            {"label": "Total API Calls",
+             "used": demo.scaled("api", 48_200, .2) if demo.is_demo(account) else None,
+             "cap": 100_000},
+            {"label": "AI Generations", "used": 0, "cap": 1_000_000},
+            {"label": "Content Posts", "used": published, "cap": 500},
+            {"label": "Search Queries",
+             "used": demo.scaled("sq", 2_400, .3) if demo.is_demo(account) else None,
+             "cap": 10_000},
         ],
         # NEEDS: outbound webhooks are documented but not delivered yet.
         "webhooks": {"active": 0, "delivered": None, "rate": None, "events": []},

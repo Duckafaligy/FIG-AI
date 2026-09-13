@@ -23,10 +23,13 @@
 <div class="grid g6 mb">
   {{ u.kpi('doc', 'b', 'Total Published Blogs', kpis.published, note='in this project') }}
   {{ u.kpi('clock', 'a', 'Posts in Queue', kpis.queue, note='queued, writing, review') }}
-  {{ u.kpi('chart', 's', 'Organic Traffic', none, note='needs Search Console') }}
+  {{ u.kpi('chart', 's', 'Organic Traffic', u.val(kpis.traffic),
+           note='needs Search Console' if kpis.traffic is none else 'last 30 days') }}
   {{ u.kpi('star', 'v', 'Avg. Impact Score', kpis.impact, note='latest audit') }}
   {{ u.kpi('wifi', 'g', 'Sync Health', kpis.sync, dot='All systems online' if kpis.impact else 'Never audited') }}
-  {{ u.kpi('target', 'p', 'AI Search Visibility', none, note='needs the model crawl') }}
+  {{ u.kpi('target', 'p', 'AI Search Visibility',
+           u.val(kpis.ai, suffix='%') if kpis.ai is not none else u.val(none),
+           note='needs the model crawl' if kpis.ai is none else 'across engines') }}
 </div>
 
 <div class="grid g21 mb">
@@ -54,13 +57,17 @@
         {% for g in ga %}
         <div style="border:1px solid var(--line);border-radius:var(--r);padding:14px">
           <div style="font-size:21px;font-weight:700;letter-spacing:-.035em">
-            <span class="zero">—</span></div>
+            {{ u.val(g.value) }}</div>
           <div style="font-size:12px;color:var(--muted);margin-top:6px">{{ g.label }}</div>
+          {% if g.delta %}<div class="trend {{ 'up' if g.delta > 0 else 'down' }}"
+            style="margin-top:7px">
+            <svg viewBox="0 0 24 24">{% if g.delta > 0 %}<path d="M12 19V5M6 11l6-6 6 6"/>{% else %}<path d="M12 5v14M6 13l6 6 6-6"/>{% endif %}</svg>
+            {{ '+' if g.delta > 0 }}{{ g.delta }}%</div>{% endif %}
         </div>
         {% endfor %}
       </div>
-      <p class="chead-sub" style="margin:14px 0 0">Connect Google Analytics in Settings and
-        these four fill in.</p>
+      {% if not demo %}<p class="chead-sub" style="margin:14px 0 0">Connect Google
+        Analytics in Settings and these four fill in.</p>{% endif %}
     </div>
 
     <div class="card">
@@ -69,11 +76,14 @@
       <ul class="checks">
         {% for p in presence %}
         <li><span class="ci b" style="width:26px;height:26px">{{ u.icon(p.icon) }}</span>
-          <span>{{ p.label }}</span><b><span class="zero">—</span></b></li>
+          <span>{{ p.label }}</span>
+          <b class="row" style="gap:10px">{{ u.val(p.value) }}
+            {% if p.delta %}<span class="trend up"><svg viewBox="0 0 24 24">
+              <path d="M12 19V5M6 11l6-6 6 6"/></svg>{{ p.delta }}%</span>{% endif %}</b></li>
         {% endfor %}
       </ul>
-      <p class="chead-sub" style="margin:14px 0 0">Needs Search Console and the
-        model-visibility crawl.</p>
+      {% if not demo %}<p class="chead-sub" style="margin:14px 0 0">Needs Search Console
+        and the model-visibility crawl.</p>{% endif %}
     </div>
   </div>
 </div>
@@ -89,7 +99,7 @@
       {% for p in impact_posts %}
         <tr><td><span class="rank">{{ loop.index }}</span></td>
           <td><b>{{ p.title }}</b></td>
-          <td class="n"><span class="zero">—</span></td>
+          <td class="n">{{ u.val(p.traffic) }}</td>
           <td class="n">{{ u.score(p.impact) }}</td></tr>
       {% else %}
         {{ u.norows(4, 'No published posts yet. Publish one and it is ranked here.') }}
@@ -137,7 +147,13 @@
     <div class="tw"><table class="t">
       <thead><tr><th style="width:26px">#</th><th>Keyword</th><th class="n">Position</th>
         <th class="n">Traffic</th></tr></thead>
-      <tbody>{{ u.norows(4, 'Needs Search Console. Nothing here is estimated.') }}</tbody>
+      <tbody>
+      {% for k in keywords %}
+        <tr><td><span class="rank">{{ loop.index }}</span></td>
+          <td><b>{{ k.kw }}</b></td><td class="n">{{ k.pos }}</td>
+          <td class="n">{{ u.val(k.traffic) }}</td></tr>
+      {% else %}{{ u.norows(4, 'Needs Search Console. Nothing here is estimated.') }}{% endfor %}
+      </tbody>
     </table></div>
   </div>
 
@@ -150,7 +166,7 @@
       {% for o in opportunities %}
         <tr><td><span class="rank">{{ loop.index }}</span></td>
           <td style="white-space:normal">{{ o.topic }}</td>
-          <td class="n"><span class="zero">—</span></td></tr>
+          <td class="n">{{ u.val(o.traffic) }}</td></tr>
       {% else %}
         {{ u.norows(3, 'Gaps come from the answers-layer findings. Run an audit to fill this.') }}
       {% endfor %}
@@ -181,7 +197,7 @@
             <b>{{ p.title }}</b></div></td>
           <td>{{ u.pill(p.state, p.tone) }}</td>
           <td>{{ p.published or '—' }}</td>
-          <td class="n"><span class="zero">—</span></td>
+          <td class="n">{{ u.val(p.traffic) }}</td>
           <td class="n">{{ u.score(p.impact) }}</td>
           <td class="n"><a class="btn xs" href="/app/seo">Manage {{ u.icon('cv') }}</a></td>
         </tr>

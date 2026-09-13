@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% import "_ui.html" as u %}
+{% import "_logos.html" as lg %}
+{% import "site/_screens.html" as sc %}
 {% block title %}Pricing — FIG{% endblock %}
 
 {% block body %}
@@ -30,9 +32,12 @@
     </div>
 
     <div style="position:relative">
-      {% include "site/_shot.html" %}
-      <span class="note-hand" style="position:absolute;right:8px;bottom:-38px">
+      {% call lg.window('app.fig.dev') %}{{ sc.morning() }}{% endcall %}
+      <span class="note-hand" style="position:absolute;right:10px;bottom:-46px">
         Turn ideas into measurable results</span>
+      <svg style="position:absolute;right:-4px;bottom:-16px;width:54px;height:46px;fill:none;
+        stroke:var(--brand);stroke-width:1.9;stroke-linecap:round" viewBox="0 0 56 48">
+        <path d="M50 44C40 30 30 18 8 8"/><path d="M6 20 7 6l14 2"/></svg>
     </div>
   </div>
 </section>

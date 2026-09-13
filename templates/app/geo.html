@@ -13,12 +13,18 @@
 </div>
 
 <div class="grid g6 mb">
-  {{ u.kpi('chat', 'b', 'AI Queries Tracked', none, note='needs the model crawl') }}
-  {{ u.kpi('doc', 'v', 'Answer Inclusion Rate', none, note='needs the model crawl') }}
-  {{ u.kpi('link', 'g', 'Citation Rate', none, note='needs the model crawl') }}
+  {{ u.kpi('chat', 'b', 'AI Queries Tracked', u.val(kpis.queries),
+           note='needs the model crawl' if kpis.queries is none else 'from last month') }}
+  {{ u.kpi('doc', 'v', 'Answer Inclusion Rate',
+           u.val(kpis.inclusion, suffix='%'),
+           note='needs the model crawl' if kpis.inclusion is none else 'from last month') }}
+  {{ u.kpi('link', 'g', 'Citation Rate', u.val(kpis.citation, suffix='%'),
+           note='needs the model crawl' if kpis.citation is none else 'from last month') }}
   {{ u.kpi('star', 'a', 'Avg GEO Impact Score', kpis.impact, note='from the answers layer') }}
-  {{ u.kpi('target', 's', 'Prompt Coverage', none, note='needs the model crawl') }}
-  {{ u.kpi('shield', 'p', 'Source Trust Score', none, note='needs the model crawl') }}
+  {{ u.kpi('target', 's', 'Prompt Coverage', u.val(kpis.coverage, suffix='%'),
+           note='needs the model crawl' if kpis.coverage is none else 'from last month') }}
+  {{ u.kpi('shield', 'p', 'Source Trust Score', u.val(kpis.trust),
+           note='needs the model crawl' if kpis.trust is none else 'from last month') }}
 </div>
 
 <div class="card mb">
@@ -46,12 +52,36 @@
           in generative AI search results.</p></div></div>
       <button class="btn sm">Try another query</button></div>
 
+    {% if demo %}
+    <div class="qbox">{{ u.icon('chat') }}
+      <span>What are the best LED face masks for anti-aging?</span></div>
+    <div class="abox">
+      <div class="row" style="gap:9px;margin-bottom:10px">
+        <span class="ci v">{{ u.icon('spark') }}</span><b>AI Overview</b></div>
+      <p>LED face masks are a popular at-home skincare solution for reducing fine lines and
+        improving skin texture. The <b>EverGlow Pro LED Mask</b> is highly rated for its
+        clinical-grade light therapy, multiple light modes, and comfortable fit, making it a
+        top choice for anti-aging. It's designed to boost collagen production and improve skin
+        tone with consistent use.</p>
+      <div class="cites">
+        {% for c in [('1','EverGlow Store','everglowstore.com','g'),
+                     ('2','Healthline','healthline.com','b'),
+                     ('3','Good Housekeeping','goodhousekeeping.com','p')] %}
+        <div class="cite"><i>{{ c[0] }}</i>
+          <span class="ci {{ c[3] }}">{{ u.icon('globe') }}</span>
+          <span><b>{{ c[1] }}</b><em>{{ c[2] }}</em></span></div>
+        {% endfor %}
+        <button class="ibtn">{{ u.icon('dotsh') }}</button>
+      </div>
+    </div>
+    {% else %}
     <div class="empty" style="padding:32px 16px">
       <b>Nothing crawled yet</b>
       <p>This panel shows a real answer from a real engine, with the sources it cited and where
         you placed. It stays empty until the model-visibility crawl runs — a sample answer
         written here would be fiction, not a preview.</p>
     </div>
+    {% endif %}
   </div>
 
   <div class="card">
@@ -89,7 +119,7 @@
         <td><span class="rank">{{ loop.index }}</span></td>
         <td style="white-space:normal;max-width:280px"><b>{{ r.title }}</b></td>
         <td>{{ r.type }}</td>
-        <td class="n"><span class="zero">—</span></td>
+        <td class="n">{{ u.val(r.prompts) }}</td>
         <td class="n">{{ u.score(r.score) }}</td>
         <td>{{ r.updated or '—' }}</td>
         <td class="n"><div class="row-end">
@@ -111,7 +141,13 @@
       <h3>Top Blogs by AI Mentions</h3></div>{{ u.viewall('#') }}</div>
     <div class="tw"><table class="t">
       <thead><tr><th style="width:26px">#</th><th>Blog Post</th><th class="n">AI Mentions</th></tr></thead>
-      <tbody>{{ u.norows(3, 'Needs the model-visibility crawl.') }}</tbody>
+      <tbody>
+      {% for m in mentions %}
+        <tr><td><span class="rank">{{ loop.index }}</span></td>
+          <td style="white-space:normal"><b>{{ m.title }}</b></td>
+          <td class="n"><b>{{ m.value }}</b></td></tr>
+      {% else %}{{ u.norows(3, 'Needs the model-visibility crawl.') }}{% endfor %}
+      </tbody>
     </table></div>
   </div>
 
@@ -120,7 +156,13 @@
       <h3>Citation Opportunities</h3></div>{{ u.viewall('#') }}</div>
     <div class="tw"><table class="t">
       <thead><tr><th style="width:26px">#</th><th>Opportunity</th><th class="n">Potential Reach</th></tr></thead>
-      <tbody>{{ u.norows(3, 'Needs the model-visibility crawl.') }}</tbody>
+      <tbody>
+      {% for ct in citations %}
+        <tr><td><span class="rank">{{ loop.index }}</span></td>
+          <td style="white-space:normal"><b>{{ ct.title }}</b></td>
+          <td class="n">{{ u.val(ct.value) }}</td></tr>
+      {% else %}{{ u.norows(3, 'Needs the model-visibility crawl.') }}{% endfor %}
+      </tbody>
     </table></div>
   </div>
 
@@ -129,7 +171,13 @@
       <h3>Prompt Cluster Performance</h3></div>{{ u.viewall('#') }}</div>
     <div class="tw"><table class="t">
       <thead><tr><th style="width:26px">#</th><th>Prompt Cluster</th><th class="n">Inclusion Rate</th></tr></thead>
-      <tbody>{{ u.norows(3, 'Needs the model-visibility crawl.') }}</tbody>
+      <tbody>
+      {% for cl in clusters %}
+        <tr><td><span class="rank">{{ loop.index }}</span></td>
+          <td>{{ cl.title }}</td>
+          <td class="n">{{ u.pill(cl.value, 'g') }}</td></tr>
+      {% else %}{{ u.norows(3, 'Needs the model-visibility crawl.') }}{% endfor %}
+      </tbody>
     </table></div>
   </div>
 </div>
@@ -141,7 +189,14 @@
     <div class="tw"><table class="t">
       <thead><tr><th style="width:26px">#</th><th>AI Query</th><th>Snippet Quality</th>
         <th>Source</th><th>Last Seen</th></tr></thead>
-      <tbody>{{ u.norows(5, 'Each row here is a real answer FIG saw an engine give. Needs the crawl.') }}</tbody>
+      <tbody>
+      {% for sn in snippets %}
+        <tr><td><span class="rank">{{ loop.index }}</span></td>
+          <td style="white-space:normal">{{ sn.query }}</td>
+          <td>{{ u.pill(sn.quality, sn.tone) }}</td>
+          <td>{{ sn.source }}</td><td>{{ sn.seen }}</td></tr>
+      {% else %}{{ u.norows(5, 'Each row here is a real answer FIG saw an engine give.') }}{% endfor %}
+      </tbody>
     </table></div>
   </div>
 
@@ -150,9 +205,15 @@
       <h3>Source Citation Breakdown</h3></div></div>
     <div class="donut-wrap">
       {{ u.donut(breakdown) }}
+      {% if breakdown.parts %}
+      <ul class="dkey">{% for b in breakdown.parts %}
+        <li><i style="background:{{ b.colour }}"></i><span>{{ b.name }}</span>
+          <b>{{ b.pct }}%</b><em>{{ b.value }}</em></li>
+      {% endfor %}</ul>
+      {% else %}
       <p style="font-size:13px;color:var(--muted);line-height:1.6;flex:1;min-width:170px">
-        Which of your page types get cited — blog posts, product pages, guides, about pages.
-        Fills in once citations are recorded.</p>
+        Which of your page types get cited. Fills in once citations are recorded.</p>
+      {% endif %}
     </div>
   </div>
 </div>

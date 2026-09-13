@@ -27,8 +27,11 @@
   {{ u.kpi('checkc', 'g', 'Published This Month', kpis.published, note='all time in this project') }}
   {{ u.kpi('target', 'v', 'Avg. SEO Score', kpis.seo, note='across scored drafts') }}
   {{ u.kpi('star', 'a', 'Avg. Impact Score', kpis.impact, note='latest audit') }}
-  {{ u.kpi('chart', 's', 'Organic Click Growth', none, note='needs Search Console') }}
-  {{ u.kpi('hash', 'p', 'Keywords in Top 10', none, note='needs Search Console') }}
+  {{ u.kpi('chart', 's', 'Organic Click Growth',
+           ('+' ~ kpis.clicks ~ '%') if kpis.clicks is not none else u.val(none),
+           note='needs Search Console' if kpis.clicks is none else 'vs. previous month') }}
+  {{ u.kpi('hash', 'p', 'Keywords in Top 10', u.val(kpis.top10),
+           note='needs Search Console' if kpis.top10 is none else 'from last month') }}
 </div>
 
 {# ---------- creation flow + template ---------- #}
@@ -122,7 +125,7 @@
       {% for p in impact %}
         <tr><td><span class="rank">{{ loop.index }}</span></td>
           <td style="white-space:normal"><b>{{ p.title }}</b></td>
-          <td class="n"><span class="zero">—</span></td>
+          <td class="n">{{ u.val(p.traffic) }}</td>
           <td class="n">{{ u.score(p.impact) }}</td></tr>
       {% else %}{{ u.norows(4, 'No published posts yet.') }}{% endfor %}
       </tbody>
@@ -138,12 +141,21 @@
       <span><i style="background:#3B82F6"></i>Top 4–10</span>
       <span><i style="background:#7C5CFC"></i>Top 11–50</span>
     </div>
+    {% if momentum.cols %}
+    <div class="bars" style="height:{{ momentum.height }}px">
+      {% for col in momentum.cols %}
+      <div class="col">{% for seg in col %}
+        <i style="height:{{ seg.pct }}%;background:{{ seg.colour }}"></i>{% endfor %}</div>
+      {% endfor %}
+    </div>
+    {% else %}
     <div style="height:170px;display:grid;place-items:center;border:1px dashed var(--line);
       border-radius:var(--r);background:var(--tint);text-align:center;padding:16px">
       <div><div style="font-size:13.5px;font-weight:600;color:var(--ink-2)">No ranking data</div>
         <div style="font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.5;max-width:30ch">
           Positions are measured in Search Console. Connect it to plot this.</div></div>
     </div>
+    {% endif %}
   </div>
 
   <div class="card">
@@ -168,7 +180,12 @@
       <h3>Internal Linking Suggestions</h3></div>{{ u.viewall('#') }}</div>
     <div class="tw"><table class="t">
       <thead><tr><th>From Post</th><th>Suggested Link To</th><th>Anchor Text</th></tr></thead>
-      <tbody>{{ u.norows(3, 'Needs an internal-link graph across published pages. Not built yet.') }}</tbody>
+      <tbody>
+      {% for l in linking %}
+        <tr><td><b>{{ l.from }}</b></td><td class="lk">{{ l.to }}</td>
+          <td class="mono" style="font-size:12px">{{ l.anchor }}</td></tr>
+      {% else %}{{ u.norows(3, 'Needs an internal-link graph across published pages.') }}{% endfor %}
+      </tbody>
     </table></div>
   </div>
 
@@ -189,7 +206,7 @@
         <tr><td><div class="ttl"><span class="ci b" style="width:26px;height:26px">{{ u.icon('doc') }}</span>
           <b>{{ p.title }}</b></div></td>
           <td>{{ u.pill(p.state, 'g') }}</td><td>{{ p.published or '—' }}</td>
-          <td class="n"><span class="zero">—</span></td>
+          <td class="n">{{ u.val(p.traffic) }}</td>
           <td class="n">{{ u.score(p.impact) }}</td>
           <td class="n"><button class="btn xs">Manage {{ u.icon('cv') }}</button></td></tr>
       {% else %}{{ u.norows(6, 'Nothing published yet.') }}{% endfor %}
@@ -206,15 +223,23 @@
       <select class="sel"><option>All Clusters</option></select></div>
     <div class="donut-wrap">
       {{ u.donut(clusters) }}
-      <div style="flex:1;min-width:180px">
-        <p style="font-size:13px;color:var(--muted);line-height:1.6">Clusters group the phrases
-          your pages compete for. It needs a keyword source before it can report volume —
-          nothing here is estimated.</p>
-        <div style="margin-top:14px;padding:13px;border:1px solid var(--line);
-          border-radius:var(--r);background:var(--tint)">
-          <div style="font-size:19px;font-weight:700;letter-spacing:-.03em"><span class="zero">—</span></div>
+      {% if clusters.parts %}
+      <ul class="dkey">{% for c in clusters.parts %}
+        <li><i style="background:{{ c.colour }}"></i><span>{{ c.name }}</span>
+          <b>{{ c.value }}</b><em>{{ c.pct }}%</em></li>
+      {% endfor %}</ul>
+      {% endif %}
+      <div style="flex:1;min-width:170px">
+        <div style="padding:13px;border:1px solid var(--line);border-radius:var(--r);
+          background:var(--tint);margin-bottom:10px">
+          <div style="font-size:19px;font-weight:700;letter-spacing:-.03em">
+            {{ u.val(keywords_total) }}</div>
           <div style="font-size:12px;color:var(--muted);margin-top:4px">Total Ranking Keywords</div>
         </div>
+        {% if not clusters.parts %}
+        <p style="font-size:13px;color:var(--muted);line-height:1.6">Clusters group the phrases
+          your pages compete for. Needs a keyword source.</p>
+        {% endif %}
       </div>
     </div>
   </div>

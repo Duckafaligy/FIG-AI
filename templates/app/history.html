@@ -184,14 +184,28 @@
       <div><h3>Publish History</h3>
         <p class="note" style="display:block;margin-top:3px">Recent publishing
           activity.</p></div></div></div>
-    {{ u.ranked(publishes, 'Nothing has been published yet.') }}
+    {% if publishes %}
+    <ul class="rows">{% for r in publishes %}
+      <li><span class="dot" style="background:{{ '#12B76A' if r.value == 'Success' else '#EF4444' }}"></span>
+        <span class="m"><b>{{ r.title }}</b><span>{{ r.sub }}</span></span>
+        {{ u.pill(r.value, 'g' if r.value == 'Success' else 'r') }}</li>
+    {% endfor %}</ul>
+    {% else %}<p style="font-size:13px;color:var(--muted)">Nothing has been published yet.</p>
+    {% endif %}
   </div>
   <div class="card">
     <div class="chead"><div class="chead-l"><span class="ci r">{{ u.icon('revert') }}</span>
       <div><h3>Reverts &amp; Rejections</h3>
         <p class="note" style="display:block;margin-top:3px">Content changes that were reverted
           or rejected.</p></div></div></div>
-    {{ u.ranked(reverts, 'Nothing has been reverted or rejected.') }}
+    {% if reverts %}
+    <ul class="rows">{% for r in reverts %}
+      <li><span class="rank">{{ loop.index }}</span>
+        <span class="m"><b>{{ r.title }}</b></span>
+        {{ u.pill(r.value, 'a' if r.value == 'Reverted' else 'r') }}</li>
+    {% endfor %}</ul>
+    {% else %}<p style="font-size:13px;color:var(--muted)">Nothing reverted or rejected.</p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

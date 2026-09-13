@@ -1,0 +1,117 @@
+{# Platform logo marks, drawn as SVG in each brand's own colour.
+
+   These are the integration targets, so the marks belong here the same way
+   they do on the design. Drawn rather than linked: no external requests, they
+   stay crisp at any size, and nothing breaks if a CDN moves. #}
+
+{% macro logo(name, h=26) %}
+{%- if name == 'shopify' -%}
+<span class="lg" style="--h:{{ h }}px">
+  <svg viewBox="0 0 48 54" aria-hidden="true">
+    <path fill="#95BF47" d="M38.6 10.5c0-.3-.3-.4-.5-.5l-3.7-.3-2.7-2.7c-.3-.3-.8-.2-1 -.1l-1.3.4C28.8 5.5 27.6 3 25.3 3h-.2c-.7-.9-1.6-1.3-2.4-1.3-6 0-8.9 7.5-9.8 11.3l-4.2 1.3c-1.3.4-1.3.4-1.5 1.6L4 47.6 28.8 52l13.4-2.9c0-.3-3.6-38.3-3.6-38.6zM27.6 6.3l-2.2.7v-.5c0-1.4-.2-2.6-.5-3.5 1.4.2 2.3 1.8 2.7 3.3zM23.2 3.5c.3.9.6 2.1.6 3.7v.3l-4.6 1.4c.9-3.4 2.6-5 4-5.4zM21.4 1.9c.3 0 .6.1.9.3-1.9.9-3.9 3.1-4.8 7.6l-3.6 1.1c1-3.5 3.5-9 7.5-9z"/>
+    <path fill="#5E8E3E" d="M38.1 10c-.2-.1-3.7-.3-3.7-.3l-2.7-2.7c-.1-.1-.2-.2-.4-.2l-1.7 45.2 13.4-2.9s-3.6-38.3-3.6-38.6c-.1-.3-.3-.4-.5-.5z"/>
+    <path fill="#FFF" d="M25.3 17.2l-1.6 6.2s-1.8-.9-4.1-.7c-3.3.2-3.4 2.3-3.3 2.8.2 2.9 7.8 3.5 8.2 10.3.3 5.3-2.8 9-7.4 9.3-5.5.3-8.5-2.9-8.5-2.9l1.2-5s3 2.3 5.4 2.1c1.6-.1 2.2-1.4 2.1-2.3-.2-3.7-6.4-3.5-6.9-9.8-.5-5.1 2.9-10.3 10.5-10.8 2.9-.2 4.4.8 4.4.8z"/>
+  </svg>
+</span>
+{%- elif name == 'wix' -%}
+<span class="lg" style="--h:{{ h }}px">
+  <svg viewBox="0 0 120 40" aria-hidden="true">
+    <text x="0" y="31" fill="#0F1420" font-family="Inter,sans-serif" font-size="34"
+          font-weight="800" letter-spacing="-1.6">WiX</text>
+    <circle cx="61" cy="8" r="2.6" fill="#0F1420"/>
+  </svg>
+</span>
+{%- elif name == 'webflow' -%}
+<span class="lg" style="--h:{{ h }}px">
+  <svg viewBox="0 0 150 40" aria-hidden="true">
+    <path fill="#4353FF" d="M18.6 12.4 13.9 22h-.1l-3.9-9.6H4.4l6.9 15.9h5.2l4-8.9h.1l4 8.9h5.2l6.8-15.9h-5.4L27.3 22h-.1l-3.9-9.6z"/>
+    <text x="42" y="28" fill="#0F1420" font-family="Inter,sans-serif" font-size="21"
+          font-weight="700" letter-spacing="-.6">Webflow</text>
+  </svg>
+</span>
+{%- elif name == 'wordpress' -%}
+<span class="lg" style="--h:{{ h }}px">
+  <svg viewBox="0 0 170 40" aria-hidden="true">
+    <g fill="#21759B">
+      <path d="M20 3.5A16.5 16.5 0 1 0 36.5 20 16.5 16.5 0 0 0 20 3.5zm0 1.9a14.6 14.6 0 0 1 8.2 2.5h-.6c-1.2 0-2 1-2 2.1 0 1 .6 1.9 1.2 3 .5.9 1 2 1 3.5 0 1.2-.4 2.7-1 4.7l-1.4 4.6-5-14.9c.8 0 1.6-.1 1.6-.1.7-.1.7-1.2 0-1.1 0 0-2.2.2-3.7.2-1.4 0-3.7-.2-3.7-.2-.8 0-.9 1.1-.1 1.1 0 0 .7.1 1.5.1l2.2 6-3.1 9.3-5.2-15.3c.8 0 1.6-.1 1.6-.1.7-.1.6-1.2-.1-1.1 0 0-2.2.2-3.6.2h-.9A14.6 14.6 0 0 1 20 5.4zM6.9 12.8l7 19.1a14.6 14.6 0 0 1-7-19.1zm14.4 8.7 4.4 12a14.6 14.6 0 0 1-9-.2zm6.6 11L33 20.6c.7-1.8 1-3.2 1-4.5v-1a14.6 14.6 0 0 1-6.1 17.4z"/>
+      <text x="44" y="27" font-family="Inter,sans-serif" font-size="19"
+            font-weight="700" letter-spacing="-.5">WordPress</text>
+    </g>
+  </svg>
+</span>
+{%- elif name == 'bigcommerce' -%}
+<span class="lg" style="--h:{{ h }}px">
+  <svg viewBox="0 0 190 40" aria-hidden="true">
+    <path fill="#34313F" d="M16.8 8.5H4.2v23h13.1c4.7 0 7.7-2.5 7.7-6.4 0-3-2.1-5.2-4.4-5.6 2-.6 3.8-2.5 3.8-5.3 0-3.4-2.8-5.7-7.6-5.7zm-.9 9.1H8.9v-5h7c1.7 0 2.8.9 2.8 2.4s-1.1 2.6-2.8 2.6zm.3 9.6H8.9v-5.4h7.3c1.9 0 3 1.1 3 2.7 0 1.7-1.2 2.7-3 2.7z"/>
+    <text x="30" y="27" fill="#34313F" font-family="Inter,sans-serif" font-size="16.5"
+          font-weight="800" letter-spacing="-.2">BIGCOMMERCE</text>
+  </svg>
+</span>
+{%- elif name == 'ga' -%}
+<span class="lg" style="--h:{{ h }}px">
+  <svg viewBox="0 0 200 40" aria-hidden="true">
+    <rect x="22" y="6" width="7.5" height="28" rx="3.7" fill="#F9AB00"/>
+    <rect x="11.5" y="15" width="7.5" height="19" rx="3.7" fill="#E37400"/>
+    <circle cx="4.8" cy="29.5" r="4.4" fill="#E37400"/>
+    <text x="38" y="27" fill="#5F6368" font-family="Inter,sans-serif" font-size="17"
+          font-weight="600" letter-spacing="-.3">Google Analytics</text>
+  </svg>
+</span>
+{%- elif name == 'google' -%}
+<svg viewBox="0 0 24 24" aria-hidden="true">
+  <path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.9h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.4z"/>
+  <path fill="#34A853" d="M12 22c2.7 0 4.9-.9 6.6-2.4l-3.2-2.5c-.9.6-2 .9-3.4.9-2.6 0-4.8-1.7-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z"/>
+  <path fill="#FBBC05" d="M6.4 13.9a6 6 0 0 1 0-3.8V7.5H3.1a10 10 0 0 0 0 9z"/>
+  <path fill="#EA4335" d="M12 6c1.5 0 2.8.5 3.8 1.5l2.8-2.8A10 10 0 0 0 3.1 7.5l3.3 2.6C7.2 7.7 9.4 6 12 6z"/>
+</svg>
+{%- elif name == 'shopify-mark' -%}
+<svg viewBox="0 0 48 54" aria-hidden="true">
+  <path fill="#95BF47" d="M38.6 10.5c0-.3-.3-.4-.5-.5l-3.7-.3-2.7-2.7c-.3-.3-.8-.2-1-.1l-1.3.4C28.8 5.5 27.6 3 25.3 3h-.2c-.7-.9-1.6-1.3-2.4-1.3-6 0-8.9 7.5-9.8 11.3l-4.2 1.3c-1.3.4-1.3.4-1.5 1.6L4 47.6 28.8 52l13.4-2.9c0-.3-3.6-38.3-3.6-38.6z"/>
+  <path fill="#5E8E3E" d="M38.1 10c-.2-.1-3.7-.3-3.7-.3l-2.7-2.7c-.1-.1-.2-.2-.4-.2l-1.7 45.2 13.4-2.9s-3.6-38.3-3.6-38.6c-.1-.3-.3-.4-.5-.5z"/>
+  <path fill="#FFF" d="M25.3 17.2l-1.6 6.2s-1.8-.9-4.1-.7c-3.3.2-3.4 2.3-3.3 2.8.2 2.9 7.8 3.5 8.2 10.3.3 5.3-2.8 9-7.4 9.3-5.5.3-8.5-2.9-8.5-2.9l1.2-5s3 2.3 5.4 2.1c1.6-.1 2.2-1.4 2.1-2.3-.2-3.7-6.4-3.5-6.9-9.8-.5-5.1 2.9-10.3 10.5-10.8 2.9-.2 4.4.8 4.4.8z"/>
+</svg>
+{%- endif -%}
+{% endmacro %}
+
+
+{# ---------- the laptop ----------
+   A device frame: lid with a bezel, the screen, then the base and the foot.
+   `caller()` is whatever goes on the screen. #}
+{% macro laptop() %}
+<div class="lap">
+  <div class="lap-lid">
+    <div class="lap-cam"></div>
+    <div class="lap-screen">{{ caller() }}</div>
+  </div>
+  <div class="lap-base"><div class="lap-notch"></div></div>
+</div>
+{% endmacro %}
+
+
+{# ---------- a browser window frame (for the flat shots) ---------- #}
+{% macro window(url='app.fig.dev') %}
+<div class="win">
+  <div class="win-bar"><i></i><i></i><i></i><span>{{ url }}</span></div>
+  <div class="win-body">{{ caller() }}</div>
+</div>
+{% endmacro %}
+
+
+{# ---------- avatar ----------
+   An illustrated person, not a photograph. Six hues, picked by index, so a
+   row of them reads as a group of different people without pretending to be
+   anybody real. #}
+{% macro face(i=0, size=44) %}
+{% set hues = ['#5457E5','#7C5CFC','#12B76A','#F59E0B','#EC4899','#14B8A6'] %}
+{% set h = hues[i % 6] %}
+<span class="face" style="width:{{ size }}px;height:{{ size }}px">
+  <svg viewBox="0 0 48 48" aria-hidden="true">
+    <defs><clipPath id="fc{{ i }}"><circle cx="24" cy="24" r="24"/></clipPath></defs>
+    <g clip-path="url(#fc{{ i }})">
+      <rect width="48" height="48" fill="{{ h }}" opacity=".13"/>
+      <circle cx="24" cy="19" r="7.6" fill="{{ h }}" opacity=".62"/>
+      <ellipse cx="24" cy="44" rx="13.5" ry="12" fill="{{ h }}" opacity=".62"/>
+    </g>
+  </svg>
+</span>
+{% endmacro %}
