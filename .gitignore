@@ -20,6 +20,7 @@ fig.db-shm
 node_modules/
 .next/
 out/
+*.tsbuildinfo
 
 # editors / os
 .DS_Store
