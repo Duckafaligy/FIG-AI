@@ -1,0 +1,193 @@
+{% extends "app/_shell.html" %}
+{% block title %}Notifications &amp; Alerts — FIG{% endblock %}
+
+{% block page %}
+<div class="phead">
+  <div>
+    <div class="eyebrow">Notifications</div>
+    <h1>Notifications &amp; Alerts</h1>
+    <p class="sub">Stay on top of important updates, approvals, automation issues, sync
+      problems, and account notifications.</p>
+  </div>
+</div>
+
+<div class="grid g6 mb">
+  {{ u.kpi('mail', 'b', 'Unread Alerts', kpis.unread, note='needing a person') }}
+  {{ u.kpi('user', 'v', 'Approval Needed', kpis.approvals, note='changes waiting') }}
+  {{ u.kpi('warn', 'r', 'Failed Automations', kpis.automations, note='failed jobs') }}
+  {{ u.kpi('sync', 'a', 'Failed Syncs', kpis.syncs, note='failed audits') }}
+  {{ u.kpi('cal', 's', 'Scheduled Today', kpis.scheduled, note='posts with a date') }}
+  {{ u.kpi('bell', 'g', 'Reminder Status', kpis.status, dot='All systems active') }}
+</div>
+
+<div class="grid g21 mb">
+  <div class="card">
+    <div class="chead">
+      <div class="chead-l"><span class="ci b">{{ u.icon('bell') }}</span>
+        <h3>Notification Feed</h3></div>
+      <div class="row">
+        <select class="sel"><option>Most recent</option><option>Oldest first</option></select>
+        <button class="ibtn">{{ u.icon('dots') }}</button>
+      </div>
+    </div>
+
+    <div class="segs pillrow mb">
+      <a href="#" class="on">All <b>{{ total }}</b></a>
+      <a href="#">Approvals <b>{{ counts.approval }}</b></a>
+      <a href="#">Automations <b>{{ counts.automation }}</b></a>
+      <a href="#">Syncs <b>{{ counts.sync }}</b></a>
+      <a href="#">Reminders <b>{{ counts.reminder }}</b></a>
+    </div>
+
+    {% if feed %}
+    <ul class="feed">
+      {% for f in feed %}
+      <li>
+        <span class="dot" style="background:{{ {'r':'#EF4444','a':'#F59E0B','b':'#5457E5','g':'#12B76A'}[f.tone] }}"></span>
+        <span class="m"><b>{{ f.title }}</b><span>{{ f.sub }}</span></span>
+        <span class="row" style="gap:12px"><time>{{ f.ago }}</time>
+          <a class="btn xs" href="{{ f.href }}">{{ f.action }}</a></span>
+      </li>
+      {% endfor %}
+    </ul>
+    <div style="text-align:center;margin-top:16px">
+      <a class="viewall" href="#">View all notifications {{ u.icon('arw') }}</a></div>
+    {% else %}
+    <div class="empty"><b>Nothing needs you</b>
+      <p>This feed is built from real state: changes waiting for approval, failed jobs, failed
+        audits and scheduled posts. An empty feed means none of those exist.</p></div>
+    {% endif %}
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="chead"><div class="chead-l"><span class="ci s">{{ u.icon('chart2') }}</span>
+        <h3>Alerts Over Time</h3></div>
+        <select class="sel"><option>Last 30 days</option></select></div>
+      <div class="legend">
+        <span><i style="background:#3B82F6"></i>Total</span>
+        <span><i style="background:#EF4444"></i>Errors</span>
+        <span><i style="background:#F59E0B"></i>Approvals</span>
+        <span><i style="background:#7C5CFC"></i>Reminders</span>
+      </div>
+      {{ u.linechart(over_time, 210) }}
+    </div>
+
+    <div class="card">
+      <div class="chead"><div class="chead-l"><span class="ci v">{{ u.icon('spark') }}</span>
+        <h3>Automation Reliability</h3></div>
+        <select class="sel"><option>Last 30 days</option></select></div>
+      <div class="donut-wrap">
+        {{ u.gauge(reliability, 'Reliable') }}
+        <ul class="dkey">
+          {% for r in rel_rows %}
+          <li><i style="background:{{ r.colour }}"></i><span>{{ r.label }}</span>
+            <b>{{ r.value }}</b><em></em></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="grid g3 mb">
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci r">{{ u.icon('warn') }}</span>
+      <h3>Automation Alerts</h3></div>{{ u.viewall('#') }}</div>
+    {% if alerts %}
+    <ul class="feed">{% for a in alerts %}
+      <li><span class="ci r">{{ u.icon(a.icon) }}</span>
+        <span class="m"><b>{{ a.title }}</b><span>{{ a.ago }}</span></span>
+        {{ u.pill('High', 'r') }}</li>
+    {% endfor %}</ul>
+    {% else %}
+    <p style="font-size:13px;color:var(--muted);line-height:1.6">No failed jobs or syncs.
+      This list is the failure log, so empty is the good state.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci s">{{ u.icon('cal') }}</span>
+      <h3>Scheduled Content Reminders</h3></div>{{ u.viewall('/app/seo') }}</div>
+    {% if reminders %}
+    <ul class="feed">{% for r in reminders %}
+      <li><span class="ci s">{{ u.icon('calc') }}</span>
+        <span class="m"><b>{{ r.title }}</b><span>{{ r.when }}</span></span>
+        {{ u.pill(r.tag, 'b') }}</li>
+    {% endfor %}</ul>
+    {% else %}
+    <p style="font-size:13px;color:var(--muted);line-height:1.6">Nothing scheduled. Posts with
+      a publish date appear here as they approach.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci v">{{ u.icon('user') }}</span>
+      <h3>Approval Needed</h3></div>{{ u.viewall('/app/seo') }}</div>
+    {% if approvals %}
+    <ul class="feed">{% for a in approvals %}
+      <li><span class="ci v">{{ u.icon('doc') }}</span>
+        <span class="m"><b>{{ a.title }}</b><span>{{ a.type }} · {{ a.ago }}</span></span>
+        {{ u.pill(a.level, 'r' if a.level == 'High' else 'a') }}</li>
+    {% endfor %}</ul>
+    {% else %}
+    <p style="font-size:13px;color:var(--muted);line-height:1.6">Nothing waiting on you.
+      Proposed changes land here before anything is written to a live site.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid g3 mb">
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci r">{{ u.icon('warn') }}</span>
+      <h3>Failed Jobs / Sync Errors</h3></div>{{ u.viewall('/app/history') }}</div>
+    <div class="tw"><table class="t">
+      <thead><tr><th>Job / Sync</th><th>Type</th><th>Time</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for f in failed %}
+        <tr><td><b>{{ f.name }}</b></td><td>{{ f.type }}</td><td>{{ f.ago }}</td>
+          <td>{{ u.pill(f.state, 'r') }}</td></tr>
+      {% else %}{{ u.norows(4, 'No failures recorded.') }}{% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci b">{{ u.icon('arw') }}</span>
+      <h3>Notification Channels &amp; Delivery</h3></div><span class="note">Last 30 days</span></div>
+    {% for c in channels %}
+    <div class="chan">
+      <span class="nm"><span class="ci {{ c.tone }}" style="width:26px;height:26px">{{ u.icon(c.icon) }}</span>
+        {{ c.name }}</span>
+      <span class="pc"><span class="zero">—</span></span>
+      <span class="bar"><i style="width:0%"></i></span>
+    </div>
+    {% endfor %}
+    <p class="chead-sub" style="margin:14px 0 0">No delivery transport is wired up yet — no
+      email, Slack or push. Delivery rates appear once one is.</p>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci g">{{ u.icon('shield') }}</span>
+      <h3>Escalation Rules</h3></div>
+      <a class="viewall" href="/app/settings">Manage {{ u.icon('arw') }}</a></div>
+    {% for r in rules %}
+    <div class="tog">
+      <span class="ci {{ r.tone }}" style="width:26px;height:26px">{{ u.icon(r.icon) }}</span>
+      <span><b>{{ r.name }}</b><span>{{ r.sub }}</span></span>
+      <label class="sw"><input type="checkbox" {{ 'checked' if r.on }} disabled><i></i></label>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="chead"><div class="chead-l"><span class="ci g">{{ u.icon('checkc') }}</span>
+    <h3>Recently Resolved</h3></div>{{ u.viewall('/app/history') }}</div>
+  <div class="tw"><table class="t">
+    <thead><tr><th>Issue</th><th>Type</th><th>Resolved At</th><th>Resolved By</th>
+      <th>Notes</th></tr></thead>
+    <tbody>{{ u.norows(5, 'Nothing has been resolved yet, because nothing has failed yet.') }}</tbody>
+  </table></div>
+</div>
+{% endblock %}

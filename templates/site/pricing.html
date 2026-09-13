@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% import "_ui.html" as u %}
+{% block title %}Pricing — FIG{% endblock %}
+
+{% block body %}
+<div class="mk">
+{% include "site/_nav.html" %}
+
+<section class="hero" style="padding:60px 0 64px">
+  <div class="mk-wrap hero-g">
+    <div>
+      <div class="eyebrow" style="color:var(--brand)">Pricing</div>
+      <h1 class="h1" style="font-size:46px">Simple, transparent pricing for teams that create
+        content that <span class="em">gets your brand found</span></h1>
+      <p class="lede">Choose the plan that fits your team. All plans include the core tools you
+        need to create, optimize, and publish content that performs in search and AI results.</p>
+
+      <div class="segs" style="margin-top:28px;max-width:280px">
+        <a href="#" class="on">Monthly</a><a href="#">Yearly</a>
+      </div>
+      <p style="margin-top:10px;font-size:13px;color:var(--brand);font-weight:600">
+        Save up to 20% ↩</p>
+
+      <div class="row" style="gap:22px;margin-top:26px;flex-wrap:wrap;font-size:12.5px;
+        color:var(--muted)">
+        <span class="row" style="gap:7px">{{ u.icon('card') }}No credit card required</span>
+        <span class="row" style="gap:7px">{{ u.icon('sort') }}Upgrade or downgrade anytime</span>
+        <span class="row" style="gap:7px">{{ u.icon('cal') }}Cancel anytime</span>
+      </div>
+    </div>
+
+    <div style="position:relative">
+      {% include "site/_shot.html" %}
+      <span class="note-hand" style="position:absolute;right:8px;bottom:-38px">
+        Turn ideas into measurable results</span>
+    </div>
+  </div>
+</section>
+
+<section class="sec" style="padding:56px 0">
+  <div class="mk-wrap">
+    <div class="slab">
+      <span class="kickpill">Pricing plans</span>
+      <h2>Plans for every stage of your content journey</h2>
+      <p>Start small and scale as you grow. Upgrade or downgrade at any time.</p>
+    </div>
+    {% with full = true %}{% include "site/_plans.html" %}{% endwith %}
+
+    <div class="card" style="margin-top:24px;border-color:#C7CBF7;background:#FAFAFE">
+      <div class="row" style="gap:12px;align-items:flex-start">
+        <span class="ci b">{{ u.icon('info') }}</span>
+        <div>
+          <b style="font-size:14.5px">There is also a per-site meter underneath all of this.</b>
+          <p style="font-size:13px;color:var(--muted);margin-top:6px;line-height:1.6;max-width:82ch">
+            FIG bills by site rather than by seat, on volume tiers that get cheaper as the
+            estate grows. That is what makes it work for an agency or a platform reselling it:
+            adding a client's site changes the invoice without a renegotiation, and the client
+            never has to sign up here. Talk to us if you are reselling.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ---------- comparison ---------- #}
+<section class="sec tinted">
+  <div class="mk-wrap">
+    <div class="slab">
+      <span class="kickpill">Compare plans</span>
+      <h2>Find the right plan for your team</h2>
+      <p>A detailed breakdown of features across all plans.</p>
+    </div>
+    <div class="cmp">
+      <table>
+        <thead><tr><th>Feature</th><th class="c">Starter</th><th class="c hi">Pro</th>
+          <th class="c">Scale</th><th class="c">Enterprise</th></tr></thead>
+        <tbody>
+        {% set tick %}<svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-10"/></svg>{% endset %}
+        {% for r in [
+          ('Projects','5','25','100','Unlimited'),
+          ('CMS connections','1','5','10','Unlimited'),
+          ('Audit-led content briefs','y','y','y','y'),
+          ('SEO review & recommendations','y','y','y','y'),
+          ('GEO optimization (AI search)','—','y','y','y'),
+          ('Analytics & insights','Basic','Advanced','Advanced','Advanced'),
+          ('Approval workflows','—','y','y','y'),
+          ('Automation (rules & triggers)','—','—','y','y'),
+          ('Team seats','Up to 3','Up to 10','Up to 25','Unlimited'),
+          ('API access','—','—','y','y'),
+          ('SSO / SAML','—','—','—','y'),
+          ('Priority support','—','y','y','y'),
+          ('White-labelled reports','—','—','y','y'),
+          ('Dedicated success manager','—','—','—','y')] %}
+        <tr>
+          <td>{{ r[0] }}</td>
+          {% for cell in r[1:] %}
+          <td class="c {{ 'hi' if loop.index == 2 }}">
+            {%- if cell == 'y' -%}{{ tick }}{%- else -%}{{ cell }}{%- endif -%}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+{# ---------- included ---------- #}
+<section class="sec">
+  <div class="mk-wrap">
+    <div class="slab">
+      <span class="kickpill">Built for modern teams</span>
+      <h2>What's included in every plan</h2>
+      <p>No matter which plan you choose, you get a powerful set of tools to create, optimize,
+        and ship high-performing content.</p>
+    </div>
+    <div class="fgrid">
+      {% for f in [
+        {'i':'doc','t':'b','h':'Audit-led content','p':'Turn real findings into on-brand, SEO-optimized briefs.'},
+        {'i':'search','t':'v','h':'SEO & GEO optimization','p':'Optimize for traditional search and AI-powered discovery.'},
+        {'i':'chart','t':'g','h':'Analytics & reporting','p':'Track performance across search, AI, and your content library.'},
+        {'i':'users','t':'a','h':'Team collaboration','p':'Work together with comments, approvals, and shared workspaces.'},
+        {'i':'bell','t':'s','h':'Smart notifications','p':'Get notified about opportunities, updates, and changes.'},
+        {'i':'clock','t':'p','h':'Workspace history','p':'Track changes, revisit versions, and never lose your work.'},
+        {'i':'link','t':'t','h':'Integrations','p':'Connect with your existing tools and workflows.'},
+        {'i':'shield','t':'b','h':'Security & reliability','p':'Your data is yours. Credentials are never stored in plain text.'}] %}
+      <div class="fcard">
+        <span class="ci {{ f.t }}">{{ u.icon(f.i) }}</span>
+        <b>{{ f.h }}</b><p>{{ f.p }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{# ---------- faq ---------- #}
+<section class="sec tinted">
+  <div class="mk-wrap">
+    <div class="slab">
+      <span class="kickpill">Questions?</span>
+      <h2>Frequently asked questions</h2>
+      <p>Everything you need to know about FIG pricing.</p>
+    </div>
+    <div class="faq">
+      {% for q in [
+        ('Can I change plans later?','Yes, at any time. Upgrades take effect immediately and downgrades at the end of the period. If you are on the per-site meter, adding or removing a project adjusts the invoice on its own.'),
+        ('Is there a discount for annual billing?','Yes — up to 20% compared to paying monthly, on every plan.'),
+        ('Do you offer a free trial?','Seven days from the moment you create your account, with no card required. The trial carries over into checkout, so nothing starts quietly behind you.'),
+        ('Do you offer refunds?','If something is wrong in the first 30 days, write to us and we will sort it out. We would rather refund you than argue.'),
+        ('What counts as a project?','One website. The audit, the content queue, the publish path and the reports are all scoped to a project, and a project is what the per-site meter counts.'),
+        ('Do you provide onboarding and support?','Every plan includes support. Pro and above get priority support, and Enterprise gets a named person.')] %}
+      <details class="qa">
+        <summary>{{ q[0] }}<svg class="pm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></summary>
+        <div class="a">{{ q[1] }}</div>
+      </details>
+      {% endfor %}
+    </div>
+    <p style="text-align:center;margin-top:24px">
+      <a class="viewall" href="/docs">View all FAQs {{ u.icon('arw') }}</a></p>
+  </div>
+</section>
+
+<section style="padding:0 0 70px">
+  <div class="mk-wrap">
+    <div class="cta">
+      <div>
+        <span style="display:inline-block;padding:5px 12px;border-radius:999px;
+          background:rgb(255 255 255 / .18);font-size:11px;font-weight:700;letter-spacing:.09em;
+          text-transform:uppercase;margin-bottom:13px">Ready to get started?</span>
+        <h2>Start creating content that gets found</h2>
+        <p>Try FIG free or book a demo with our team to find the right plan for you.</p>
+      </div>
+      <div class="row" style="gap:12px">
+        <a class="btn lg" href="/signup">Start free</a>
+        <a class="btn lg ghost" href="/demo">Book a demo</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% include "site/_foot.html" %}
+</div>
+{% endblock %}

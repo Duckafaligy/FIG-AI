@@ -1,0 +1,159 @@
+{% extends "app/_shell.html" %}
+{% block title %}GEO Visibility &amp; Answer Optimization — FIG{% endblock %}
+
+{% block page %}
+<div class="phead">
+  <div>
+    <div class="eyebrow">GEO</div>
+    <h1>GEO Visibility &amp; Answer Optimization</h1>
+    <p class="sub">Track how your store appears in generative and AI search. Monitor AI
+      answers, citations, and optimize your content for maximum visibility.</p>
+  </div>
+  <a class="btn" href="/docs">{{ u.icon('book') }}View Documentation</a>
+</div>
+
+<div class="grid g6 mb">
+  {{ u.kpi('chat', 'b', 'AI Queries Tracked', none, note='needs the model crawl') }}
+  {{ u.kpi('doc', 'v', 'Answer Inclusion Rate', none, note='needs the model crawl') }}
+  {{ u.kpi('link', 'g', 'Citation Rate', none, note='needs the model crawl') }}
+  {{ u.kpi('star', 'a', 'Avg GEO Impact Score', kpis.impact, note='from the answers layer') }}
+  {{ u.kpi('target', 's', 'Prompt Coverage', none, note='needs the model crawl') }}
+  {{ u.kpi('shield', 'p', 'Source Trust Score', none, note='needs the model crawl') }}
+</div>
+
+<div class="card mb">
+  <div class="chead"><div class="chead-l"><span class="ci v">{{ u.icon('spark') }}</span>
+    <div><h3>From Content to AI Visibility</h3>
+      <p class="note" style="display:block;margin-top:3px">Our GEO workflow helps your content
+        get discovered, cited, and featured in AI search results.</p></div></div></div>
+  {{ u.flow([
+    {'icon':'store','tone':'g','title':'1. Connected Store',
+     'body':'Sync your store content, products, and blog posts.'},
+    {'icon':'doc','tone':'b','title':'2. GEO Template Layer',
+     'body':'Apply AI-optimized structure and schema.'},
+    {'icon':'search','tone':'v','title':'3. AI Answer Review',
+     'body':'Preview and refine how your content appears.'},
+    {'icon':'chart','tone':'a','title':'4. Publish & Monitor',
+     'body':'Publish updates and track performance.'}
+  ]) }}
+</div>
+
+<div class="grid g2 mb">
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci v">{{ u.icon('spark') }}</span>
+      <div><h3>AI Answer Preview</h3>
+        <p class="note" style="display:block;margin-top:3px">See how your content might appear
+          in generative AI search results.</p></div></div>
+      <button class="btn sm">Try another query</button></div>
+
+    <div class="empty" style="padding:32px 16px">
+      <b>Nothing crawled yet</b>
+      <p>This panel shows a real answer from a real engine, with the sources it cited and where
+        you placed. It stays empty until the model-visibility crawl runs — a sample answer
+        written here would be fiction, not a preview.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci b">{{ u.icon('chart2') }}</span>
+      <h3>Visibility Across AI Platforms</h3></div>
+      <select class="sel"><option>Last 30 days</option></select></div>
+    <div class="legend">
+      <span><i style="background:#7C5CFC"></i>ChatGPT</span>
+      <span><i style="background:#3B82F6"></i>Google AI</span>
+      <span><i style="background:#14B8A6"></i>Perplexity</span>
+      <span><i style="background:#F59E0B"></i>Claude</span>
+    </div>
+    {{ u.linechart(platforms, 260) }}
+  </div>
+</div>
+
+<div class="card mb">
+  <div class="chead">
+    <div class="chead-l"><span class="ci b">{{ u.icon('doc') }}</span>
+      <div><h3>GEO-Optimized Content</h3>
+        <p class="note" style="display:block;margin-top:3px">Review and manage content optimized
+          for AI search visibility.</p></div></div>
+    <div class="row">
+      <div class="srch">{{ u.icon('search') }}<input type="search" placeholder="Search content…"></div>
+      <select class="sel"><option>All Statuses</option></select>
+    </div>
+  </div>
+  <div class="tw"><table class="t">
+    <thead><tr><th style="width:26px">#</th><th>Title</th><th>Type</th>
+      <th class="n">Target Prompts</th><th class="n">GEO Score</th><th>Last Updated</th>
+      <th class="n">Actions</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td><span class="rank">{{ loop.index }}</span></td>
+        <td style="white-space:normal;max-width:280px"><b>{{ r.title }}</b></td>
+        <td>{{ r.type }}</td>
+        <td class="n"><span class="zero">—</span></td>
+        <td class="n">{{ u.score(r.score) }}</td>
+        <td>{{ r.updated or '—' }}</td>
+        <td class="n"><div class="row-end">
+          <button class="btn xs">{{ u.icon('eye') }}Preview</button>
+          <button class="btn xs ok">{{ u.icon('upload') }}Publish</button>
+          <button class="btn xs no">{{ u.icon('x') }}Reject</button>
+        </div></td>
+      </tr>
+    {% else %}
+      {{ u.norows(7, 'No content yet. Anything in the content queue appears here with its GEO score.') }}
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<div class="grid g3 mb">
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci b">{{ u.icon('doc') }}</span>
+      <h3>Top Blogs by AI Mentions</h3></div>{{ u.viewall('#') }}</div>
+    <div class="tw"><table class="t">
+      <thead><tr><th style="width:26px">#</th><th>Blog Post</th><th class="n">AI Mentions</th></tr></thead>
+      <tbody>{{ u.norows(3, 'Needs the model-visibility crawl.') }}</tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci v">{{ u.icon('link') }}</span>
+      <h3>Citation Opportunities</h3></div>{{ u.viewall('#') }}</div>
+    <div class="tw"><table class="t">
+      <thead><tr><th style="width:26px">#</th><th>Opportunity</th><th class="n">Potential Reach</th></tr></thead>
+      <tbody>{{ u.norows(3, 'Needs the model-visibility crawl.') }}</tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci g">{{ u.icon('target') }}</span>
+      <h3>Prompt Cluster Performance</h3></div>{{ u.viewall('#') }}</div>
+    <div class="tw"><table class="t">
+      <thead><tr><th style="width:26px">#</th><th>Prompt Cluster</th><th class="n">Inclusion Rate</th></tr></thead>
+      <tbody>{{ u.norows(3, 'Needs the model-visibility crawl.') }}</tbody>
+    </table></div>
+  </div>
+</div>
+
+<div class="grid g21">
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci a">{{ u.icon('star') }}</span>
+      <h3>Answer Snippet Quality Review</h3></div>{{ u.viewall('#') }}</div>
+    <div class="tw"><table class="t">
+      <thead><tr><th style="width:26px">#</th><th>AI Query</th><th>Snippet Quality</th>
+        <th>Source</th><th>Last Seen</th></tr></thead>
+      <tbody>{{ u.norows(5, 'Each row here is a real answer FIG saw an engine give. Needs the crawl.') }}</tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci b">{{ u.icon('chart') }}</span>
+      <h3>Source Citation Breakdown</h3></div></div>
+    <div class="donut-wrap">
+      {{ u.donut(breakdown) }}
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;flex:1;min-width:170px">
+        Which of your page types get cited — blog posts, product pages, guides, about pages.
+        Fills in once citations are recorded.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,237 @@
+{% extends "app/_shell.html" %}
+{% block title %}SEO Content Queue — FIG{% endblock %}
+
+{% block page %}
+<div class="phead">
+  <div>
+    <div class="eyebrow">SEO</div>
+    <h1>SEO Content Queue</h1>
+    <p class="sub">Create, optimize, review, and publish SEO blog content for your
+      connected store.</p>
+  </div>
+  <a class="btn" href="/docs">{{ u.icon('book') }}View SEO Guide</a>
+</div>
+
+{% if not site %}
+<div class="card mb" style="border-color:#F3D9A4;background:#FFFCF5;padding:14px 18px">
+  <div class="spread"><div class="row">
+    <span class="ci a">{{ u.icon('info') }}</span>
+    <span style="font-size:13.5px;color:var(--ink-2)"><b>No project connected yet.</b>
+      Every panel below is wired to the database and reads zero until there is one.</span>
+  </div><a class="btn sm pri" href="/app/settings">{{ u.icon('plus') }}Add a project</a></div>
+</div>
+{% endif %}
+
+<div class="grid g6 mb">
+  {{ u.kpi('doc', 'b', 'Posts in Queue', kpis.queue, note='queued, writing, review') }}
+  {{ u.kpi('checkc', 'g', 'Published This Month', kpis.published, note='all time in this project') }}
+  {{ u.kpi('target', 'v', 'Avg. SEO Score', kpis.seo, note='across scored drafts') }}
+  {{ u.kpi('star', 'a', 'Avg. Impact Score', kpis.impact, note='latest audit') }}
+  {{ u.kpi('chart', 's', 'Organic Click Growth', none, note='needs Search Console') }}
+  {{ u.kpi('hash', 'p', 'Keywords in Top 10', none, note='needs Search Console') }}
+</div>
+
+{# ---------- creation flow + template ---------- #}
+<div class="grid g21 mb">
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci v">{{ u.icon('route') }}</span>
+      <div><h3>Content Creation Flow</h3>
+        <p class="note" style="display:block;margin-top:3px">From idea to impact — here's how
+          SEO content gets from keyword to your store.</p></div></div></div>
+    {{ u.flow([
+      {'icon':'store','tone':'g','title':'Connected Store',
+       'body':'Sync products, categories and data.'},
+      {'icon':'search','tone':'b','title':'Keyword & Topic Intake',
+       'body':'Find opportunities from your audit findings.'},
+      {'icon':'doc','tone':'v','title':'SEO Template Engine',
+       'body':'Turn each gap into a brief with a target phrase.'},
+      {'icon':'upload','tone':'a','title':'Review & Publish',
+       'body':'Edit, approve and publish to your store.'}
+    ]) }}
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci b">{{ u.icon('docs') }}</span>
+      <h3>Template Preview</h3></div>
+      <a class="viewall" href="#">View All Templates {{ u.icon('arw') }}</a></div>
+    <div class="empty" style="padding:28px 14px">
+      <b>No template selected</b>
+      <p>Templates preview a brief before it is written — the title, the URL it will live at,
+        the target phrase and the length it is aimed at.</p>
+    </div>
+  </div>
+</div>
+
+{# ---------- the queue ---------- #}
+<div class="card mb">
+  <div class="chead">
+    <div class="chead-l"><span class="ci b">{{ u.icon('doc') }}</span>
+      <h3>Blog Posts for Review</h3></div>
+    <div class="row">
+      <div class="srch">{{ u.icon('search') }}<input type="search" placeholder="Search blog posts…"></div>
+      <button class="btn sm">{{ u.icon('filter') }}Filter</button>
+      <select class="sel"><option>Sort: Newest</option><option>Sort: SEO score</option></select>
+    </div>
+  </div>
+
+  <div class="tabs mb">
+    <a href="/app/seo?tab=queue{{ ('&site=' ~ site.id) if site else '' }}" class="{{ 'on' if tab == 'queue' }}">In Queue ({{ counts.queue }})</a>
+    <a href="/app/seo?tab=review{{ ('&site=' ~ site.id) if site else '' }}" class="{{ 'on' if tab == 'review' }}">In Review ({{ counts.review }})</a>
+    <a href="/app/seo?tab=approved{{ ('&site=' ~ site.id) if site else '' }}" class="{{ 'on' if tab == 'approved' }}">Approved ({{ counts.approved }})</a>
+  </div>
+
+  <div class="tw"><table class="t">
+    <thead><tr>
+      <th style="width:26px"><input class="cbox" type="checkbox"></th>
+      <th>Title</th><th>Topic</th><th>Target Keywords</th><th class="n">SEO Score</th>
+      <th class="n">Impact Score</th><th>Status</th><th class="n">Actions</th>
+    </tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td><input class="cbox" type="checkbox"></td>
+        <td style="white-space:normal;max-width:230px"><b>{{ r.title }}</b></td>
+        <td>{{ r.topic }}</td>
+        <td style="white-space:normal;max-width:160px">{{ r.keywords }}</td>
+        <td class="n">{{ u.score(r.seo) }}</td>
+        <td class="n">{{ u.score(r.impact) }}</td>
+        <td>{{ u.pill(r.state, r.tone, dot=true) }}</td>
+        <td class="n"><div class="row-end">
+          <button class="btn xs">{{ u.icon('eye') }}Preview</button>
+          <button class="btn xs ok">{{ u.icon('upload') }}Publish</button>
+          <button class="btn xs no">{{ u.icon('x') }}Reject</button>
+        </div></td>
+      </tr>
+    {% else %}
+      {{ u.norows(8, 'Nothing in this tab. Briefs arrive here from your audit findings — an
+        unanswered question, a thin page, copy with no figures in it.') }}
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+{# ---------- impact / momentum / optimize ---------- #}
+<div class="grid g3 mb">
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci a">{{ u.icon('trophy') }}</span>
+      <h3>Highest Impact Blog Posts</h3></div>{{ u.viewall('#') }}</div>
+    <div class="tw"><table class="t">
+      <thead><tr><th style="width:26px">#</th><th>Blog Post</th><th class="n">Traffic</th>
+        <th class="n">Impact</th></tr></thead>
+      <tbody>
+      {% for p in impact %}
+        <tr><td><span class="rank">{{ loop.index }}</span></td>
+          <td style="white-space:normal"><b>{{ p.title }}</b></td>
+          <td class="n"><span class="zero">—</span></td>
+          <td class="n">{{ u.score(p.impact) }}</td></tr>
+      {% else %}{{ u.norows(4, 'No published posts yet.') }}{% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci b">{{ u.icon('chart2') }}</span>
+      <h3>Keyword Ranking Momentum</h3></div>
+      <select class="sel"><option>Last 30 days</option></select></div>
+    <div class="legend">
+      <span><i style="background:#12B76A"></i>Keywords in Top 3</span>
+      <span><i style="background:#3B82F6"></i>Top 4–10</span>
+      <span><i style="background:#7C5CFC"></i>Top 11–50</span>
+    </div>
+    <div style="height:170px;display:grid;place-items:center;border:1px dashed var(--line);
+      border-radius:var(--r);background:var(--tint);text-align:center;padding:16px">
+      <div><div style="font-size:13.5px;font-weight:600;color:var(--ink-2)">No ranking data</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.5;max-width:30ch">
+          Positions are measured in Search Console. Connect it to plot this.</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci a">{{ u.icon('bulb') }}</span>
+      <h3>Optimization Opportunities</h3></div>{{ u.viewall('#') }}</div>
+    <div class="tw"><table class="t">
+      <thead><tr><th>Keyword / Topic</th><th>Opportunity</th></tr></thead>
+      <tbody>
+      {% for o in optimize %}
+        <tr><td style="white-space:normal"><b>{{ o.topic }}</b></td>
+          <td>{{ u.pill('Medium', 'a') }}</td></tr>
+      {% else %}{{ u.norows(2, 'Comes from the audit. Run one to populate this.') }}{% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+</div>
+
+{# ---------- linking + library ---------- #}
+<div class="grid g12 mb">
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci v">{{ u.icon('link') }}</span>
+      <h3>Internal Linking Suggestions</h3></div>{{ u.viewall('#') }}</div>
+    <div class="tw"><table class="t">
+      <thead><tr><th>From Post</th><th>Suggested Link To</th><th>Anchor Text</th></tr></thead>
+      <tbody>{{ u.norows(3, 'Needs an internal-link graph across published pages. Not built yet.') }}</tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci b">{{ u.icon('docs') }}</span>
+      <h3>Published SEO Library</h3></div></div>
+    <div class="row mb" style="flex-wrap:wrap">
+      <div class="srch" style="flex:1">{{ u.icon('search') }}
+        <input type="search" placeholder="Search published posts…"></div>
+      <select class="sel"><option>All Categories</option></select>
+      <select class="sel"><option>Sort: Newest</option></select>
+    </div>
+    <div class="tw"><table class="t">
+      <thead><tr><th>Title</th><th>Status</th><th>Published</th><th class="n">Traffic</th>
+        <th class="n">SEO Score</th><th class="n">Actions</th></tr></thead>
+      <tbody>
+      {% for p in library %}
+        <tr><td><div class="ttl"><span class="ci b" style="width:26px;height:26px">{{ u.icon('doc') }}</span>
+          <b>{{ p.title }}</b></div></td>
+          <td>{{ u.pill(p.state, 'g') }}</td><td>{{ p.published or '—' }}</td>
+          <td class="n"><span class="zero">—</span></td>
+          <td class="n">{{ u.score(p.impact) }}</td>
+          <td class="n"><button class="btn xs">Manage {{ u.icon('cv') }}</button></td></tr>
+      {% else %}{{ u.norows(6, 'Nothing published yet.') }}{% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+</div>
+
+{# ---------- clusters + health ---------- #}
+<div class="grid g2">
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci v">{{ u.icon('cluster') }}</span>
+      <h3>Keyword Cluster Coverage</h3></div>
+      <select class="sel"><option>All Clusters</option></select></div>
+    <div class="donut-wrap">
+      {{ u.donut(clusters) }}
+      <div style="flex:1;min-width:180px">
+        <p style="font-size:13px;color:var(--muted);line-height:1.6">Clusters group the phrases
+          your pages compete for. It needs a keyword source before it can report volume —
+          nothing here is estimated.</p>
+        <div style="margin-top:14px;padding:13px;border:1px solid var(--line);
+          border-radius:var(--r);background:var(--tint)">
+          <div style="font-size:19px;font-weight:700;letter-spacing:-.03em"><span class="zero">—</span></div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px">Total Ranking Keywords</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci g">{{ u.icon('heart') }}</span>
+      <h3>SEO Health Summary</h3></div>{{ u.viewall('#', 'View details') }}</div>
+    <div class="donut-wrap">
+      {{ u.gauge(health, 'Good' if kpis.seo and kpis.seo >= 70 else ('Not audited' if health.value is none else 'Needs work')) }}
+      <ul class="dkey" style="min-width:210px">
+        {% for r in health_rows %}
+        <li><i style="background:{{ '#12B76A' if r.value and r.value >= 80 else ('#F59E0B' if r.value else '#C7CDDA') }}"></i>
+          <span>{{ r.label }}</span>
+          <b>{% if r.value is none %}<span class="zero">—</span>{% else %}{{ r.value }}{% endif %}</b></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

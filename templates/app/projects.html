@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+{% import "_ui.html" as u %}
+{% block title %}All Projects Dashboard — FIG{% endblock %}
+
+{% block body %}
+<div class="main">
+  {% include "app/_top.html" %}
+  <div class="page">
+
+  <div class="phead">
+    <div>
+      <div class="eyebrow">Projects</div>
+      <h1>All Projects Dashboard</h1>
+      <p class="sub">Manage and monitor all of your projects in one place. Select a project
+        to view detailed insights or compare performance across your entire workspace.</p>
+    </div>
+    <a class="btn" href="/docs">{{ u.icon('book') }}View Documentation</a>
+  </div>
+
+  {# ---------- project grid ---------- #}
+  <div class="spread mb">
+    <div class="row"><h2 style="font-size:19px">Your Projects</h2>
+      <span class="count">{{ cards|length }} project{{ '' if cards|length == 1 else 's' }}</span></div>
+    <div class="row">
+      <div class="srch">{{ u.icon('search') }}<input type="search" placeholder="Search projects…"></div>
+      <div class="segs"><a href="#" class="on">{{ u.icon('grid') }}Grid</a><a href="#">{{ u.icon('list') }}List</a></div>
+      <select class="sel"><option>Sort: Last updated</option><option>Sort: Name</option>
+        <option>Sort: Impact score</option></select>
+    </div>
+  </div>
+
+  <div class="pgrid mb">
+    {% for c in cards %}
+    <div class="pcard {{ 'on' if loop.first }}">
+      <div class="pcard-b">
+        <span class="pcard-ic ci {{ c.tone }}">{{ c.initial }}</span>
+        <div class="pcard-m">
+          <h3>{{ c.name }}</h3>
+          {% if c.tagline %}<p>{{ c.tagline }}</p>{% endif %}
+          <a class="pcard-dom" href="https://{{ c.hostname }}" target="_blank" rel="noopener">
+            {{ c.hostname }} {{ u.icon('ext') }}</a>
+          <div class="pcard-st">{{ u.pill(c.state, 'g' if c.state == 'Active' else 'a', dot=true) }}</div>
+        </div>
+        {% if loop.first %}<span class="tick">{{ u.icon('check') }}</span>
+        {% else %}<button class="ibtn">{{ u.icon('dots') }}</button>{% endif %}
+      </div>
+      <div class="pcard-f">
+        <div><b>{{ c.published }}</b><span>Published posts</span></div>
+        <div><b>{% if c.impact is none %}<span class="zero">—</span>{% else %}{{ c.impact }}{% endif %}</b>
+          <span>Avg. impact score</span></div>
+      </div>
+    </div>
+    {% endfor %}
+
+    <a class="pcard-new" href="/app/settings">
+      <div>
+        <span class="ci">{{ u.icon('plus') }}</span>
+        <b>Create New Project</b>
+        <p>Launch a new project and start creating content today.</p>
+      </div>
+    </a>
+  </div>
+
+  {# ---------- workspace kpis ---------- #}
+  <div class="grid g6 mb">
+    {{ u.kpi('docs', 'b', 'Total Projects', kpis.projects, note='in this workspace') }}
+    {{ u.kpi('doc', 'v', 'Total Published Blogs', kpis.published, note='all projects') }}
+    {{ u.kpi('chart', 's', 'Workspace Traffic', none, note='needs Search Console') }}
+    {{ u.kpi('star', 'a', 'Total Impressions', none, note='needs Search Console') }}
+    {{ u.kpi('target', 'p', 'Avg. Impact Score', kpis.impact, note='across audited projects') }}
+    {{ u.kpi('wifi', 'g', 'Sync Health', kpis.synced, note='projects audited') }}
+  </div>
+
+  {# ---------- trend + health ---------- #}
+  <div class="grid g21 mb">
+    <div class="card">
+      <div class="chead">
+        <div class="chead-l"><span class="ci v">{{ u.icon('trend') }}</span>
+          <h3>Cross-Project Performance Trend</h3></div>
+        <select class="sel"><option>Last 30 days</option><option>Last 14 days</option>
+          <option>Last 7 days</option></select>
+      </div>
+      <div class="legend">
+        <span><i style="background:#3B82F6"></i>Organic Traffic</span>
+        <span><i style="background:#7C5CFC"></i>Impressions</span>
+        <span><i style="background:#12B76A"></i>Published Posts</span>
+      </div>
+      {{ u.linechart(trend, 300) }}
+    </div>
+
+    <div class="stack">
+      <div class="card">
+        <div class="chead">
+          <div class="chead-l"><span class="ci g">{{ u.icon('checkc') }}</span>
+            <h3>Overall SEO Health</h3></div>
+          {{ u.viewall('/app/seo', 'View details') }}
+        </div>
+        <div class="donut-wrap">
+          {{ u.gauge(seo_health, 'Good' if kpis.impact and kpis.impact >= 70 else ('Fair' if kpis.impact else 'Not audited')) }}
+          <ul class="dkey">
+            {% for r in seo_rows %}
+            <li><i style="background:{{ '#12B76A' if r.value and r.value >= 80 else ('#F59E0B' if r.value else '#C7CDDA') }}"></i>
+              <span>{{ r.label }}</span>
+              <b>{% if r.value is none %}<span class="zero">—</span>{% else %}{{ r.value }}{% endif %}</b></li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="chead">
+          <div class="chead-l"><span class="ci v">{{ u.icon('globe') }}</span>
+            <h3>GEO Visibility Summary</h3></div>
+          {{ u.viewall('/app/geo', 'View details') }}
+        </div>
+        <div class="donut-wrap">
+          {{ u.gauge(geo_health, 'Visible') }}
+          <ul class="dkey">
+            {% for r in geo_rows %}
+            <li><i style="background:{{ r.colour }}"></i><span>{{ r.label }}</span>
+              <b>{% if r.value is none %}<span class="zero">—</span>{% else %}{{ r.value }}%{% endif %}</b>
+              <em></em></li>
+            {% endfor %}
+          </ul>
+        </div>
+        <p class="chead-sub" style="margin:14px 0 0">Needs the model-visibility crawl before
+          any engine can report a number.</p>
+      </div>
+    </div>
+  </div>
+
+  {# ---------- top / distribution / activity ---------- #}
+  <div class="grid g3 mb">
+    <div class="card">
+      <div class="chead">
+        <div class="chead-l"><span class="ci b">{{ u.icon('chart2') }}</span>
+          <h3>Top Performing Projects</h3></div>
+        {{ u.viewall('#') }}
+      </div>
+      {% if top %}
+      <div class="tw"><table class="t">
+        <thead><tr><th style="width:26px">#</th><th>Project</th><th class="n">Traffic</th>
+          <th class="n">Impressions</th><th class="n">Impact</th></tr></thead>
+        <tbody>{% for r in top %}
+          <tr><td><span class="rank">{{ loop.index }}</span></td>
+            <td><div class="ttl"><span class="tile ci {{ r.tone }}">{{ r.initial }}</span>
+              <b>{{ r.title }}</b></div></td>
+            <td class="n"><span class="zero">—</span></td>
+            <td class="n"><span class="zero">—</span></td>
+            <td class="n">{{ u.score(r.impact) }}</td></tr>
+        {% endfor %}</tbody>
+      </table></div>
+      {% else %}
+      <p style="font-size:13px;color:var(--muted);line-height:1.6">No projects to rank yet.
+        Add one and run an audit and this fills in.</p>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="chead"><div class="chead-l"><span class="ci v">{{ u.icon('chart') }}</span>
+        <h3>Project Distribution</h3></div></div>
+      {% if dist.parts %}
+      <div class="donut-wrap">{{ u.donut(dist) }}
+        <ul class="dkey">{% for p in dist.parts %}
+          <li><i style="background:{{ p.colour }}"></i><span>{{ p.name }}</span>
+            <b>{{ p.value }}</b><em>{{ p.pct }}%</em></li>
+        {% endfor %}</ul>
+      </div>
+      {% else %}
+      <div class="donut-wrap">{{ u.donut(dist) }}
+        <p style="font-size:13px;color:var(--muted);line-height:1.6;flex:1;min-width:160px">
+          Projects are grouped once there is more than one to group.</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="chead">
+        <div class="chead-l"><span class="ci a">{{ u.icon('star') }}</span>
+          <h3>Recent Workspace Activity</h3></div>
+        {{ u.viewall('/app/history') }}
+      </div>
+      {% if activity %}
+      <ul class="rows">{% for a in activity %}
+        <li><span class="rank">{{ loop.index }}</span>
+          <span class="m"><b>{{ a.title }}</b><span>{{ a.sub }}</span></span>
+          <span class="v" style="font-weight:500;color:var(--muted-2);font-size:12px">{{ a.ago }}</span></li>
+      {% endfor %}</ul>
+      {% else %}
+      <p style="font-size:13px;color:var(--muted);line-height:1.6">Nothing has happened in this
+        workspace yet. Audits, publishes and syncs all show up here.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ---------- all projects table + opportunities ---------- #}
+  <div class="grid g21 mb">
+    <div class="card">
+      <div class="chead"><div class="chead-l"><span class="ci b">{{ u.icon('chart2') }}</span>
+        <h3>All Projects Performance</h3></div>
+        <div class="srch">{{ u.icon('search') }}<input type="search" placeholder="Search projects…"></div>
+      </div>
+      <div class="tw"><table class="t">
+        <thead><tr><th>Project</th><th>Status</th><th class="n">Published</th>
+          <th class="n">Traffic</th><th class="n">Impressions</th><th class="n">Impact</th>
+          <th>Last Updated</th><th></th></tr></thead>
+        <tbody>
+        {% for r in table %}
+          <tr>
+            <td><div class="ttl"><span class="tile ci {{ r.tone }}">{{ r.initial }}</span>
+              <b>{{ r.name }}</b></div></td>
+            <td>{{ u.pill(r.state, 'g' if r.state == 'Active' else 'a', dot=true) }}</td>
+            <td class="n">{{ r.published }}</td>
+            <td class="n"><span class="zero">—</span></td>
+            <td class="n"><span class="zero">—</span></td>
+            <td class="n">{{ u.score(r.impact) }}</td>
+            <td>{{ r.updated or '—' }}</td>
+            <td class="n"><button class="ibtn">{{ u.icon('dots') }}</button></td>
+          </tr>
+        {% else %}
+          {{ u.norows(8, 'No projects yet. Add one from Settings and it appears here.') }}
+        {% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <div class="chead"><div class="chead-l"><span class="ci a">{{ u.icon('bulb') }}</span>
+        <h3>Top Opportunities</h3></div>{{ u.viewall('#') }}</div>
+      {% if opportunities %}
+      <ul class="rows">{% for o in opportunities %}
+        <li><span class="rank">{{ loop.index }}</span>
+          <span class="m"><b>{{ o.title }}</b><span>{{ o.sub }}</span></span>
+          {{ u.pill(o.level, o.tone) }}</li>
+      {% endfor %}</ul>
+      {% else %}
+      <p style="font-size:13px;color:var(--muted);line-height:1.6">Opportunities are ranked from
+        your audit findings by severity times reach. Run an audit to populate this.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ---------- calendar + automation ---------- #}
+  <div class="grid g21">
+    <div class="card">
+      <div class="chead">
+        <div class="chead-l"><span class="ci s">{{ u.icon('calc') }}</span>
+          <h3>Cross-Project Content Calendar</h3></div>
+        <div class="row">
+          <button class="ibtn">{{ u.icon('cl') }}</button>
+          <span style="font-size:13px;font-weight:600">{{ range_label.split('–')[0] }}</span>
+          <button class="ibtn">{{ u.icon('cr') }}</button>
+          <button class="btn sm">This week</button>
+        </div>
+      </div>
+      <div class="cal">
+        {% for d in calendar %}
+        <div class="cal-d">
+          <div class="cal-h"><b>{{ d.dow }}</b><span>{{ d.label }}</span>
+            <em>{{ d.count }} post{{ '' if d.count == 1 else 's' }}</em></div>
+          <div class="cal-b">
+            {% for i in d.posts %}
+            <div class="cal-i"><div class="row"><span class="tile ci {{ i.tone }}"></span>
+              <b>{{ i.site }}</b></div><span>{{ i.title }}</span></div>
+            {% else %}<div class="cal-e">—</div>{% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="chead"><div class="chead-l"><span class="ci b">{{ u.icon('sync') }}</span>
+        <h3>Automation Summary</h3></div>{{ u.viewall('/app/settings', 'View details') }}</div>
+      <ul class="rows">{% for a in automation %}
+        <li><span class="ci {{ a.tone }}">{{ u.icon(a.icon) }}</span>
+          <span class="m"><b>{{ a.name }}</b><span>{{ a.detail }}</span></span>
+          <span class="v" style="text-align:right">
+            {{ u.pill(a.state, 'g' if a.state == 'Active' else ('r' if a.state == 'Blocked' else ''), dot=true) }}
+            <em>{{ a.note }}</em></span></li>
+      {% endfor %}</ul>
+    </div>
+  </div>
+
+  </div>
+</div>
+{% endblock %}

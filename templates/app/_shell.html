@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% import "_ui.html" as u %}
+
+{% block body %}
+<div class="shell">
+
+  <aside class="rail">
+    <div class="rail-brand">
+      <span class="rail-mark"><svg viewBox="0 0 24 24"><path d="M13.5 2.5 5 13.6h5.4L9.8 21.5 18.5 10h-5.4z"/></svg></span>
+      FIG
+    </div>
+
+    <nav class="rail-nav">
+      <a href="/app/overview" class="{{ 'on' if page == 'overview' }}">{{ u.icon('home') }}Overview</a>
+      <a href="/app/seo" class="{{ 'on' if page == 'seo' }}">{{ u.icon('search') }}SEO</a>
+      <a href="/app/geo" class="{{ 'on' if page == 'geo' }}">{{ u.icon('globe') }}GEO</a>
+      <a href="/app/notifications" class="{{ 'on' if page == 'notifications' }}">
+        {{ u.icon('bell') }}Notifications
+        {% if alerts %}<span class="badge">{{ alerts }}</span>{% endif %}</a>
+      <a href="/app/history" class="{{ 'on' if page == 'history' }}">{{ u.icon('clock') }}History</a>
+      <a href="/app/settings" class="{{ 'on' if page == 'settings' }}">{{ u.icon('gear') }}Settings</a>
+    </nav>
+
+    <div class="rail-foot">
+      <a class="rail-back" href="/app">{{ u.icon('arwl') }}Back to dashboard</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    {% include "app/_top.html" %}
+    <div class="page">{% block page %}{% endblock %}</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ⌘K / Ctrl-K focuses the search field. The only keyboard shortcut here. */
+document.addEventListener('keydown', function (e) {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    var s = document.getElementById('gsearch');
+    if (s) s.focus();
+  }
+});
+</script>
+{% endblock %}

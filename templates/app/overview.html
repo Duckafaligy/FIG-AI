@@ -1,0 +1,208 @@
+{% extends "app/_shell.html" %}
+{% block title %}Content Performance Overview — FIG{% endblock %}
+
+{% block page %}
+<div class="phead">
+  <div>
+    <div class="eyebrow">Overview</div>
+    <h1>Content Performance Overview</h1>
+    <p class="sub">Track your blog performance, SEO, GEO, and content impact{% if site %} for {{ site.client_name or site.hostname }}{% endif %}.</p>
+  </div>
+</div>
+
+{% if not site %}
+<div class="card mb" style="border-color:#F3D9A4;background:#FFFCF5;padding:14px 18px">
+  <div class="spread"><div class="row">
+    <span class="ci a">{{ u.icon('info') }}</span>
+    <span style="font-size:13.5px;color:var(--ink-2)"><b>No project connected yet.</b>
+      Every panel below is wired to the database and reads zero until there is one.</span>
+  </div><a class="btn sm pri" href="/app/settings">{{ u.icon('plus') }}Add a project</a></div>
+</div>
+{% endif %}
+
+<div class="grid g6 mb">
+  {{ u.kpi('doc', 'b', 'Total Published Blogs', kpis.published, note='in this project') }}
+  {{ u.kpi('clock', 'a', 'Posts in Queue', kpis.queue, note='queued, writing, review') }}
+  {{ u.kpi('chart', 's', 'Organic Traffic', none, note='needs Search Console') }}
+  {{ u.kpi('star', 'v', 'Avg. Impact Score', kpis.impact, note='latest audit') }}
+  {{ u.kpi('wifi', 'g', 'Sync Health', kpis.sync, dot='All systems online' if kpis.impact else 'Never audited') }}
+  {{ u.kpi('target', 'p', 'AI Search Visibility', none, note='needs the model crawl') }}
+</div>
+
+<div class="grid g21 mb">
+  <div class="card">
+    <div class="chead">
+      <div class="chead-l"><span class="ci v">{{ u.icon('trend') }}</span>
+        <div><h3>Performance Trends</h3>
+          <p class="note" style="display:block;margin-top:3px">Traffic, impressions, and
+            content impact over time.</p></div></div>
+      <select class="sel"><option>Last 30 days</option><option>Last 14 days</option></select>
+    </div>
+    <div class="legend">
+      <span><i style="background:#3B82F6"></i>Organic Traffic</span>
+      <span><i style="background:#7C5CFC"></i>Impressions</span>
+      <span><i style="background:#12B76A"></i>Impact Score</span>
+    </div>
+    {{ u.linechart(trend, 300) }}
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="chead"><div class="chead-l"><span class="ci s">{{ u.icon('chart2') }}</span>
+        <h3>Google Analytics</h3></div><span class="note">Last 30 days</span></div>
+      <div class="grid g2" style="gap:12px">
+        {% for g in ga %}
+        <div style="border:1px solid var(--line);border-radius:var(--r);padding:14px">
+          <div style="font-size:21px;font-weight:700;letter-spacing:-.035em">
+            <span class="zero">—</span></div>
+          <div style="font-size:12px;color:var(--muted);margin-top:6px">{{ g.label }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="chead-sub" style="margin:14px 0 0">Connect Google Analytics in Settings and
+        these four fill in.</p>
+    </div>
+
+    <div class="card">
+      <div class="chead"><div class="chead-l"><span class="ci b">{{ u.icon('target') }}</span>
+        <h3>Search Presence &amp; AI Visibility</h3></div><span class="note">Last 30 days</span></div>
+      <ul class="checks">
+        {% for p in presence %}
+        <li><span class="ci b" style="width:26px;height:26px">{{ u.icon(p.icon) }}</span>
+          <span>{{ p.label }}</span><b><span class="zero">—</span></b></li>
+        {% endfor %}
+      </ul>
+      <p class="chead-sub" style="margin:14px 0 0">Needs Search Console and the
+        model-visibility crawl.</p>
+    </div>
+  </div>
+</div>
+
+<div class="grid g21 mb">
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci a">{{ u.icon('trophy') }}</span>
+      <h3>Highest Impact Blog Posts</h3></div>{{ u.viewall('/app/seo') }}</div>
+    <div class="tw"><table class="t">
+      <thead><tr><th style="width:26px">#</th><th>Blog Post</th><th class="n">Traffic</th>
+        <th class="n">Impact Score</th></tr></thead>
+      <tbody>
+      {% for p in impact_posts %}
+        <tr><td><span class="rank">{{ loop.index }}</span></td>
+          <td><b>{{ p.title }}</b></td>
+          <td class="n"><span class="zero">—</span></td>
+          <td class="n">{{ u.score(p.impact) }}</td></tr>
+      {% else %}
+        {{ u.norows(4, 'No published posts yet. Publish one and it is ranked here.') }}
+      {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci v">{{ u.icon('funnel') }}</span>
+      <h3>Content Publishing Funnel</h3></div></div>
+    <div class="donut-wrap">
+      <ul class="dkey" style="min-width:200px">
+        {% for f in funnel %}
+        <li><i style="background:{{ f.colour }}"></i><span>{{ f.label }}</span>
+          <b>{{ f.n }}</b><em></em></li>
+        {% endfor %}
+      </ul>
+      {{ u.donut(funnel_donut) }}
+    </div>
+    <p class="chead-sub" style="margin:16px 0 0">{{ funnel_total }} item{{ '' if funnel_total == 1 else 's' }}
+      in the pipeline. Every stage is a real row in the content queue.</p>
+  </div>
+</div>
+
+<div class="grid g3 mb">
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci g">{{ u.icon('trend') }}</span>
+      <h3>Recent Activity</h3></div>{{ u.viewall('/app/history') }}</div>
+    {% if activity %}
+    <ul class="feed">{% for a in activity %}
+      <li><span class="ci {{ a.tone }}">{{ u.icon(a.icon) }}</span>
+        <span class="m"><b>{{ a.title }}</b><span>{{ a.sub }}</span></span>
+        <time>{{ a.ago }}</time></li>
+    {% endfor %}</ul>
+    {% else %}
+    <p style="font-size:13px;color:var(--muted);line-height:1.6">Nothing yet. Audits,
+      publishes and edits all appear here as they happen.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci b">{{ u.icon('search') }}</span>
+      <h3>Top Ranking Keywords</h3></div>{{ u.viewall('/app/seo') }}</div>
+    <div class="tw"><table class="t">
+      <thead><tr><th style="width:26px">#</th><th>Keyword</th><th class="n">Position</th>
+        <th class="n">Traffic</th></tr></thead>
+      <tbody>{{ u.norows(4, 'Needs Search Console. Nothing here is estimated.') }}</tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci a">{{ u.icon('bulb') }}</span>
+      <h3>Content Opportunities</h3></div>{{ u.viewall('/app/seo') }}</div>
+    <div class="tw"><table class="t">
+      <thead><tr><th style="width:26px">#</th><th>Topic</th><th class="n">Est. Traffic</th></tr></thead>
+      <tbody>
+      {% for o in opportunities %}
+        <tr><td><span class="rank">{{ loop.index }}</span></td>
+          <td style="white-space:normal">{{ o.topic }}</td>
+          <td class="n"><span class="zero">—</span></td></tr>
+      {% else %}
+        {{ u.norows(3, 'Gaps come from the answers-layer findings. Run an audit to fill this.') }}
+      {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+</div>
+
+<div class="grid g21">
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci b">{{ u.icon('doc') }}</span>
+      <h3>Published Blog Library</h3></div></div>
+    <div class="row mb" style="flex-wrap:wrap">
+      <div class="srch" style="flex:1">{{ u.icon('search') }}
+        <input type="search" placeholder="Search blog posts…"></div>
+      <select class="sel"><option>All Statuses</option><option>Published</option>
+        <option>Scheduled</option><option>Review</option></select>
+      <select class="sel"><option>Newest First</option><option>Oldest First</option></select>
+      <a class="btn pri" href="/app/seo">{{ u.icon('plus') }}New Post</a>
+    </div>
+    <div class="tw"><table class="t">
+      <thead><tr><th>Blog Post</th><th>Status</th><th>Published</th><th class="n">Traffic</th>
+        <th class="n">Impact Score</th><th class="n">Actions</th></tr></thead>
+      <tbody>
+      {% for p in library %}
+        <tr>
+          <td><div class="ttl"><span class="ci b" style="width:26px;height:26px">{{ u.icon('doc') }}</span>
+            <b>{{ p.title }}</b></div></td>
+          <td>{{ u.pill(p.state, p.tone) }}</td>
+          <td>{{ p.published or '—' }}</td>
+          <td class="n"><span class="zero">—</span></td>
+          <td class="n">{{ u.score(p.impact) }}</td>
+          <td class="n"><a class="btn xs" href="/app/seo">Manage {{ u.icon('cv') }}</a></td>
+        </tr>
+      {% else %}
+        {{ u.norows(6, 'No posts yet. The content queue on the SEO page is where they start.') }}
+      {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci g">{{ u.icon('heart') }}</span>
+      <h3>Workspace Health</h3></div>
+      <span class="note">{{ 'All systems operational' if health|selectattr('ok')|list|length == health|length else 'Setup needed' }}</span></div>
+    <ul class="feed">
+      {% for h in health %}
+      <li><span class="ci {{ h.tone }}">{{ u.icon(h.icon) }}</span>
+        <span class="m"><b>{{ h.name }}</b><span>{{ h.note }}</span></span>
+        {{ u.pill(h.state, 'g' if h.ok else '', dot=true) }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

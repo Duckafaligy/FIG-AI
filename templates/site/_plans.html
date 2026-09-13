@@ -1,0 +1,54 @@
+{% import "_ui.html" as u %}
+{# The plans, shared by the homepage and the pricing page.
+   `full` shows all four tiers; the homepage shows the first three. #}
+{% set plans = [
+  {'name':'Starter','icon':'leaf','tone':'g','price':'$29',
+   'desc':'Perfect for individuals and small teams getting started.',
+   'best':false,'cta':'Get started','href':'/signup',
+   'on':['5 projects','1 CMS connection','Audit-led content briefs',
+         'SEO review & recommendations','Basic analytics','Up to 3 team seats'],
+   'off':[]},
+  {'name':'Pro','icon':'chart','tone':'b','price':'$79',
+   'desc':'Everything growing teams need to create and scale.',
+   'best':true,'cta':'Start free','href':'/signup',
+   'on':['25 projects','5 CMS connections','Advanced briefs & scoring',
+         'SEO + GEO optimization','Full analytics suite','Approval workflows',
+         'Up to 10 team seats'],
+   'off':[]},
+  {'name':'Scale','icon':'layers','tone':'v','price':'$199',
+   'desc':'For larger teams with complex content operations.',
+   'best':false,'cta':'Start free','href':'/signup',
+   'on':['100 projects','10 CMS connections','SEO + GEO optimization',
+         'Automation (rules & triggers)','Team collaboration tools',
+         'Up to 25 team seats','API access'],
+   'off':[]},
+  {'name':'Enterprise','icon':'org','tone':'a','price':'Custom',
+   'desc':'For organizations with custom requirements.',
+   'best':false,'cta':'Contact sales','href':'#',
+   'on':['Unlimited projects','Unlimited CMS connections',
+         'Custom workflows & automation','Unlimited team seats',
+         'API access & SSO/SAML','Dedicated success manager',
+         'White-labelled reports'],
+   'off':[]}
+] %}
+
+<div class="plans {{ '' if full else 'three' }}">
+  {% for p in (plans if full else plans[:3]) %}
+  <div class="plan {{ 'best' if p.best }}">
+    {% if p.best %}<span class="flag">Most popular</span>{% endif %}
+    <span class="ci {{ p.tone }}">{{ u.icon(p.icon) }}</span>
+    <h3>{{ p.name }}</h3>
+    <p class="desc">{{ p.desc }}</p>
+    <div class="price">
+      {% if p.price == 'Custom' %}<b style="font-size:26px">Custom pricing</b>
+      {% else %}<b>{{ p.price }}</b><span>/month</span>{% endif %}
+    </div>
+    <ul>
+      {% for f in p.on %}
+      <li><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-10"/></svg>{{ f }}</li>
+      {% endfor %}
+    </ul>
+    <a class="btn {{ 'pri' if p.best }} wide" href="{{ p.href }}">{{ p.cta }}</a>
+  </div>
+  {% endfor %}
+</div>

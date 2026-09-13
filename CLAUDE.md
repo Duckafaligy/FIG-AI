@@ -158,7 +158,38 @@ configured: SQLite on disk, dashboard at `/app`, API at `/v1`, docs at
 - `app/billing.py` — Stripe: graduated per-site tiers, checkout, portal,
   webhook, and `sync_quantity` so provisioning changes the invoice without a
   renegotiation. Degrades quietly with no key.
-- `app/dashboard.py` + `templates/dash/` — server-rendered dashboard: an
+### The frontend (rebuilt September 2026, to supplied designs)
+
+Eleven pages, server-rendered Jinja, one stylesheet, no build step. Built 1:1
+from design images the founder produced; `static/fig.css` is the design system
+and `templates/_ui.html` holds every repeated shape as a macro, so a component
+change lands on all eleven pages at once.
+
+- `app/frontend.py` — every page route. Thin: resolve the workspace, call
+  `pages`, render. **This replaced the page half of `dashboard.py` and
+  `public.py`**, whose templates were archived; those two modules are still in
+  the tree for their POST handlers but are no longer mounted. `/v1` and billing
+  are unaffected.
+- `app/pages.py` — one function per page, each a real query against Supabase.
+  **Read the docstring before touching it.** The rule it follows: a count that
+  is genuinely zero renders `0`; a value that *cannot be known yet* (traffic
+  with no Search Console, citations with no model crawl) renders `None`, which
+  the templates draw as an em dash plus a note saying what it needs. Zero and
+  unknown are different and the UI says which. Nothing is estimated to make a
+  panel look alive. Gaps are marked `NEEDS:`.
+- `app/charts.py` — line, donut and ring geometry as pure functions, rendered
+  as inline SVG. With no data the builders return empty and the macro draws an
+  explicit "no data yet" panel rather than an invented curve.
+- `templates/site/` — homepage, pricing, sign in, sign up.
+- `templates/app/` — projects dashboard, overview, SEO, GEO, notifications,
+  history, settings.
+
+The workspace the app pages resolve to is a separate empty account, so the
+seeded demo estate is untouched and still available as fillers
+(`python -m app.seed`). Sign-in is **not** wired into the new auth pages yet —
+the forms say so out loud instead of failing silently.
+
+- `app/dashboard.py` + `templates/dash/` (archived) — the previous dashboard: an
   overview built to the Figma design, the sites list and site detail, findings
   across the estate, notifications, history, and settings (account, billing,
   keys, integrations, and the checklist from `app/roadmap.py`).

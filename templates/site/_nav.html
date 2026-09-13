@@ -1,0 +1,12 @@
+{% import "_ui.html" as u %}
+<header class="mnav">
+  <div class="mnav-in">
+    <a class="logo" href="/">FIG</a>
+    <nav>
+      <a href="/demo" class="{{ 'on' if nav == 'demo' }}">Demo</a>
+      {% if nav != 'home' %}<a href="/pricing" class="{{ 'on' if nav == 'pricing' }}">Pricing</a>{% endif %}
+      <a href="/signin" class="{{ 'on' if nav == 'signin' }}">Sign in</a>
+      <a class="btn pri" href="/signup">Sign up</a>
+    </nav>
+  </div>
+</header>

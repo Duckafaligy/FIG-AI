@@ -1,0 +1,197 @@
+{% extends "app/_shell.html" %}
+{% block title %}Workspace History — FIG{% endblock %}
+
+{% block page %}
+<div class="phead">
+  <div>
+    <div class="eyebrow">History</div>
+    <h1>Workspace History</h1>
+    <p class="sub">Review everything that happened across content creation, publishing,
+      approvals, syncs, and manual updates.</p>
+  </div>
+  <a class="btn" href="/docs">{{ u.icon('doc') }}View Documentation</a>
+</div>
+
+<div class="grid g6 mb">
+  {{ u.kpi('bolt', 'b', 'Total Actions This Month', kpis.total, note='all activity types') }}
+  {{ u.kpi('doc', 'v', 'Posts Published', kpis.published, note='this month') }}
+  {{ u.kpi('pencil', 'g', 'Manual Updates', kpis.updates, note='this month') }}
+  {{ u.kpi('sync', 's', 'API Sync Events', kpis.syncs, note='this month') }}
+  {{ u.kpi('gear', 'a', 'Automation Runs', kpis.automation, note='no scheduler yet') }}
+  {{ u.kpi('warn', 'r', 'Failed Actions', kpis.failed, note='this month') }}
+</div>
+
+<div class="grid g21 mb">
+  <div class="card">
+    <div class="chead">
+      <div class="chead-l"><span class="ci b">{{ u.icon('chart2') }}</span>
+        <div><h3>Activity Trend</h3>
+          <p class="note" style="display:block;margin-top:3px">Total workspace actions across
+            all activity types.</p></div></div>
+      <select class="sel"><option>Last 14 days</option><option>Last 30 days</option></select>
+    </div>
+    <div class="legend">
+      <span><i style="background:#3B82F6"></i>Publishing</span>
+      <span><i style="background:#7C5CFC"></i>Manual Updates</span>
+      <span><i style="background:#12B76A"></i>Sync Events</span>
+      <span><i style="background:#F59E0B"></i>Automation</span>
+      <span><i style="background:#EF4444"></i>Failed Actions</span>
+    </div>
+    {{ u.linechart(trend, 260) }}
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci v">{{ u.icon('filter') }}</span>
+      <h3>Actions by Category</h3></div></div>
+    <div class="donut-wrap">
+      {{ u.donut(cats) }}
+      <ul class="dkey">
+        {% for c in cat_rows %}
+        <li><i style="background:{{ c.colour }}"></i><span>{{ c.name }}</span>
+          <b>{{ c.value }}</b>
+          <em>{{ ((c.value / kpis.total * 100)|round|int) if kpis.total else 0 }}%</em></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="grid g21 mb">
+  <div class="card">
+    <div class="chead">
+      <div class="chead-l"><span class="ci g">{{ u.icon('clock') }}</span>
+        <div><h3>Recent Activity Stream</h3>
+          <p class="note" style="display:block;margin-top:3px">Live view of the latest
+            workspace activity.</p></div></div>
+      {{ u.viewall('#') }}
+    </div>
+    {% if stream %}
+    <ul class="feed">{% for s in stream %}
+      <li><span class="ci {{ s.tone }}">{{ u.icon(s.icon) }}</span>
+        <span class="m"><b>{{ s.title }}</b><span>{{ s.sub }}</span></span>
+        <span class="row" style="gap:12px"><time>{{ s.ago }}</time>
+          {{ u.pill(s.state, 'g' if s.state == 'Success' else ('r' if s.state == 'Failed' else 'a')) }}</span></li>
+    {% endfor %}</ul>
+    {% else %}
+    <div class="empty"><b>No activity yet</b>
+      <p>This stream is merged from the tables that actually record events — audits, content
+        posts and published changes. It fills in as soon as any of them has a row.</p></div>
+    {% endif %}
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="chead"><div class="chead-l"><span class="ci b">{{ u.icon('filter') }}</span>
+        <div><h3>Quick Filters</h3>
+          <p class="note" style="display:block;margin-top:3px">Quickly filter the activity log
+            and charts.</p></div></div>
+        <a class="viewall" href="/app/history">Clear all</a></div>
+      <div class="chips mb">
+        <a class="chip on" href="#">{{ u.icon('list') }}All Activities</a>
+        <a class="chip" href="#">{{ u.icon('doc') }}Publishing</a>
+        <a class="chip" href="#">{{ u.icon('pencil') }}Manual Updates</a>
+        <a class="chip" href="#">{{ u.icon('sync') }}Sync Events</a>
+        <a class="chip" href="#">{{ u.icon('gear') }}Automation</a>
+        <a class="chip" href="#">{{ u.icon('user') }}Approvals</a>
+        <a class="chip" href="#">{{ u.icon('revert') }}Reverts</a>
+        <a class="chip" href="#">{{ u.icon('warn') }}Failures</a>
+      </div>
+      <div class="row">
+        <select class="sel" style="flex:1"><option>Last 14 days</option>
+          <option>Last 30 days</option></select>
+        <span class="tsel">{{ u.icon('cal') }}{{ range_label }}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="chead"><div class="chead-l"><span class="ci v">{{ u.icon('users') }}</span>
+        <div><h3>Activity by Actor</h3>
+          <p class="note" style="display:block;margin-top:3px">See who (or what) made the
+            changes.</p></div></div>
+        <select class="sel"><option>Last 14 days</option></select></div>
+      {% if actors %}
+      {% for a in actors %}
+      <div class="chan" style="grid-template-columns:1fr 40px 110px 34px">
+        <span class="nm"><span class="avatar" style="width:26px;height:26px;font-size:10px">{{ a.initials }}</span>
+          {{ a.name }}</span>
+        <span class="pc">{{ a.value }}</span>
+        <span class="bar"><i style="width:{{ a.pct }}%"></i></span>
+        <span class="usage-p">{{ a.pct }}%</span>
+      </div>
+      {% endfor %}
+      {% else %}
+      <p style="font-size:13px;color:var(--muted);line-height:1.6">No actors yet. Every action
+        records who or what performed it — a person, the API, or a worker.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card mb">
+  <div class="chead">
+    <div class="chead-l"><span class="ci b">{{ u.icon('list') }}</span>
+      <div><h3>Detailed Audit Log</h3>
+        <p class="note" style="display:block;margin-top:3px">Complete history of all workspace
+          actions.</p></div></div>
+    <div class="row">
+      <div class="srch">{{ u.icon('search') }}
+        <input type="search" placeholder="Search actions, content, or users…"></div>
+      <select class="sel"><option>All Types</option></select>
+      <select class="sel"><option>All Statuses</option></select>
+      <button class="btn sm">{{ u.icon('down') }}Export</button>
+    </div>
+  </div>
+  <div class="tw"><table class="t">
+    <thead><tr><th>Date &amp; Time</th><th>Type</th><th>Description</th><th>Content</th>
+      <th>Actor</th><th>Status</th><th class="n">Actions</th></tr></thead>
+    <tbody>
+    {% for r in log %}
+      <tr>
+        <td class="nowrap">{{ r.when }}</td>
+        <td><div class="ttl"><span class="ci {{ r.tone }}" style="width:24px;height:24px">{{ u.icon(r.icon) }}</span>
+          {{ r.type }}</div></td>
+        <td style="white-space:normal">{{ r.desc }}</td>
+        <td class="lk" style="white-space:normal;max-width:180px">{{ r.content }}</td>
+        <td><div class="ttl"><span class="avatar" style="width:24px;height:24px;font-size:10px">{{ r.initials }}</span>
+          {{ r.actor }}</div></td>
+        <td>{{ u.pill(r.state, 'g' if r.state == 'Success' else ('r' if r.state == 'Failed' else 'a'), dot=true) }}</td>
+        <td class="n"><button class="ibtn">{{ u.icon('dotsh') }}</button></td>
+      </tr>
+    {% else %}
+      {{ u.norows(7, 'The log is empty. Every audit, publish, edit and sync writes a row here.') }}
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<div class="grid g4">
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci b">{{ u.icon('grid') }}</span>
+      <div><h3>Most Active Work Areas</h3>
+        <p class="note" style="display:block;margin-top:3px">Where the most activity
+          happened.</p></div></div></div>
+    {{ u.ranked(areas, 'Nothing to rank yet.') }}
+  </div>
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci v">{{ u.icon('doc') }}</span>
+      <div><h3>Most Edited Blogs</h3>
+        <p class="note" style="display:block;margin-top:3px">Blogs with the most
+          updates.</p></div></div></div>
+    {{ u.ranked(edited, 'No posts have been edited yet.') }}
+  </div>
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci g">{{ u.icon('upload') }}</span>
+      <div><h3>Publish History</h3>
+        <p class="note" style="display:block;margin-top:3px">Recent publishing
+          activity.</p></div></div></div>
+    {{ u.ranked(publishes, 'Nothing has been published yet.') }}
+  </div>
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci r">{{ u.icon('revert') }}</span>
+      <div><h3>Reverts &amp; Rejections</h3>
+        <p class="note" style="display:block;margin-top:3px">Content changes that were reverted
+          or rejected.</p></div></div></div>
+    {{ u.ranked(reverts, 'Nothing has been reverted or rejected.') }}
+  </div>
+</div>
+{% endblock %}

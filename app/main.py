@@ -25,8 +25,8 @@ from app import config
 from app.api import hostname_of, router as api_router
 from app.auth import require_account
 from app.billing import router as billing_router
-from app.dashboard import NeedsSignIn, router as dashboard_router
-from app.public import router as public_router
+from app.dashboard import NeedsSignIn
+from app.frontend import router as frontend_router
 from app.db import IS_SQLITE, get_session, init_db
 from app.jobs import queue_depth, start_workers, stop_workers
 from app.models import Account, Site
@@ -98,13 +98,13 @@ async def _needs_sign_in(request, _exc):
 app.mount("/static", StaticFiles(directory=str(config.ROOT / "static")), name="static")
 app.include_router(api_router)
 app.include_router(billing_router)
-app.include_router(dashboard_router)
-app.include_router(public_router)
 
-
-@app.get("/", include_in_schema=False)
-def root():
-    return RedirectResponse("/app")
+# The page routes. `frontend.py` replaced the page half of dashboard.py and
+# public.py when the frontend was rebuilt to the new designs; those two modules
+# are still in the tree for their POST handlers and the public free-read logic,
+# but their templates were archived, so they are not mounted. The /v1 API and
+# billing above are unaffected.
+app.include_router(frontend_router)
 
 
 @app.get("/health")

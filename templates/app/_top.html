@@ -1,0 +1,41 @@
+{% import "_ui.html" as u %}
+{# The top bar. On the all-projects dashboard it also carries the wordmark,
+   because that page has no rail in the design. #}
+<div class="top">
+  {% if page == 'projects' %}
+  <a class="brand" href="/app">
+    <span class="rail-mark"><svg viewBox="0 0 24 24"><path d="M13.5 2.5 5 13.6h5.4L9.8 21.5 18.5 10h-5.4z"/></svg></span>
+    FIG
+  </a>
+  {% endif %}
+
+  <div class="search">
+    <svg class="mag" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.8-3.8"/></svg>
+    <input id="gsearch" type="search" autocomplete="off"
+           placeholder="{{ 'Search projects, domains, or content…' if page == 'projects' else 'Search posts, keywords, or insights…' }}">
+    <kbd>⌘ K</kbd>
+  </div>
+
+  <div class="who">
+    {% if sites %}
+    <form method="get" action="{{ request.url.path }}">
+      <select class="sel" name="site" onchange="this.form.submit()" style="max-width:220px">
+        {% for s in sites %}
+        <option value="{{ s.id }}" {{ 'selected' if site and s.id == site.id }}>
+          {{ s.client_name or s.hostname }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    {% else %}
+    <span class="tsel">{{ u.icon('store') }}No project yet</span>
+    {% endif %}
+
+    <span class="tsel">{{ u.icon('cal') }}{{ range_label }}</span>
+
+    {% if page == 'projects' %}
+    <a class="btn pri" href="/app/settings">{{ u.icon('plus') }}New Project</a>
+    {% endif %}
+
+    <span class="avatar">{{ initials }}</span>
+  </div>
+</div>

@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% import "_ui.html" as u %}
+{% block title %}Create your FIG account{% endblock %}
+
+{% block body %}
+<div class="mk">
+{% include "site/_nav.html" %}
+
+<section class="hero" style="padding:56px 0 64px">
+  <div class="mk-wrap hero-g" style="grid-template-columns:minmax(0,1fr) minmax(0,.88fr)">
+    <div>
+      <span class="eb">{{ u.icon('bolt') }}Built for the next generation of search</span>
+      <h1 class="h1">Turn your content into growth.<br><span class="em">Get found everywhere.</span></h1>
+      <p class="lede">FIG helps marketing, product, and content teams create, optimize, and
+        publish content that performs across Google, AI search, and every discovery channel.</p>
+
+      <div class="grid g2" style="gap:22px;margin-top:32px;max-width:520px">
+        {% for a in [
+          {'i':'pencil','t':'b','h':'Create with AI','p':'Turn ideas into high-performing content in minutes.'},
+          {'i':'chart','t':'v','h':'Optimize for every search surface','p':'SEO, GEO, and AI-ready content, automatically.'},
+          {'i':'upload','t':'g','h':'Publish with confidence','p':'Streamline workflows from draft to live.'},
+          {'i':'search','t':'a','h':'Get found everywhere','p':'Increase visibility across Google, AI search, and beyond.'}] %}
+        <div>
+          <span class="ci {{ a.t }}" style="width:42px;height:42px;border-radius:12px;
+            margin-bottom:13px">{{ u.icon(a.i) }}</span>
+          <b style="display:block;font-size:15px;font-weight:700;margin-bottom:6px">{{ a.h }}</b>
+          <p style="font-size:13px;color:var(--muted);line-height:1.55">{{ a.p }}</p>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div style="margin-top:34px;position:relative;max-width:470px">
+        {% include "site/_shot.html" %}
+        <span class="note-hand" style="position:absolute;left:10px;bottom:-36px">
+          From idea to impact ↗</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="auth-card" style="max-width:none">
+        <h1 style="font-size:26px">Create your FIG account</h1>
+        <p class="lede">Start your free trial and see how FIG can help your team create content
+          that gets your brand found everywhere.</p>
+
+        <form id="signup" novalidate>
+          <div class="field">
+            <label for="name">Full name</label>
+            <input id="name" name="name" type="text" autocomplete="name"
+                   placeholder="Jane Cooper" required>
+          </div>
+          <div class="field">
+            <label for="email">Work email</label>
+            <input id="email" name="email" type="email" autocomplete="email"
+                   placeholder="you@company.com" required>
+          </div>
+          <div class="field">
+            <label for="company">Company name</label>
+            <input id="company" name="company" type="text" autocomplete="organization"
+                   placeholder="Acme Inc.">
+          </div>
+          <div class="field">
+            <label for="website">Website URL</label>
+            <input id="website" name="website" type="url"
+                   placeholder="https://www.yourcompany.com">
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <div class="iwrap">
+              <input id="password" name="password" type="password" style="padding-left:13px"
+                     autocomplete="new-password" placeholder="Create a password" required>
+              <button class="eye" type="button" data-toggle="password"
+                      aria-label="Show password">
+                <svg viewBox="0 0 24 24"><path d="M2.2 12S5.6 5.6 12 5.6 21.8 12 21.8 12 18.4 18.4 12 18.4 2.2 12 2.2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <button class="btn pri wide" type="submit" style="height:48px;font-size:15px">
+            Start free trial {{ u.icon('arw') }}</button>
+
+          <div class="row" style="gap:16px;margin-top:14px;flex-wrap:wrap;font-size:12px;
+            color:var(--muted)">
+            <span class="row" style="gap:6px">{{ u.icon('checkc') }}7-day free trial</span>
+            <span class="row" style="gap:6px">{{ u.icon('checkc') }}No credit card required</span>
+            <span class="row" style="gap:6px">{{ u.icon('checkc') }}Cancel anytime</span>
+          </div>
+
+          <p id="msg" style="font-size:13px;line-height:1.55;margin-top:14px;display:none"></p>
+        </form>
+
+        <div class="divider">Or continue with</div>
+        <button class="oauth" type="button" data-oauth="google">
+          <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.9h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.4z"/><path fill="#34A853" d="M12 22c2.7 0 4.9-.9 6.6-2.4l-3.2-2.5c-.9.6-2 .9-3.4.9-2.6 0-4.8-1.7-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z"/><path fill="#FBBC05" d="M6.4 13.9a6 6 0 0 1 0-3.8V7.5H3.1a10 10 0 0 0 0 9z"/><path fill="#EA4335" d="M12 6c1.5 0 2.8.5 3.8 1.5l2.8-2.8A10 10 0 0 0 3.1 7.5l3.3 2.6C7.2 7.7 9.4 6 12 6z"/></svg>
+          Continue with Google</button>
+        <button class="oauth" type="button" data-oauth="shopify">
+          <svg viewBox="0 0 24 24" style="fill:#5A8E3F"><path d="M15.3 5.6c-.2-1.4-1-2.4-2.2-2.4-1 0-1.6.6-2 1.3-.4-.1-.8-.2-1.2-.2-1.6 0-2.5 1.3-2.8 3L5 8.1 4 20.8l8 2 8-2-1-12.7z"/></svg>
+          Continue with Shopify</button>
+
+        <label class="check" style="margin-top:20px">
+          <input class="cbox" type="checkbox" required checked>
+          <span>I agree to the <a class="lk" href="#">Terms &amp; Conditions</a> and
+            <a class="lk" href="#">Privacy Policy</a>.</span></label>
+
+        <p style="text-align:center;font-size:13.5px;color:var(--muted);margin-top:20px">
+          Already have an account? <a class="lk" href="/signin">Sign in</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" style="padding:44px 0">
+  <div class="mk-wrap">
+    <div class="logos">
+      <span class="lbl">Trusted by innovative teams</span>
+      <span>{{ u.logomark('shopify') }}</span><span>{{ u.logomark('wix') }}</span>
+      <span>{{ u.logomark('webflow') }}</span><span>{{ u.logomark('wordpress') }}</span>
+      <span>{{ u.logomark('bigcommerce') }}</span><span>{{ u.logomark('ga') }}</span>
+    </div>
+  </div>
+</section>
+
+<section style="padding:0 0 58px">
+  <div class="mk-wrap">
+    <div class="stats">
+      <div><span class="ci b">{{ u.icon('trend') }}</span>
+        <b style="color:var(--muted-2)">—</b><span>organic traffic growth</span></div>
+      <div><span class="ci v">{{ u.icon('users') }}</span>
+        <b style="color:var(--muted-2)">—</b><span>AI visibility</span></div>
+      <div><span class="ci g">{{ u.icon('doc') }}</span>
+        <b style="color:var(--muted-2)">—</b><span>content pieces optimized</span></div>
+      <div><span class="ci a">{{ u.icon('db') }}</span>
+        <b style="color:var(--muted-2)">—</b><span>measured from day one</span></div>
+    </div>
+    <p style="text-align:center;font-size:12.5px;color:var(--muted-2);margin-top:16px">
+      These fill in from your own workspace once you connect a project.</p>
+  </div>
+</section>
+
+<section class="sec tinted" style="padding:58px 0">
+  <div class="mk-wrap">
+    <div class="slab">
+      <h2>A complete content operations platform</h2>
+      <p>From idea to impact. FIG gives you everything you need to create content that
+        performs — at scale.</p>
+    </div>
+    <div class="fgrid">
+      {% for f in [
+        {'i':'shield','t':'b','h':'Secure by design','p':'Your data stays yours. Credentials are never stored in plain text.'},
+        {'i':'users','t':'v','h':'Built for teams','p':'From startups to enterprises, with approval workflows throughout.'},
+        {'i':'bolt','t':'g','h':"Ready for what's next",'p':'Built for Google, ChatGPT, Perplexity and whatever comes after.'},
+        {'i':'globe','t':'a','h':'Global scale','p':'Per-site billing that works for one site or a thousand.'}] %}
+      <div class="fcard">
+        <span class="ci {{ f.t }}">{{ u.icon(f.i) }}</span>
+        <b>{{ f.h }}</b><p>{{ f.p }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{% include "site/_foot.html" %}
+</div>
+{% endblock %}
+
+{% block scripts %}{% include "site/_auth_js.html" %}{% endblock %}

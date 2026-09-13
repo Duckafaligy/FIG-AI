@@ -1,0 +1,39 @@
+{# Auth form behaviour: the password reveal, and an honest message when the
+   form is submitted. The Supabase Auth handshake is not wired into these new
+   pages yet, so the form says so rather than silently doing nothing. #}
+<script>
+document.querySelectorAll('[data-toggle]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var f = document.getElementById(btn.dataset.toggle);
+    if (!f) return;
+    f.type = f.type === 'password' ? 'text' : 'password';
+    btn.setAttribute('aria-label', f.type === 'password' ? 'Show password' : 'Hide password');
+  });
+});
+
+function say(text, bad) {
+  var m = document.getElementById('msg');
+  if (!m) return;
+  m.textContent = text;
+  m.style.display = 'block';
+  m.style.color = bad ? 'var(--red-ink)' : 'var(--muted)';
+}
+
+['signin', 'signup'].forEach(function (id) {
+  var form = document.getElementById(id);
+  if (!form) return;
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!form.checkValidity()) { say('Check the fields above.', true); return; }
+    say('Sign-in is not connected to these new pages yet — the Supabase handshake still '
+      + 'points at the old templates. Open /app to use the dashboard in the meantime.', true);
+  });
+});
+
+document.querySelectorAll('[data-oauth]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    say(btn.dataset.oauth.charAt(0).toUpperCase() + btn.dataset.oauth.slice(1)
+      + ' sign-in needs the provider switching on in the Supabase project first.', true);
+  });
+});
+</script>

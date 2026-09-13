@@ -1,0 +1,268 @@
+{% extends "app/_shell.html" %}
+{% block title %}Settings &amp; Workspace Configuration — FIG{% endblock %}
+
+{% block page %}
+<div class="phead">
+  <div>
+    <div class="eyebrow">Settings</div>
+    <h1>Settings &amp; Workspace Configuration</h1>
+    <p class="sub">Manage your account, seats, billing, connected APIs, and workspace
+      preferences.</p>
+  </div>
+</div>
+
+<div class="grid g21 mb">
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci b">{{ u.icon('org') }}</span>
+      <h3>Workspace Profile</h3></div>
+      <button class="btn sm">{{ u.icon('pencil') }}Edit Profile</button></div>
+    <div class="row mb" style="gap:14px">
+      <span class="pcard-ic ci b" style="width:46px;height:46px;font-size:17px">{{ initials }}</span>
+      <div><div class="row" style="gap:9px"><h3 style="font-size:19px">{{ profile.name }}</h3>
+        {{ u.pill(profile.kind, 'v') }}</div>
+        <p style="font-size:13px;color:var(--muted);margin-top:5px">
+          {{ 'White-labelled — nothing FIG-branded renders in this workspace.'
+             if profile.white_label else 'Content that gets you found.' }}</p></div>
+    </div>
+    <dl class="kv">
+      <div><dt>Workspace ID</dt><dd class="mono" style="font-size:12.5px">{{ profile.slug }}</dd></div>
+      <div><dt>Contact</dt><dd>{{ profile.email }}</dd></div>
+      <div><dt>Created</dt><dd>{{ profile.created }}</dd></div>
+      <div><dt>Billing meter</dt><dd>Per site, not per seat
+        <small>Adding a project changes the invoice without a renegotiation.</small></dd></div>
+    </dl>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci s">{{ u.icon('chart2') }}</span>
+      <h3>Workspace Overview</h3></div><span class="note">Last 30 days</span></div>
+    <div class="grid g2" style="gap:12px">
+      {% for c in [
+        {'icon':'users','tone':'b','n':counts.members,'l':'Team Members'},
+        {'icon':'link','tone':'g','n':counts.services,'l':'Connected Services'},
+        {'icon':'docs','tone':'v','n':counts.projects,'l':'Total Projects'},
+        {'icon':'doc','tone':'a','n':counts.published,'l':'Published Posts'}] %}
+      <div style="border:1px solid var(--line);border-radius:var(--r);padding:15px">
+        <span class="ci {{ c.tone }}" style="margin-bottom:11px">{{ u.icon(c.icon) }}</span>
+        <div style="font-size:23px;font-weight:700;letter-spacing:-.035em">{{ c.n }}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:5px">{{ c.l }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{# ---------- seats ---------- #}
+<div class="card mb">
+  <div class="chead">
+    <div class="chead-l"><span class="ci v">{{ u.icon('seat') }}</span>
+      <div><h3>Seats &amp; Roles</h3>
+        <p class="note" style="display:block;margin-top:3px">Manage team members, roles, and
+          access permissions.</p></div></div>
+    <button class="btn pri">{{ u.icon('plus') }}Invite Member</button>
+  </div>
+  <div class="tw"><table class="t">
+    <thead><tr><th>User</th><th>Role</th><th>Permissions</th><th>Status</th>
+      <th>Last Active</th><th class="n">Actions</th></tr></thead>
+    <tbody>
+    {% for s in seats %}
+      <tr>
+        <td><div class="ttl"><span class="avatar">{{ s.initials }}</span>
+          <span><b>{{ s.name }}</b><span>{{ s.email }}</span></span></div></td>
+        <td>{{ u.pill(s.role, s.tone) }}</td>
+        <td>{{ s.perms }}</td>
+        <td>{{ u.pill('Active', 'g', dot=true) }}</td>
+        <td>{{ s.active }}</td>
+        <td class="n"><button class="ibtn">{{ u.icon('dotsh') }}</button></td>
+      </tr>
+    {% else %}
+      {{ u.norows(6, 'No members yet. Sign-in is wired to Supabase Auth — the first person to
+        sign in becomes the owner of this workspace.') }}
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+{# ---------- billing ---------- #}
+<div class="grid g12 mb">
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci g">{{ u.icon('card') }}</span>
+      <div><h3>Billing &amp; Usage</h3></div></div>
+      <button class="btn sm">Manage Billing</button></div>
+    <div style="border:1px solid var(--line);border-radius:var(--r);padding:17px">
+      <div class="spread"><div>
+        <div style="font-size:12.5px;color:var(--muted)">Current Plan</div>
+        <div style="font-size:20px;font-weight:700;letter-spacing:-.03em;margin-top:4px">
+          {{ plan.name }}</div></div>
+        {{ u.pill(plan.state, 'a' if plan.state == 'Trial' else 'g', dot=true) }}</div>
+      <div style="margin-top:14px;display:flex;align-items:baseline;gap:6px">
+        <b style="font-size:27px;font-weight:800;letter-spacing:-.04em">{{ plan.price }}</b>
+        <span style="font-size:13px;color:var(--muted)">{{ plan.unit }}</span></div>
+      {% if plan.days %}
+      <p style="font-size:12.5px;color:var(--amber-ink);margin-top:10px">
+        {{ plan.days }} day{{ '' if plan.days == 1 else 's' }} left in your free week — no card
+        on file.</p>
+      {% endif %}
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--sep)">
+        <div style="font-size:12.5px;color:var(--muted)">Current monthly total</div>
+        <div style="font-size:17px;font-weight:700;margin-top:3px">{{ plan.monthly }}</div>
+      </div>
+    </div>
+    <ul style="margin-top:16px;display:flex;flex-direction:column;gap:10px">
+      {% for f in plan.features %}
+      <li style="display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--ink-2)">
+        <svg viewBox="0 0 24 24" style="width:15px;height:15px;flex:none;margin-top:1px;
+          fill:none;stroke:var(--green);stroke-width:2.6;stroke-linecap:round;
+          stroke-linejoin:round"><path d="M4.5 12.5l5 5 10-10"/></svg>{{ f }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci s">{{ u.icon('chart') }}</span>
+      <h3>Monthly Usage</h3></div>
+      <select class="sel"><option>{{ range_label.split('–')[1] }}</option></select></div>
+    <div class="grid g4" style="gap:14px">
+      {% for x in usage %}
+      <div class="usage">
+        <div class="usage-t">
+          {% if x.used is none %}<span class="zero">—</span>{% else %}{{ x.used }}{% endif %}
+          <em>/ {% if x.cap is none %}no cap{% else %}{{ x.cap }}{% endif %}</em></div>
+        <div class="usage-l">{{ x.label }}</div>
+        <div class="bar"><i style="width:0%"></i></div>
+        <div class="usage-p">0%</div>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="chead-sub" style="margin:18px 0 0">There are no usage caps on this plan, so these
+      count up rather than fill toward a limit. API credit and query counts need the metering
+      table before they can report.</p>
+  </div>
+</div>
+
+{# ---------- api connections ---------- #}
+<div class="card mb">
+  <div class="chead">
+    <div class="chead-l"><span class="ci b">{{ u.icon('link') }}</span>
+      <div><h3>API Connections</h3>
+        <p class="note" style="display:block;margin-top:3px">Manage connected services across
+          your workspace.</p></div></div>
+    <button class="btn pri">{{ u.icon('plus') }}Connect New Service</button>
+  </div>
+  <div class="tw"><table class="t">
+    <thead><tr><th>Service</th><th>Account / Workspace</th><th>Status</th><th>Permissions</th>
+      <th>Connected</th><th class="n">Actions</th></tr></thead>
+    <tbody>
+    {% for a in apis %}
+      <tr>
+        <td><div class="ttl"><span class="ci {{ a.tone }}">{{ u.icon(a.icon) }}</span>
+          <b>{{ a.name }}</b></div></td>
+        <td>{{ a.account }}</td>
+        <td>{{ u.pill(a.state, 'g' if a.ok else '', dot=true) }}</td>
+        <td>{{ a.perms }}</td>
+        <td>{{ a.since }}</td>
+        <td class="n"><button class="ibtn">{{ u.icon('dotsh') }}</button></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="chead-sub" style="margin:16px 0 0">A service reads as connected only when there is
+    a credential reference for it. FIG stores a reference and a last-four hint, never the key
+    itself, and refuses to publish until a real secret store is wired up.</p>
+</div>
+
+{# ---------- security / prefs / defaults ---------- #}
+<div class="grid g3 mb">
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci g">{{ u.icon('shield') }}</span>
+      <h3>Security &amp; Access</h3></div>
+      <button class="btn sm">Manage</button></div>
+    {% for s in security %}
+    <div class="tog">
+      <span class="ci {{ 'g' if s.ok else 'b' }}" style="width:26px;height:26px">{{ u.icon(s.icon) }}</span>
+      <span><b>{{ s.name }}</b><span>{{ s.sub }}</span></span>
+      {{ u.pill(s.state, 'g' if s.ok else '') }}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci a">{{ u.icon('bell') }}</span>
+      <h3>Notification Preferences</h3></div>
+      <button class="btn sm">Manage</button></div>
+    {% for p in prefs %}
+    <div class="tog">
+      <span class="ci {{ p.tone }}" style="width:26px;height:26px">{{ u.icon(p.icon) }}</span>
+      <span><b>{{ p.name }}</b><span>{{ p.sub }}</span></span>
+      <label class="sw"><input type="checkbox" {{ 'checked' if p.on }} disabled><i></i></label>
+    </div>
+    {% endfor %}
+    <p class="chead-sub" style="margin:14px 0 0">All off: no delivery transport is built yet.</p>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci v">{{ u.icon('palette') }}</span>
+      <h3>Content Defaults</h3></div>
+      <button class="btn sm">Edit Defaults</button></div>
+    <dl class="kv">
+      {% for d in defaults %}
+      <div><dt>{{ d.label }}</dt><dd>{{ d.value }}</dd></div>
+      {% endfor %}
+    </dl>
+  </div>
+</div>
+
+{# ---------- keys / limits / webhooks ---------- #}
+<div class="grid g3">
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci b">{{ u.icon('lock') }}</span>
+      <h3>API Keys</h3></div>
+      <button class="btn sm">{{ u.icon('plus') }}New key</button></div>
+    <div class="tw"><table class="t">
+      <thead><tr><th>Label</th><th>Prefix</th><th>Last used</th></tr></thead>
+      <tbody>
+      {% for k in keys %}
+        <tr><td><b>{{ k.label }}</b></td><td class="mono" style="font-size:12px">{{ k.prefix }}…</td>
+          <td>{{ k.used }}</td></tr>
+      {% else %}{{ u.norows(3, 'No keys. Only the SHA-256 hash is ever stored; the key itself is
+        shown once at creation.') }}{% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci s">{{ u.icon('trend') }}</span>
+      <div><h3>Rate Limits / API Usage</h3>
+        <p class="note" style="display:block;margin-top:3px">This billing period.</p></div></div>
+    </div>
+    <div class="grid g2" style="gap:14px">
+      {% for l in limits %}
+      <div class="usage">
+        <div class="usage-t">{% if l.used is none %}<span class="zero">—</span>{% else %}{{ l.used }}{% endif %}
+          <em>/ no cap</em></div>
+        <div class="usage-l">{{ l.label }}</div>
+        <div class="bar"><i style="width:0%"></i></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div class="chead-l"><span class="ci t">{{ u.icon('webhook') }}</span>
+      <div><h3>Webhooks</h3>
+        <p class="note" style="display:block;margin-top:3px">Real-time notifications about
+          workspace events.</p></div></div>
+      <button class="btn sm">Manage</button></div>
+    <div class="grid g3" style="gap:12px;margin-bottom:14px">
+      <div><div style="font-size:21px;font-weight:700;letter-spacing:-.035em">{{ webhooks.active }}</div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:4px">Active Webhooks</div></div>
+      <div><div style="font-size:21px;font-weight:700;letter-spacing:-.035em"><span class="zero">—</span></div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:4px">Events Delivered</div></div>
+      <div><div style="font-size:21px;font-weight:700;letter-spacing:-.035em"><span class="zero">—</span></div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:4px">Success Rate</div></div>
+    </div>
+    <p class="chead-sub" style="margin:0">The event shape is documented in the API reference.
+      Outbound delivery is not built, so nothing has been sent.</p>
+  </div>
+</div>
+{% endblock %}

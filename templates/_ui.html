@@ -1,0 +1,265 @@
+{# Shared UI macros. Every repeated shape in the designs lives here once, so
+   the page templates stay readable and a change lands everywhere at once. #}
+
+{# ---------- icons ---------- #}
+{% macro icon(name) %}<svg viewBox="0 0 24 24" aria-hidden="true">
+{%- if name == 'home' -%}<path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>
+{%- elif name == 'search' -%}<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.8-3.8"/>
+{%- elif name == 'globe' -%}<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><ellipse cx="12" cy="12" rx="4" ry="8.5"/>
+{%- elif name == 'bell' -%}<path d="M18 15.5V11a6 6 0 1 0-12 0v4.5L4.5 18h15z"/><path d="M10 18a2 2 0 0 0 4 0"/>
+{%- elif name == 'clock' -%}<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 2"/>
+{%- elif name == 'gear' -%}<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 4.6 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 11.5 4a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 19.4 11a2 2 0 1 1 0 4z"/>
+{%- elif name == 'doc' -%}<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>
+{%- elif name == 'docs' -%}<path d="M8 3h8l4 4v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M16 3v4h4"/>
+{%- elif name == 'book' -%}<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M19 19v2H6.5"/>
+{%- elif name == 'chart' -%}<path d="M5 20V10M12 20V4M19 20v-7"/>
+{%- elif name == 'chart2' -%}<path d="M4 19h16"/><path d="M7 16V9M11.5 16V6M16 16v-5"/>
+{%- elif name == 'trend' -%}<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>
+{%- elif name == 'star' -%}<path d="m12 4 2.5 5.1 5.5.8-4 3.9.9 5.6L12 16.8 7.1 19.4l.9-5.6-4-3.9 5.5-.8z"/>
+{%- elif name == 'target' -%}<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1"/>
+{%- elif name == 'eye' -%}<path d="M2.2 12S5.6 5.6 12 5.6 21.8 12 21.8 12 18.4 18.4 12 18.4 2.2 12 2.2 12Z"/><circle cx="12" cy="12" r="3"/>
+{%- elif name == 'users' -%}<circle cx="9" cy="8" r="3.4"/><path d="M2.8 20c0-3.3 2.8-5.6 6.2-5.6S15.2 16.7 15.2 20"/><path d="M17 8.6a3 3 0 0 1 0 4.8M18.5 20c0-2.2-.7-3.6-1.8-4.6"/>
+{%- elif name == 'user' -%}<circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/>
+{%- elif name == 'wifi' -%}<path d="M4 9a12 12 0 0 1 16 0M6.8 12.4a8 8 0 0 1 10.4 0M9.6 15.8a4 4 0 0 1 4.8 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/>
+{%- elif name == 'sync' -%}<path d="M20 11a8 8 0 0 0-14.3-4.2M4 13a8 8 0 0 0 14.3 4.2"/><path d="M20 5v6h-6M4 19v-6h6"/>
+{%- elif name == 'link' -%}<path d="M10.5 13.5a4 4 0 0 0 5.7 0l2.3-2.3a4 4 0 1 0-5.7-5.7l-1 1"/><path d="M13.5 10.5a4 4 0 0 0-5.7 0l-2.3 2.3a4 4 0 1 0 5.7 5.7l1-1"/>
+{%- elif name == 'ext' -%}<path d="M14 4h6v6"/><path d="M20 4l-8.5 8.5"/><path d="M18 14v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h5"/>
+{%- elif name == 'plus' -%}<path d="M12 5v14M5 12h14"/>
+{%- elif name == 'check' -%}<path d="M4.5 12.5l5 5 10-10"/>
+{%- elif name == 'checkc' -%}<circle cx="12" cy="12" r="8.5"/><path d="M8.2 12.3l2.6 2.6 4.9-5.1"/>
+{%- elif name == 'x' -%}<path d="M6 6l12 12M18 6L6 18"/>
+{%- elif name == 'xc' -%}<circle cx="12" cy="12" r="8.5"/><path d="M9 9l6 6M15 9l-6 6"/>
+{%- elif name == 'warn' -%}<path d="M12 4.5 21 19.5H3z"/><path d="M12 10v4"/><circle cx="12" cy="16.8" r=".9" fill="currentColor" stroke="none"/>
+{%- elif name == 'info' -%}<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5"/><circle cx="12" cy="8.2" r=".9" fill="currentColor" stroke="none"/>
+{%- elif name == 'flag' -%}<path d="M5.5 21V3.8M5.5 4h11.8l-2.2 4.3 2.2 4.3H5.5"/>
+{%- elif name == 'cal' -%}<rect x="3.5" y="5" width="17" height="15.5" rx="2.2"/><path d="M3.5 9.6h17M8 3.5v3.4M16 3.5v3.4"/>
+{%- elif name == 'calc' -%}<rect x="3.5" y="5" width="17" height="15.5" rx="2.2"/><path d="M3.5 9.6h17M8 3.5v3.4M16 3.5v3.4"/><path d="M8.6 13.4h1.6M14 13.4h1.6M8.6 17h1.6M14 17h1.6"/>
+{%- elif name == 'bolt' -%}<path d="M13.5 2.5 5 13.6h5.4L9.8 21.5 18.5 10h-5.4z"/>
+{%- elif name == 'spark' -%}<path d="M12 3.5l1.7 4.6 4.6 1.7-4.6 1.7L12 16.1l-1.7-4.6L5.7 9.8l4.6-1.7z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>
+{%- elif name == 'wand' -%}<path d="M4 20l10-10"/><path d="M14.5 4.5l1 2.2 2.2 1-2.2 1-1 2.2-1-2.2-2.2-1 2.2-1z"/><path d="M19 14l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/>
+{%- elif name == 'upload' -%}<path d="M12 15.5V4"/><path d="M7.8 8.2 12 4l4.2 4.2"/><path d="M4.5 15v3.5a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V15"/>
+{%- elif name == 'down' -%}<path d="M12 4v11.5"/><path d="M7.8 11.3 12 15.5l4.2-4.2"/><path d="M4.5 15v3.5a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V15"/>
+{%- elif name == 'shield' -%}<path d="M12 3.2 19.5 6v5.7c0 4.3-3 7.3-7.5 9.1-4.5-1.8-7.5-4.8-7.5-9.1V6z"/><path d="M9 12.2l2.1 2.1 4-4.1"/>
+{%- elif name == 'lock' -%}<rect x="4.8" y="10.5" width="14.4" height="10" rx="2.2"/><path d="M8.4 10.5V7.8a3.6 3.6 0 0 1 7.2 0v2.7"/>
+{%- elif name == 'mail' -%}<rect x="3" y="5.2" width="18" height="13.6" rx="2.2"/><path d="m3.6 6.4 8.4 6 8.4-6"/>
+{%- elif name == 'card' -%}<rect x="2.8" y="5.2" width="18.4" height="13.6" rx="2.4"/><path d="M2.8 10h18.4"/>
+{%- elif name == 'store' -%}<path d="M4 8.5 6 4h12l2 4.5"/><path d="M4 8.5h16V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19z"/><path d="M9.5 12.5h5"/>
+{%- elif name == 'box' -%}<path d="m12 3.2 8 4v9.6l-8 4-8-4V7.2z"/><path d="m4 7.2 8 4 8-4M12 11.2v9.6"/>
+{%- elif name == 'layers' -%}<path d="m12 3 8.5 4.6L12 12.2 3.5 7.6z"/><path d="m3.5 12.4 8.5 4.6 8.5-4.6"/>
+{%- elif name == 'grid' -%}<rect x="3.6" y="3.6" width="7" height="7" rx="1.6"/><rect x="13.4" y="3.6" width="7" height="7" rx="1.6"/><rect x="3.6" y="13.4" width="7" height="7" rx="1.6"/><rect x="13.4" y="13.4" width="7" height="7" rx="1.6"/>
+{%- elif name == 'list' -%}<path d="M8.5 6.5h12M8.5 12h12M8.5 17.5h12"/><circle cx="4.4" cy="6.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="4.4" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="4.4" cy="17.5" r="1.1" fill="currentColor" stroke="none"/>
+{%- elif name == 'filter' -%}<path d="M3.6 5.4h16.8l-6.5 7.6v5.8l-3.8 1.8v-7.6z"/>
+{%- elif name == 'sort' -%}<path d="M7 4.5v15M7 19.5 4.2 16.7M7 19.5l2.8-2.8"/><path d="M17 19.5v-15M17 4.5l-2.8 2.8M17 4.5l2.8 2.8"/>
+{%- elif name == 'dots' -%}<circle cx="12" cy="5.2" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="18.8" r="1.4" fill="currentColor" stroke="none"/>
+{%- elif name == 'dotsh' -%}<circle cx="5.2" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="18.8" cy="12" r="1.4" fill="currentColor" stroke="none"/>
+{%- elif name == 'arw' -%}<path d="M4.5 12h14M13 6.5l5.5 5.5L13 17.5"/>
+{%- elif name == 'arwl' -%}<path d="M19.5 12h-14M11 6.5 5.5 12 11 17.5"/>
+{%- elif name == 'cv' -%}<path d="m6 9.5 6 6 6-6"/>
+{%- elif name == 'cl' -%}<path d="m14.5 6-6 6 6 6"/>
+{%- elif name == 'cr' -%}<path d="m9.5 6 6 6-6 6"/>
+{%- elif name == 'up' -%}<path d="M12 19V5M6 11l6-6 6 6"/>
+{%- elif name == 'dn' -%}<path d="M12 5v14M6 13l6 6 6-6"/>
+{%- elif name == 'revert' -%}<path d="M4 9h8a5 5 0 0 1 0 10H8"/><path d="M7.5 5.5 4 9l3.5 3.5"/>
+{%- elif name == 'pencil' -%}<path d="M4.5 19.5h4l10-10a2.1 2.1 0 0 0-3-3l-10 10z"/><path d="M14.5 6.5l3 3"/>
+{%- elif name == 'copy' -%}<rect x="9" y="9" width="11.5" height="11.5" rx="2.2"/><path d="M15 6.2V5.5a2 2 0 0 0-2-2H5.5a2 2 0 0 0-2 2V13a2 2 0 0 0 2 2h.7"/>
+{%- elif name == 'bulb' -%}<path d="M9.4 16.5a5.6 5.6 0 1 1 5.2 0v2a1.4 1.4 0 0 1-1.4 1.4h-2.4a1.4 1.4 0 0 1-1.4-1.4z"/><path d="M10 21.5h4"/>
+{%- elif name == 'chat' -%}<path d="M20.5 12.4c0 4-3.8 7.2-8.5 7.2a10 10 0 0 1-2.7-.4l-4.8 1.4 1.5-4a6.8 6.8 0 0 1-2-4.6c0-4 3.8-7.2 8.5-7.2s8 3.2 8 7.6z"/>
+{%- elif name == 'quote' -%}<path d="M9.5 6.5C6.8 7.7 5 10.2 5 13.4v4.1h4.8v-4.8H7.4c0-1.9.9-3.4 2.6-4.3z"/><path d="M18.5 6.5c-2.7 1.2-4.5 3.7-4.5 6.9v4.1h4.8v-4.8h-2.4c0-1.9.9-3.4 2.6-4.3z"/>
+{%- elif name == 'trophy' -%}<path d="M8 4.5h8v4a4 4 0 0 1-8 0z"/><path d="M8 5.5H5.2v1.6A3.2 3.2 0 0 0 8.4 10.3M16 5.5h2.8v1.6a3.2 3.2 0 0 1-3.2 3.2"/><path d="M12 12.5v3.6M8.6 20h6.8l-.6-3.9H9.2z"/>
+{%- elif name == 'gauge' -%}<path d="M4 18a8 8 0 1 1 16 0"/><path d="m12 18 4.2-5.2"/>
+{%- elif name == 'funnel' -%}<path d="M3.8 5h16.4l-6 7v7.5l-4.4-2.4V12z"/>
+{%- elif name == 'hash' -%}<path d="M9.2 4 7.6 20M16.4 4l-1.6 16M4.4 9h15.6M3.6 15h15.6"/>
+{%- elif name == 'shop' -%}<path d="M15.3 5.6c-.2-1.4-1-2.4-2.2-2.4-1 0-1.6.6-2 1.3-.4-.1-.8-.2-1.2-.2-1.6 0-2.5 1.3-2.8 3L5 8.1 4 20.8l8 2 8-2-1-12.7z"/>
+{%- elif name == 'play' -%}<circle cx="12" cy="12" r="8.5"/><path d="M10.2 8.8l5 3.2-5 3.2z"/>
+{%- elif name == 'palette' -%}<path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.4 0 2-1 2-1.8s-.6-1.7-.6-2.4c0-.8.6-1.3 1.5-1.3h1.4a3.8 3.8 0 0 0 3.7-3.8c0-4.2-3.8-7.7-8-7.7z"/><circle cx="8.4" cy="10.4" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.8" r="1.1" fill="currentColor" stroke="none"/>
+{%- elif name == 'db' -%}<ellipse cx="12" cy="6.4" rx="7.6" ry="3.2"/><path d="M4.4 6.4v11.2c0 1.8 3.4 3.2 7.6 3.2s7.6-1.4 7.6-3.2V6.4"/><path d="M4.4 12c0 1.8 3.4 3.2 7.6 3.2s7.6-1.4 7.6-3.2"/>
+{%- elif name == 'seat' -%}<path d="M6.5 10.5V7a2.5 2.5 0 0 1 5 0v3.5"/><rect x="4" y="10.5" width="16" height="9.5" rx="2.2"/><path d="M14.5 10.5V8.2a2 2 0 0 1 4 0v2.3"/>
+{%- elif name == 'org' -%}<rect x="3.5" y="4" width="10" height="16.5" rx="1.8"/><path d="M13.5 9.5h5.4a1.6 1.6 0 0 1 1.6 1.6v9.4"/><path d="M6.6 8h3.8M6.6 12h3.8M6.6 16h3.8M16.4 13.5h1.4M16.4 17h1.4"/>
+{%- elif name == 'stack' -%}<rect x="3.6" y="4" width="16.8" height="5" rx="1.6"/><rect x="3.6" y="11" width="16.8" height="5" rx="1.6"/><path d="M6 18.8h12"/>
+{%- elif name == 'leaf' -%}<path d="M19.5 4.5C11 4.5 5.5 8.5 5.5 15c0 1.6.4 3 1.1 4.2"/><path d="M4.5 20.5c9-1 14-5.5 15-16"/>
+{%- elif name == 'heart' -%}<path d="M12 20.2 5.4 13.8a4.3 4.3 0 0 1 6.6-5.4 4.3 4.3 0 0 1 6.6 5.4z"/>
+{%- elif name == 'mtn' -%}<path d="m3 19.5 6-11 4 6.5 2.5-4 5.5 8.5z"/>
+{%- elif name == 'nav' -%}<circle cx="12" cy="12" r="8.5"/><path d="m8.6 15.4 2.2-4.6 4.6-2.2-2.2 4.6z"/>
+{%- elif name == 'pkg' -%}<path d="m12 3.2 8 4v9.6l-8 4-8-4V7.2z"/><path d="M8 5.2l8 4v9.6"/>
+{%- elif name == 'cluster' -%}<circle cx="12" cy="5.5" r="2.4"/><circle cx="5.6" cy="17" r="2.4"/><circle cx="18.4" cy="17" r="2.4"/><path d="M10.4 7.5 7 14.8M13.6 7.5 17 14.8M8 17h8"/>
+{%- elif name == 'route' -%}<circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><path d="M8.4 6h5.1a2.5 2.5 0 0 1 0 5H10a2.5 2.5 0 0 0 0 5h5.6"/>
+{%- elif name == 'reload' -%}<path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M20.5 4.5V10H15"/>
+{%- elif name == 'slack' -%}<rect x="4" y="10" width="6" height="3" rx="1.5"/><rect x="11" y="4" width="3" height="6" rx="1.5"/><rect x="14" y="11" width="6" height="3" rx="1.5"/><rect x="10" y="14" width="3" height="6" rx="1.5"/>
+{%- elif name == 'phone' -%}<rect x="7" y="2.8" width="10" height="18.4" rx="2.4"/><path d="M10.8 18.6h2.4"/>
+{%- elif name == 'webhook' -%}<circle cx="12" cy="7" r="3"/><circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M10.6 9.6 7.5 14.6M13.4 9.6l3.1 5M9 17h6"/>
+{%- endif -%}
+</svg>{% endmacro %}
+
+
+{# ---------- brand marks (platforms, kept as flat type so nothing is faked) ---------- #}
+{% macro logomark(name) %}
+{%- if name == 'shopify' -%}<span style="color:#5A8E3F">shopify</span>
+{%- elif name == 'wix' -%}<span style="color:#0F1420">WiX</span>
+{%- elif name == 'webflow' -%}<span style="color:#4353FF">Webflow</span>
+{%- elif name == 'wordpress' -%}<span style="color:#21759B">WordPress</span>
+{%- elif name == 'bigcommerce' -%}<span style="color:#34313F">BIGCOMMERCE</span>
+{%- elif name == 'ga' -%}<span style="color:#E8710A">Google Analytics</span>
+{%- endif -%}
+{% endmacro %}
+
+
+{# ---------- numbers ---------- #}
+{% macro num(v, zero='0') %}{% if v is none %}<span class="zero">—</span>{% elif v is number %}{{ '{:,}'.format(v) }}{% else %}{{ v }}{% endif %}{% endmacro %}
+
+{% macro trend(v, unit='%', suffix='') %}
+{%- if v is not none and v != 0 -%}
+<span class="trend {{ 'up' if v > 0 else 'down' }}">
+  <svg viewBox="0 0 24 24">{% if v > 0 %}<path d="M12 19V5M6 11l6-6 6 6"/>{% else %}<path d="M12 5v14M6 13l6 6 6-6"/>{% endif %}</svg>
+  {{ '+' if v > 0 }}{{ v }}{{ unit }}</span>{{ suffix }}
+{%- endif -%}
+{% endmacro %}
+
+
+{# ---------- kpi card ----------
+   delta: a number (rendered as an arrow + %), or none.
+   note:  the grey line under it ("from last month").
+   dot:   a status word rendered with a green dot instead of a delta. #}
+{% macro kpi(name, tone, label, value, delta=none, unit='%', note='', dot='', big=false) %}
+<div class="kpi">
+  <div class="kpi-h"><span class="ci {{ tone }}">{{ icon(name) }}</span><span>{{ label }}</span></div>
+  <div class="kpi-v">{% if value is none %}<span class="zero">—</span>{% else %}{{ value }}{% endif %}</div>
+  {% if dot %}<div class="kpi-dot"><i></i>{{ dot }}</div>
+  {% elif delta is not none and delta != 0 %}<div class="kpi-d {{ 'up' if delta > 0 else 'down' }}">
+    <svg viewBox="0 0 24 24">{% if delta > 0 %}<path d="M12 19V5M6 11l6-6 6 6"/>{% else %}<path d="M12 5v14M6 13l6 6 6-6"/>{% endif %}</svg>
+    {{ '+' if delta > 0 }}{{ delta }}{{ unit }}{% if note %}<em>{{ note }}</em>{% endif %}</div>
+  {% elif note %}<div class="kpi-d"><em>{{ note }}</em></div>
+  {% endif %}
+</div>
+{% endmacro %}
+
+
+{# ---------- card header ---------- #}
+{% macro chead(name, tone, title, note='') %}
+<div class="chead"><div class="chead-l">
+  <span class="ci {{ tone }}">{{ icon(name) }}</span>
+  <h3>{{ title }}</h3>{% if note %}<span class="note">{{ note }}</span>{% endif %}
+</div>{{ caller() if caller is defined }}</div>
+{% endmacro %}
+
+{% macro viewall(href='#', label='View all') %}
+<a class="viewall" href="{{ href }}">{{ label }} {{ icon('arw') }}</a>
+{% endmacro %}
+
+
+{# ---------- score / state pills ---------- #}
+{% macro score(v) %}
+{%- if v is none -%}<span class="score n">—</span>
+{%- else -%}<span class="score {{ 'g' if v >= 80 else ('a' if v >= 60 else 'r') }}">{{ v }}</span>
+{%- endif -%}
+{% endmacro %}
+
+{% macro pill(label, tone='', dot=false) %}
+<span class="pill {{ tone }}">{% if dot %}<i></i>{% endif %}{{ label }}</span>
+{% endmacro %}
+
+
+{# ---------- line chart ----------
+   Expects a dict from charts.series(): w, h, pad, ticks[], xlabels[], lines[]
+   Each line: {name, colour, points[{x,y}], path, area}
+   Renders an empty grid with a centred note when there is no data. #}
+{% macro linechart(c, height=260) %}
+{% if c.lines and c.lines[0].points %}
+<svg class="chart" viewBox="0 0 {{ c.w }} {{ c.h }}" role="img">
+  <defs><linearGradient id="lg-{{ c.uid }}" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="{{ c.lines[0].colour }}" stop-opacity=".16"/>
+    <stop offset="100%" stop-color="{{ c.lines[0].colour }}" stop-opacity="0"/>
+  </linearGradient></defs>
+  {% for t in c.ticks %}
+    <line class="gl" x1="{{ c.pad_l }}" y1="{{ t.y }}" x2="{{ c.w - 8 }}" y2="{{ t.y }}"/>
+    <text class="ax" x="{{ c.pad_l - 11 }}" y="{{ t.y + 4 }}" text-anchor="end">{{ t.label }}</text>
+  {% endfor %}
+  {% if c.lines[0].area %}<path d="{{ c.lines[0].area }}" fill="url(#lg-{{ c.uid }})"/>{% endif %}
+  {% for ln in c.lines %}<path class="ln" d="{{ ln.path }}" stroke="{{ ln.colour }}"/>{% endfor %}
+  {% for ln in c.lines %}{% for p in ln.points %}
+    <circle class="dot" cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="{{ ln.colour }}"/>
+  {% endfor %}{% endfor %}
+  {% for x in c.xlabels %}
+    <text class="ax" x="{{ x.x }}" y="{{ c.h - 6 }}" text-anchor="middle">{{ x.label }}</text>
+  {% endfor %}
+</svg>
+{% else %}
+<div class="chartempty" style="height:{{ height }}px;display:grid;place-items:center;
+  border:1px dashed var(--line);border-radius:var(--r);background:var(--tint)">
+  <div style="text-align:center;max-width:34ch">
+    <div style="font-size:13.5px;font-weight:600;color:var(--ink-2)">No data yet</div>
+    <div style="font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.5">
+      This chart fills in once there is activity to plot.</div>
+  </div>
+</div>
+{% endif %}
+{% endmacro %}
+
+
+{# ---------- donut ---------- #}
+{% macro donut(d) %}
+<div class="dwrap">
+  <svg class="donut" width="{{ d.size }}" height="{{ d.size }}"
+       viewBox="0 0 {{ d.size }} {{ d.size }}" role="img">
+    <circle class="trk" cx="{{ d.c }}" cy="{{ d.c }}" r="{{ d.r }}" stroke-width="{{ d.stroke }}"/>
+    {% for p in d.parts %}
+    <circle cx="{{ d.c }}" cy="{{ d.c }}" r="{{ d.r }}" stroke="{{ p.colour }}"
+            stroke-width="{{ d.stroke }}" stroke-linecap="butt"
+            stroke-dasharray="{{ p.dash }} {{ d.circ }}" stroke-dashoffset="{{ p.offset }}"/>
+    {% endfor %}
+  </svg>
+  <span class="dmid"><b>{{ d.total }}</b><span>{{ d.label }}</span></span>
+</div>
+{% endmacro %}
+
+
+{# ---------- ring gauge ---------- #}
+{% macro gauge(g, vlabel='') %}
+<div class="dwrap">
+  <svg class="gauge gauge-{{ g.tone }}" width="{{ g.size }}" height="{{ g.size }}"
+       viewBox="0 0 {{ g.size }} {{ g.size }}" role="img">
+    <circle class="trk" cx="{{ g.c }}" cy="{{ g.c }}" r="{{ g.r }}" stroke-width="{{ g.stroke }}"/>
+    <circle class="arc" cx="{{ g.c }}" cy="{{ g.c }}" r="{{ g.r }}" stroke-width="{{ g.stroke }}"
+            stroke-linecap="round" stroke-dasharray="{{ g.dash }} {{ g.circ }}"/>
+  </svg>
+  <span class="dmid">
+    <b style="font-size:{{ g.fs }}px">{% if g.value is none %}—{% else %}{{ g.value }}{{ g.suffix }}{% endif %}</b>
+    {% if vlabel %}<span>{{ vlabel }}</span>{% endif %}
+  </span>
+</div>
+{% endmacro %}
+
+
+{# ---------- ranked list ----------
+   rows: [{title, sub, value, value2}] #}
+{% macro ranked(rows, empty='Nothing here yet.') %}
+{% if rows %}
+<ul class="rows">
+  {% for r in rows %}
+  <li><span class="rank">{{ loop.index }}</span>
+    <span class="m"><b>{{ r.title }}</b>{% if r.sub %}<span>{{ r.sub }}</span>{% endif %}</span>
+    <span class="v">{{ r.value }}{% if r.value2 %}<em>{{ r.value2 }}</em>{% endif %}</span></li>
+  {% endfor %}
+</ul>
+{% else %}<p style="font-size:13px;color:var(--muted);line-height:1.6">{{ empty }}</p>{% endif %}
+{% endmacro %}
+
+
+{# ---------- empty table body ---------- #}
+{% macro norows(cols, msg='No data yet.') %}
+<tr><td colspan="{{ cols }}" style="padding:34px 10px;text-align:center;color:var(--muted)">
+  {{ msg }}</td></tr>
+{% endmacro %}
+
+
+{# ---------- flow strip ---------- #}
+{% macro flow(steps) %}
+<div class="flow">
+  {% for s in steps %}
+  <div class="step">
+    <span class="ci {{ s.tone }}">{{ icon(s.icon) }}</span>
+    <b>{{ s.title }}</b><p>{{ s.body }}</p>
+  </div>
+  {% if not loop.last %}<div class="arw">{{ icon('arw') }}</div>{% endif %}
+  {% endfor %}
+</div>
+{% endmacro %}
