@@ -230,6 +230,7 @@ p { line-height: 1.6; }
 .billing-toggle button { padding: 9px 23px; border: 0; border-radius: 7px; background: transparent; cursor: pointer; font-weight: 750; font-size: 13px; }
 .billing-toggle button.active { color: #fff; background: var(--purple); }
 .billing-toggle span { padding: 0 12px; color: var(--purple); font-size: 11px; font-weight: 700; }
+.billing-note { width: fit-content; margin: 9px 0 0; color: var(--muted); font-size: 11px; }
 .pricing-trust { margin-top: 18px; display: flex; gap: 25px; color: var(--muted); font-size: 11px; }
 .pricing-trust span { display: inline-flex; align-items: center; gap: 6px; }
 .pricing-trust svg { color: var(--purple); }
@@ -452,6 +453,7 @@ p { line-height: 1.6; }
   .hero-copy > p, .pricing-hero-grid > div > p { margin-inline: auto; }
   .hero-actions, .hero-proof, .pricing-trust { justify-content: center; }
   .billing-toggle { margin-inline: auto; }
+  .billing-note { margin-inline: auto; text-align: center; }
   .hero-product, .pricing-product { max-width: 680px; margin: 30px auto 0; }
   .logo-row { flex-wrap: wrap; justify-content: center; }
   .capability-band { grid-template-columns: repeat(2,1fr); }
