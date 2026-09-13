@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   Bell,
   ChevronDown,
-  Clock3,
   Globe2,
   HelpCircle,
   History,
@@ -14,11 +13,11 @@ import {
   Plus,
   Search,
   Settings,
-  Sparkles,
   X
 } from "lucide-react";
 import { useState } from "react";
 import { Brand } from "./brand";
+import type { DashboardPage } from "@/lib/dashboard-pages";
 
 const nav = [
   { href: "/app", label: "Overview", icon: Home },
@@ -53,7 +52,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <header className="dashboard-topbar">
           <div className="dashboard-search"><Search size={17} /><input aria-label="Search" placeholder="Search projects, content, or insights…" /><kbd>⌘ K</kbd></div>
           <div className="dashboard-top-actions">
-            <button className="workspace-switch"><span className="workspace-mark"><Sparkles size={14} /></span>My workspace<ChevronDown size={15} /></button>
+            <button className="workspace-switch"><span className="workspace-mark">LV</span>LaunchVault.ca<ChevronDown size={15} /></button>
             <button className="icon-button" aria-label="Notifications"><Bell size={18} /></button>
             <button className="avatar-button">JD</button>
           </div>
@@ -67,42 +66,54 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 export function DashboardHeader({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
   return (
     <div className="dashboard-heading-row">
-      <div><span className="dashboard-eyebrow">{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>
-      <button className="button button--small"><Plus size={16} />New project</button>
+      <div><span className="dashboard-eyebrow">{eyebrow}</span><h1>{title}</h1><p>{description}</p><span className="preview-source"><span />Preview workspace · live sources not connected</span></div>
+      <button className="button button--small"><Plus size={16} />Project settings</button>
     </div>
   );
 }
 
-export function MetricCard({ label, icon: Icon }: { label: string; icon: typeof Search }) {
+export function MetricCard({ label, value, change, detail, icon: Icon, tone = "purple" }: DashboardPage["metrics"][number]) {
   return (
-    <article className="metric-card">
+    <article className={`metric-card metric-card--${tone}`}>
       <span className="metric-icon"><Icon size={20} /></span>
       <p>{label}</p>
-      <strong>—</strong>
-      <small><Clock3 size={12} />No data yet</small>
+      <strong>{value}</strong>
+      <small><span>↗</span>{change}<em>{detail}</em></small>
     </article>
   );
 }
 
-function EmptyChart() {
+function PreviewChart({ legend }: { legend?: string[] }) {
   return (
-    <div className="empty-chart-art" aria-hidden="true">
-      <div className="chart-grid-lines" />
-      <svg viewBox="0 0 700 190" preserveAspectRatio="none"><path d="M0 155 C90 150, 100 125, 180 130 S285 95, 350 112 S480 65, 540 82 S640 35, 700 44" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="7 9" /></svg>
+    <div className="preview-chart" aria-label="Illustrative trend chart">
+      <div className="preview-chart-legend">{legend?.map((label, index) => <span className={`chart-key chart-key--${index + 1}`} key={label}>{label}</span>)}</div>
+      <div className="preview-chart-art">
+        <div className="chart-grid-lines" />
+        <svg viewBox="0 0 700 190" preserveAspectRatio="none">
+          <defs><linearGradient id="chart-wash" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#5b45ef" stopOpacity=".22" /><stop offset="1" stopColor="#5b45ef" stopOpacity="0" /></linearGradient></defs>
+          <path d="M0 155 C78 150, 112 126, 178 132 S280 96, 350 111 S465 71, 541 84 S641 35, 700 46 L700 190 L0 190Z" fill="url(#chart-wash)" />
+          <path d="M0 155 C78 150, 112 126, 178 132 S280 96, 350 111 S465 71, 541 84 S641 35, 700 46" fill="none" stroke="#6047ff" strokeWidth="3" />
+          <path d="M0 166 C78 158, 112 149, 178 151 S280 130, 350 136 S465 111, 541 118 S641 82, 700 92" fill="none" stroke="#2f80ed" strokeWidth="2.5" />
+          <path d="M0 173 C78 167, 112 160, 178 166 S280 147, 350 150 S465 131, 541 137 S641 109, 700 116" fill="none" stroke="#20b878" strokeWidth="2.5" />
+        </svg>
+      </div>
+      <div className="chart-axis"><span>Apr 28</span><span>May 5</span><span>May 12</span><span>May 19</span><span>May 26</span></div>
     </div>
   );
 }
 
-export function EmptySection({ title, description, icon: Icon, kind = "feed" }: { title: string; description: string; icon: typeof Search; kind?: "chart" | "table" | "feed" | "flow" }) {
+function PreviewRows({ rows, compact = false }: { rows?: DashboardPage["sections"][number]["rows"]; compact?: boolean }) {
+  return <div className={compact ? "preview-table-body" : "preview-feed"}>{rows?.map((row) => <article className="preview-row" key={row.title}><span className={`row-mark row-mark--${row.tone ?? "purple"}`} /><div><strong>{row.title}</strong><small>{row.meta}</small></div><span className={`status-pill status-pill--${row.tone ?? "purple"}`}>{row.status}</span></article>)}</div>;
+}
+
+export function EmptySection({ title, description, icon: Icon, kind, legend, rows, columns, steps }: DashboardPage["sections"][number]) {
   return (
     <section className={`dashboard-panel dashboard-panel--${kind}`}>
-      <div className="panel-heading"><div><span className="panel-icon"><Icon size={18} /></span><h2>{title}</h2></div><button>View details</button></div>
-      {kind === "chart" && <EmptyChart />}
-      {kind === "flow" && <div className="empty-flow">{["Connect", "Discover", "Review", "Publish"].map((step, index) => <div key={step}><span>{index + 1}</span><strong>{step}</strong></div>)}</div>}
-      {kind === "table" && <div className="empty-table"><div className="empty-table-head"><span>Title</span><span>Status</span><span>Updated</span></div><div className="empty-table"><span className="empty-orb"><Icon size={22} /></span><strong>No items yet</strong><p>{description}</p><button className="secondary-button">Get started</button></div></div>}
-      {kind === "feed" && <div className="empty-message"><span className="empty-orb"><Icon size={22} /></span><strong>Nothing here yet</strong><p>{description}</p></div>}
-      {kind === "chart" && <div className="chart-empty-label"><strong>Waiting for your first data point</strong><span>{description}</span></div>}
-      {kind === "flow" && <p className="flow-description">{description}</p>}
+      <div className="panel-heading"><div><span className="panel-icon"><Icon size={18} /></span><h2>{title}</h2></div><span className="panel-meta">Preview data</span></div>
+      {kind === "chart" && <><PreviewChart legend={legend} /><p className="panel-description">{description}</p></>}
+      {kind === "flow" && <><div className="empty-flow">{steps?.map((step, index) => <div key={step.label}><span>{index + 1}</span><strong>{step.label}</strong><small>{step.copy}</small></div>)}</div><p className="flow-description">{description}</p></>}
+      {kind === "table" && <div className="preview-table"><div className="empty-table-head"><span>{columns?.[0]}</span><span>{columns?.[1]}</span><span>{columns?.[2]}</span></div><PreviewRows rows={rows} compact /></div>}
+      {kind === "feed" && <PreviewRows rows={rows} />}
     </section>
   );
 }

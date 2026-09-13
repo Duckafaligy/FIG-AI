@@ -24,6 +24,7 @@ import { Faq } from "@/components/faq";
 import { Footer } from "@/components/footer";
 import { ProductLaptop } from "@/components/product-laptop";
 import { PublicNav } from "@/components/public-nav";
+import { PlatformLogos } from "@/components/platform-logos";
 
 const features = [
   { icon: PenLine, title: "AI-assisted planning", copy: "Turn ideas into structured, on-brand content briefs and outlines." },
@@ -73,7 +74,7 @@ export default function HomePage() {
 
         <section className="integrations page-shell" aria-label="Planned integrations">
           <span className="section-kicker">Connect with the platforms your team already uses</span>
-          <div className="logo-row"><strong><i className="shopify-glyph">S</i>shopify</strong><strong>WIX</strong><strong><i className="webflow-glyph">W</i>Webflow</strong><strong>ⓦ WordPress</strong><strong>BIGCOMMERCE</strong><strong><i className="analytics-glyph">▥</i>Google Analytics</strong></div>
+          <PlatformLogos />
         </section>
 
         <section className="capability-band page-shell">
@@ -96,27 +97,6 @@ export default function HomePage() {
           <div className="page-shell showcase-grid">
             <div className="showcase-copy"><span className="section-kicker">The platform</span><h2>A modern workspace for high-performing content</h2><p>Every important task is visible, actionable, and connected to the bigger picture.</p><Link href="/app">See the product demo <ArrowRight size={16} /></Link></div>
             <div className="showcase-window"><div className="showcase-window-bar"><i /><i /><i /></div><ProductLaptop compact /></div>
-          </div>
-        </section>
-
-        <section className="section editorial-section">
-          <div className="page-shell editorial-grid">
-            <div className="editorial-photo-frame">
-              <Image src="/images/fig-editorial-studio-web.png" width={1600} height={900} alt="Content strategist reviewing work at a studio table" priority={false} />
-              <div className="editorial-photo-shade" />
-              <div className="editorial-photo-label"><span className="editorial-dot" />A calmer content operation</div>
-              <div className="editorial-quote">“The work matters.<br />The system should help.”</div>
-            </div>
-            <div className="editorial-copy">
-              <span className="section-kicker">Built around real work</span>
-              <h2>Make room for better decisions—not more busywork.</h2>
-              <p>FIG gives your team a shared home for strategy, content context, review, and what to do next. The result is a clearer process before any dashboard needs to show a number.</p>
-              <div className="editorial-points">
-                <article><span><PenLine size={17} /></span><div><strong>Start with the brief</strong><p>Keep the intent, audience, and search opportunity close to the work.</p></div></article>
-                <article><span><Users size={17} /></span><div><strong>Review in one place</strong><p>Make ownership and approval visible before anything is published.</p></div></article>
-                <article><span><BarChart3 size={17} /></span><div><strong>Let the evidence arrive</strong><p>When data connects, FIG fills in the story without pretending it exists first.</p></div></article>
-              </div>
-            </div>
           </div>
         </section>
 

@@ -1,6 +1,13 @@
 import { BarChart3, FileText, Home, Search, Sparkles } from "lucide-react";
 
 export function ProductLaptop({ compact = false }: { compact?: boolean }) {
+  const metrics = [
+    ["Published lessons", "1,500", "+12"],
+    ["SEO health", "82", "+4 pts"],
+    ["AI visibility", "42%", "+8%"],
+    ["Organic traffic", "18.4K", "+18.7%"]
+  ];
+
   return (
     <div className={`laptop ${compact ? "laptop--compact" : ""}`} aria-label="FIG dashboard preview">
       <div className="laptop-lid">
@@ -14,22 +21,22 @@ export function ProductLaptop({ compact = false }: { compact?: boolean }) {
             <span><BarChart3 size={11} />Analytics</span>
           </aside>
           <div className="mini-app">
-            <div className="mini-top"><span>Good morning</span><i>+ New content</i></div>
+            <div className="mini-top"><span>LaunchVault.ca</span><i>+ New content</i></div>
             <div className="mini-kpis">
-              {["Total content", "SEO health", "AI visibility", "Organic traffic"].map((label) => (
-                <div key={label}><small>{label}</small><strong>—</strong><em>Awaiting data</em></div>
+              {metrics.map(([label, value, detail]) => (
+                <div key={label}><small>{label}</small><strong>{value}</strong><em>{detail}</em></div>
               ))}
             </div>
             <div className="mini-content-grid">
               <div className="mini-chart">
                 <div className="mini-panel-title">Content performance</div>
-                <div className="mini-chart-empty"><Sparkles size={16} /><span>Connect data to begin</span></div>
+                <div className="mini-chart-preview"><svg viewBox="0 0 160 64" preserveAspectRatio="none"><path d="M0 52 C20 49 27 40 43 44 S70 26 88 31 S118 17 135 23 S151 9 160 12" fill="none" stroke="#6448ff" strokeWidth="3" /><path d="M0 59 C19 57 28 53 43 54 S70 42 88 45 S118 32 135 36 S151 23 160 27" fill="none" stroke="#2f80ed" strokeWidth="2.5" /></svg><span>Preview trend</span></div>
               </div>
               <div className="mini-opportunities">
                 <div className="mini-panel-title">Next steps</div>
-                <span><Search size={11} />Connect your site</span>
-                <span><FileText size={11} />Create your first project</span>
-                <span><Sparkles size={11} />Run a content audit</span>
+                <span><Search size={11} />Review AI agents guide</span>
+                <span><FileText size={11} />Refresh RAG explainer</span>
+                <span><Sparkles size={11} />Publish prompt playbook</span>
               </div>
             </div>
           </div>
