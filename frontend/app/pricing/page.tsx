@@ -38,7 +38,7 @@ export default function PricingPage() {
         <section className="pricing-hero section-glow">
           <div className="page-shell pricing-hero-grid">
             <div><span className="section-kicker">Pricing</span><h1>Simple, transparent pricing for teams that create content that <span>gets found</span></h1><p>Choose the plan that fits your team. Every plan begins with the same calm, connected FIG workflow.</p><div className="billing-toggle" aria-label="Billing cycle"><button className={!annual ? "active" : ""} onClick={() => setBillingCycle("monthly")} aria-pressed={!annual}>Monthly</button><button className={annual ? "active" : ""} onClick={() => setBillingCycle("yearly")} aria-pressed={annual}>Yearly</button><span>Save up to 20%</span></div><p className="billing-note">{annual ? "Annual preview — shown as a monthly equivalent, billed yearly." : "Monthly preview — payment setup arrives with the backend phase."}</p><div className="pricing-trust"><span><Check size={15} />No credit card required</span><span><Check size={15} />Change plans anytime</span></div></div>
-            <div className="pricing-product"><ProductLaptop compact /><span className="scribble-note">Turn ideas into measurable work</span></div>
+            <div className="pricing-product"><ProductLaptop compact variant="overview" /><span className="scribble-note">Turn ideas into measurable work</span></div>
           </div>
         </section>
 

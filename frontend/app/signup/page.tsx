@@ -14,7 +14,7 @@ export default function SignUpPage() {
           { icon: BarChart3, title: "Optimize every surface", copy: "Prepare for SEO and GEO." },
           { icon: Share2, title: "Publish with confidence", copy: "Move through clear reviews." },
           { icon: Search, title: "Get found everywhere", copy: "Improve discoverability." }
-        ].map(({ icon: Icon, title, copy }) => <div key={title}><span><Icon /></span><h3>{title}</h3><p>{copy}</p></div>)}</div><div className="signup-laptop"><ProductLaptop compact /><span className="scribble-note">From idea to impact</span></div></section>
+        ].map(({ icon: Icon, title, copy }) => <div key={title}><span><Icon /></span><h3>{title}</h3><p>{copy}</p></div>)}</div><div className="signup-laptop"><ProductLaptop compact variant="queue" /><span className="scribble-note">From idea to impact</span></div></section>
         <div className="auth-card signup-card"><AuthForm mode="signup" /></div>
       </main>
       <section className="signup-trust"><div className="page-shell"><span className="section-kicker">A complete content operations platform</span><div>{[

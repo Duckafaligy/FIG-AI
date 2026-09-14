@@ -16,7 +16,6 @@ export function PublicNav({ active }: { active?: "pricing" }) {
           {open ? <X size={22} /> : <Menu size={22} />}
         </button>
         <div className={`public-nav-links ${open ? "is-open" : ""}`}>
-          <Link href="/#product">Product</Link>
           <Link href="/pricing" className={active === "pricing" ? "is-active" : ""}>Pricing</Link>
           <Link href="/app">Demo</Link>
           <Link href="/signin">Sign in</Link>

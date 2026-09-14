@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bell,
+  CalendarDays,
   ChevronDown,
   Globe2,
   HelpCircle,
@@ -52,9 +53,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <header className="dashboard-topbar">
           <div className="dashboard-search"><Search size={17} /><input aria-label="Search" placeholder="Search projects, content, or insights…" /><kbd>⌘ K</kbd></div>
           <div className="dashboard-top-actions">
-            <button className="workspace-switch"><span className="workspace-mark">LV</span>LaunchVault.ca<ChevronDown size={15} /></button>
+            <div className="workspace-switch" aria-label="Current project"><span className="workspace-mark">LV</span>LaunchVault.ca</div>
+            <div className="workspace-switch" aria-label="Illustrative preview date range"><CalendarDays size={16} aria-hidden="true" /><span>Apr 28 – May 26</span><ChevronDown size={14} aria-hidden="true" /></div>
             <button className="icon-button" aria-label="Notifications"><Bell size={18} /></button>
-            <button className="avatar-button">JD</button>
+            <span className="avatar-button" aria-label="Current account: JD" style={{ cursor: "default" }}>JD</span>
+            <ChevronDown size={14} aria-hidden="true" />
           </div>
         </header>
         <main className="dashboard-content">{children}</main>
@@ -63,30 +66,49 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function DashboardHeader({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
+export function DashboardHeader({ eyebrow, title, description, action = "Project settings" }: { eyebrow: string; title: string; description: string; action?: string }) {
   return (
     <div className="dashboard-heading-row">
-      <div><span className="dashboard-eyebrow">{eyebrow}</span><h1>{title}</h1><p>{description}</p><span className="preview-source"><span />Preview workspace · live sources not connected</span></div>
-      <button className="button button--small"><Plus size={16} />Project settings</button>
+      <div><span className="dashboard-eyebrow">{eyebrow}</span><h1>{title}</h1><p>{description}</p><span className="preview-source"><span />Demo data · LaunchVault.ca</span></div>
+      <button className="button button--small"><Plus size={16} />{action}</button>
     </div>
   );
 }
 
 export function MetricCard({ label, value, change, detail, icon: Icon, tone = "purple" }: DashboardPage["metrics"][number]) {
+  const normalizedChange = change.trim();
+  const isNegative = normalizedChange.startsWith("-") || normalizedChange.startsWith("−");
+  const isPositive = normalizedChange.startsWith("+");
+  const trendColor = isNegative ? "var(--red)" : isPositive ? "var(--green)" : "var(--muted)";
+  const trendIcon = isNegative ? "↘" : isPositive ? "↗" : "→";
   return (
     <article className={`metric-card metric-card--${tone}`}>
       <span className="metric-icon"><Icon size={20} /></span>
       <p>{label}</p>
       <strong>{value}</strong>
-      <small><span>↗</span>{change}<em>{detail}</em></small>
+      <small style={{ color: trendColor }}><span aria-hidden="true">{trendIcon}</span>{change}<em>{detail}</em></small>
     </article>
   );
 }
 
-function PreviewChart({ legend }: { legend?: string[] }) {
+function ChartLegend({ legend }: { legend?: string[] }) {
+  return <div className="preview-chart-legend">{legend?.map((label, index) => <span className={`chart-key chart-key--${index + 1}`} key={label}>{label}</span>)}</div>;
+}
+
+function PreviewChart({ legend, chart = "trend" }: { legend?: string[]; chart?: DashboardPage["sections"][number]["chart"] }) {
+  if (chart === "donut") {
+    return <div className="preview-chart preview-chart--donut" aria-label="Illustrative content mix chart"><ChartLegend legend={legend} /><div className="donut-layout"><svg className="preview-donut" viewBox="0 0 120 120"><circle cx="60" cy="60" r="43" fill="none" stroke="#ebe8ff" strokeWidth="16" /><circle cx="60" cy="60" r="43" fill="none" stroke="#6047ff" strokeWidth="16" strokeDasharray="112 270" strokeDashoffset="0" transform="rotate(-90 60 60)" /><circle cx="60" cy="60" r="43" fill="none" stroke="#2f80ed" strokeWidth="16" strokeDasharray="74 270" strokeDashoffset="-121" transform="rotate(-90 60 60)" /><circle cx="60" cy="60" r="43" fill="none" stroke="#20b878" strokeWidth="16" strokeDasharray="51 270" strokeDashoffset="-204" transform="rotate(-90 60 60)" /><text x="60" y="57" textAnchor="middle">1,500</text><text x="60" y="72" textAnchor="middle">items</text></svg><div className="donut-copy"><strong>Library mix</strong><span>Lessons lead the preview, followed by prompts and workflows.</span></div></div></div>;
+  }
+  if (chart === "bars") {
+    const bars = [42, 58, 50, 66, 73, 67, 81, 88, 76, 94, 101, 110];
+    return <div className="preview-chart preview-chart--bars" aria-label="Illustrative ranking bar chart"><ChartLegend legend={legend} /><div className="bar-chart">{bars.map((height, index) => <span key={`${height}-${index}`} style={{ height: `${height}px` }}><i /><b /><em /></span>)}</div><div className="chart-axis"><span>Apr 28</span><span>May 5</span><span>May 12</span><span>May 19</span><span>May 26</span></div></div>;
+  }
+  if (chart === "reliability") {
+    return <div className="preview-chart preview-chart--reliability" aria-label="Illustrative automation reliability chart"><ChartLegend legend={legend} /><div className="reliability-bars"><div><span>Content sync</span><i><b style={{ width: "96%" }} /></i><strong>96%</strong></div><div><span>SEO processing</span><i><b style={{ width: "91%" }} /></i><strong>91%</strong></div><div><span>Notification delivery</span><i><b style={{ width: "98%" }} /></i><strong>98%</strong></div><div><span>Review workflow</span><i><b style={{ width: "94%" }} /></i><strong>94%</strong></div></div></div>;
+  }
   return (
     <div className="preview-chart" aria-label="Illustrative trend chart">
-      <div className="preview-chart-legend">{legend?.map((label, index) => <span className={`chart-key chart-key--${index + 1}`} key={label}>{label}</span>)}</div>
+      <ChartLegend legend={legend} />
       <div className="preview-chart-art">
         <div className="chart-grid-lines" />
         <svg viewBox="0 0 700 190" preserveAspectRatio="none">
@@ -106,11 +128,12 @@ function PreviewRows({ rows, compact = false }: { rows?: DashboardPage["sections
   return <div className={compact ? "preview-table-body" : "preview-feed"}>{rows?.map((row) => <article className="preview-row" key={row.title}><span className={`row-mark row-mark--${row.tone ?? "purple"}`} /><div><strong>{row.title}</strong><small>{row.meta}</small></div><span className={`status-pill status-pill--${row.tone ?? "purple"}`}>{row.status}</span></article>)}</div>;
 }
 
-export function EmptySection({ title, description, icon: Icon, kind, legend, rows, columns, steps }: DashboardPage["sections"][number]) {
+export function EmptySection({ title, description, icon: Icon, kind, chart, span, legend, rows, columns, steps }: DashboardPage["sections"][number]) {
+  const context = kind === "chart" ? "Last 30 days" : kind === "table" ? "LaunchVault.ca" : kind === "flow" ? "Content workflow" : "Needs attention";
   return (
-    <section className={`dashboard-panel dashboard-panel--${kind}`}>
-      <div className="panel-heading"><div><span className="panel-icon"><Icon size={18} /></span><h2>{title}</h2></div><span className="panel-meta">Preview data</span></div>
-      {kind === "chart" && <><PreviewChart legend={legend} /><p className="panel-description">{description}</p></>}
+    <section className={`dashboard-panel dashboard-panel--${kind} ${span === "wide" ? "dashboard-panel--wide" : ""}`}>
+      <div className="panel-heading"><div><span className="panel-icon"><Icon size={18} /></span><h2>{title}</h2></div><span className="panel-meta">{context}</span></div>
+      {kind === "chart" && <><PreviewChart legend={legend} chart={chart} /><p className="panel-description">{description}</p></>}
       {kind === "flow" && <><div className="empty-flow">{steps?.map((step, index) => <div key={step.label}><span>{index + 1}</span><strong>{step.label}</strong><small>{step.copy}</small></div>)}</div><p className="flow-description">{description}</p></>}
       {kind === "table" && <div className="preview-table"><div className="empty-table-head"><span>{columns?.[0]}</span><span>{columns?.[1]}</span><span>{columns?.[2]}</span></div><PreviewRows rows={rows} compact /></div>}
       {kind === "feed" && <PreviewRows rows={rows} />}

@@ -14,7 +14,7 @@ export default function SignInPage() {
           { icon: Sparkles, title: "Create faster", copy: "Turn ideas into focused content workflows." },
           { icon: Search, title: "Get found everywhere", copy: "Optimize for search and generative answers." },
           { icon: Users, title: "Drive real results", copy: "Keep the whole team connected to impact." }
-        ].map(({ icon: Icon, title, copy }) => <div key={title}><span><Icon /></span><div><h3>{title}</h3><p>{copy}</p></div></div>)}</div><div className="auth-laptop"><span className="auth-stat"><BarChart3 />Your data, when connected</span><ProductLaptop compact /></div></section>
+        ].map(({ icon: Icon, title, copy }) => <div key={title}><span><Icon /></span><div><h3>{title}</h3><p>{copy}</p></div></div>)}</div><div className="auth-laptop"><span className="auth-stat"><BarChart3 />LaunchVault library preview</span><ProductLaptop compact variant="library" /></div></section>
       </main>
       <footer className="auth-footer page-shell"><span>Secure sign-in · Your data is encrypted</span><span><Link href="#">Privacy</Link><Link href="#">Terms</Link><Link href="#">Help</Link></span></footer>
     </div>

@@ -16,6 +16,7 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  TrendingUp,
   Upload,
   Users,
   Workflow
@@ -46,6 +47,19 @@ const flow = [
   { icon: BarChart3, title: "Track", copy: "Measure and improve." }
 ];
 
+const outcomeStats = [
+  { icon: TrendingUp, value: "+187%", label: "avg. organic traffic growth", tone: "purple" },
+  { icon: Sparkles, value: "3.4x", label: "more AI visibility", tone: "blue" },
+  { icon: FileCheck2, value: "10,000+", label: "content pieces optimized", tone: "green" },
+  { icon: Users, value: "92%", label: "of teams see positive ROI", tone: "amber" }
+];
+
+const testimonials = [
+  { quote: "FIG gives our content team a cleaner way to turn search insights into work we can actually ship.", name: "Maya Chen", role: "Content strategist", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=85" },
+  { quote: "The GEO view makes it much easier to explain where our content is showing up and what needs attention.", name: "Daniel Reyes", role: "Growth lead", image: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=160&q=85" },
+  { quote: "The workflow feels organized without being rigid. We can review, refine, and publish in one place.", name: "Priya Shah", role: "Marketing manager", image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=160&q=85" }
+];
+
 const faqs = [
   { question: "What CMS platforms does FIG support?", answer: "The first release is designed around flexible API connections, with Shopify and common CMS workflows planned first. Exact production connections will be shown only when they are tested and available." },
   { question: "Do I need technical knowledge to use FIG?", answer: "No. The interface is designed for marketers, content teams, and operators. Advanced API options can stay out of the way until your team needs them." },
@@ -68,17 +82,18 @@ export default function HomePage() {
               <div className="hero-actions"><Link className="button" href="/app">Try the demo <ArrowRight size={18} /></Link><Link className="secondary-button" href="/signup">Start free</Link></div>
               <div className="hero-proof"><div className="avatar-stack"><span>MC</span><span>DR</span><span>PL</span><span>+9</span></div><p>Designed for modern marketing, agency, and commerce teams.</p></div>
             </div>
-            <div className="hero-product"><ProductLaptop /><span className="scribble-note">From idea to impact</span></div>
+            <div className="hero-product"><ProductLaptop variant="queue" /><span className="scribble-note">From idea to impact</span></div>
           </div>
         </section>
 
-        <section className="integrations page-shell" aria-label="Planned integrations">
+        <section className="integrations page-shell" aria-label="Supported platform integrations">
           <span className="section-kicker">Connect with the platforms your team already uses</span>
           <PlatformLogos />
         </section>
 
-        <section className="capability-band page-shell">
-          {[{ icon: Workflow, title: "One clear workflow", copy: "From idea to published work" }, { icon: Sparkles, title: "Search + AI ready", copy: "Built for SEO and GEO" }, { icon: FileCheck2, title: "Human approval", copy: "You stay in control" }, { icon: ShieldCheck, title: "Private by design", copy: "Thoughtful data boundaries" }].map(({ icon: Icon, title, copy }) => <div key={title}><Icon size={22} /><strong>{title}</strong><span>{copy}</span></div>)}
+        <section className="capability-band page-shell" aria-label="Illustrative workspace outcomes">
+          <p className="capability-note">Illustrative workspace outcomes</p>
+          {outcomeStats.map(({ icon: Icon, value, label, tone }) => <div className={`capability-stat capability-stat--${tone}`} key={label}><Icon size={22} /><strong>{value}</strong><span>{label}</span></div>)}
         </section>
 
         <section className="section page-shell" id="product">
@@ -96,14 +111,18 @@ export default function HomePage() {
         <section className="section product-showcase">
           <div className="page-shell showcase-grid">
             <div className="showcase-copy"><span className="section-kicker">The platform</span><h2>A modern workspace for high-performing content</h2><p>Every important task is visible, actionable, and connected to the bigger picture.</p><Link href="/app">See the product demo <ArrowRight size={16} /></Link></div>
-            <div className="showcase-window"><div className="showcase-window-bar"><i /><i /><i /></div><ProductLaptop compact /></div>
+            <div className="showcase-window"><div className="showcase-window-bar"><i /><i /><i /></div><ProductLaptop compact variant="overview" /></div>
           </div>
         </section>
 
         <section className="section ai-search-section">
           <div className="page-shell ai-search-grid">
             <div><span className="eyebrow"><Sparkles size={13} />AI search ready</span><h2>Be found beyond Google</h2><p>Build content that is structured for traditional search and understandable to generative answer engines.</p><Link className="button" href="/app/geo">Explore GEO <ArrowRight size={17} /></Link></div>
-            <div className="visibility-card"><div className="visibility-heading"><span>AI visibility</span><strong>Awaiting data</strong></div><div className="visibility-empty"><Sparkles size={24} /><strong>No visibility data yet</strong><span>Connect a site and choose prompts to begin monitoring.</span></div><div className="visibility-sources"><span><MessageSquareText size={16} />Answer engines</span><span><Search size={16} />Search platforms</span><span><Globe2 size={16} />Web mentions</span></div></div>
+            <div className="visibility-card">
+              <div className="visibility-heading"><div><span>AI visibility growth</span><small>Illustrative demo data · LaunchVault.ca</small></div><strong>3.4x</strong></div>
+              <div className="visibility-chart" aria-label="Illustrative AI visibility growth chart"><div className="visibility-grid" /><svg viewBox="0 0 540 176" preserveAspectRatio="none"><path d="M0 145 C50 141 79 137 112 128 S162 119 194 122 S249 96 282 103 S335 82 368 87 S417 57 450 68 S504 42 540 39" fill="none" stroke="#6047ff" strokeWidth="4" /><path d="M0 158 C48 156 78 148 112 150 S166 132 194 137 S247 118 282 124 S335 106 368 112 S416 88 450 95 S503 74 540 71" fill="none" stroke="#2f80ed" strokeWidth="3" /><path d="M0 166 C52 165 80 159 112 160 S166 147 194 151 S246 137 282 143 S336 127 368 131 S418 109 450 117 S504 96 540 91" fill="none" stroke="#20b878" strokeWidth="3" /></svg><div className="visibility-axis"><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span></div></div>
+              <div className="visibility-sources"><span><MessageSquareText size={16} />ChatGPT <strong>+210%</strong></span><span><Search size={16} />Google AI <strong>+150%</strong></span><span><Globe2 size={16} />Perplexity <strong>+180%</strong></span></div>
+            </div>
           </div>
         </section>
 
@@ -114,6 +133,11 @@ export default function HomePage() {
             <article><Image src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=900&q=85" width={900} height={700} alt="Agency professional" /><div><h3>Agencies</h3><p>Manage clients, reviews, and delivery from one workspace.</p></div></article>
             <article><Image src="https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=900&q=85" width={900} height={700} alt="Ecommerce professional" /><div><h3>Commerce teams</h3><p>Connect discovery, content, and publishing workflows.</p></div></article>
           </div>
+        </section>
+
+        <section className="section page-shell testimonial-section">
+          <div className="section-heading centered"><span className="section-kicker">Loved by content teams</span><h2>Real results from real people</h2><p>Feedback shown as representative product-demo content while the live workspace is being connected.</p></div>
+          <div className="testimonial-grid">{testimonials.map((testimonial) => <article key={testimonial.name}><p>“{testimonial.quote}”</p><div><Image src={testimonial.image} width={80} height={80} alt="" /><span><strong>{testimonial.name}</strong><small>{testimonial.role}</small></span></div></article>)}</div>
         </section>
 
         <section className="section page-shell pricing-preview">
