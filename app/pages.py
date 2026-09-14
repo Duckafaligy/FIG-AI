@@ -1,4 +1,10 @@
-"""One function per page, each returning exactly what its template renders.
+"""One function per workspace surface, each returning exactly what that
+surface needs as JSON.
+
+These used to feed Jinja templates. The frontend is now a separate Next.js app
+in `frontend/`, so the payloads are serialised straight to JSON by
+`app/webapp.py` — which is why `_chrome` returns plain dicts rather than
+SQLAlchemy objects.
 
 Everything here is a real query against the Supabase Postgres the rest of the
 app already uses. The workspace these pages resolve to is empty, so the
@@ -129,16 +135,31 @@ def _chrome(session: Session, account: Account, page: str,
     sites = sites_of(session, account)
     unread = notification_count(session, account)
     end = _now()
+    chosen = site or (sites[0] if sites else None)
     return {
-        "account": account,
+        "account": {
+            "id": account.id, "name": account.name, "slug": account.slug,
+            "kind": account.kind, "white_label": account.white_label,
+            "on_trial": account.on_trial(),
+            "trial_days_left": account.trial_days_left(),
+        },
         "page": page,
-        "sites": sites,
-        "site": site or (sites[0] if sites else None),
+        "projects": [{"id": s.id, "hostname": s.hostname,
+                      "name": s.client_name or s.label or s.hostname}
+                     for s in sites],
+        "project": ({"id": chosen.id, "hostname": chosen.hostname,
+                     "name": chosen.client_name or chosen.label or chosen.hostname}
+                    if chosen else None),
         "alerts": unread,
         "range_label": (f"{(end - timedelta(days=13)).strftime('%b')} "
                         f"{(end - timedelta(days=13)).day}, {end.year} – "
                         f"{end.strftime('%b')} {end.day}, {end.year}"),
         "initials": "".join(w[0] for w in account.name.split()[:2]).upper() or "W",
+        # The ORM objects the page functions still need internally. Stripped
+        # before the payload leaves `webapp.py`.
+        "_sites": sites,
+        "_site": chosen,
+        "_account": account,
     }
 
 
@@ -169,7 +190,7 @@ def notification_count(session: Session, account: Account) -> int:
 
 def projects(session: Session, account: Account) -> dict:
     ctx = _chrome(session, account, "projects")
-    sites = ctx["sites"]
+    sites = ctx["_sites"]
     latest = _latest_scans(session, sites)
 
     cards = []
@@ -423,7 +444,7 @@ def _activity(session: Session, account: Account, limit: int = 8) -> list[dict]:
 
 def overview(session: Session, account: Account, site: Site | None) -> dict:
     ctx = _chrome(session, account, "overview", site)
-    site = ctx["site"]
+    site = ctx["_site"]
     if site is None:
         ctx.update(_blank_overview())
         return ctx
@@ -643,7 +664,7 @@ def _site_activity(session: Session, site: Site) -> list[dict]:
 def seo(session: Session, account: Account, site: Site | None,
         tab: str = "queue") -> dict:
     ctx = _chrome(session, account, "seo", site)
-    site = ctx["site"]
+    site = ctx["_site"]
     if site is None:
         # Same reasoning as _blank_overview: render the real layout at zero.
         ctx.update({
@@ -761,7 +782,7 @@ def geo(session: Session, account: Account, site: Site | None) -> dict:
     """Almost every number on this page comes from the model-visibility crawl,
     which is not built. They are unknown, not zero, and the page says so."""
     ctx = _chrome(session, account, "geo", site)
-    site = ctx["site"]
+    site = ctx["_site"]
 
     latest = None
     if site is not None:
@@ -770,7 +791,7 @@ def geo(session: Session, account: Account, site: Site | None) -> dict:
             .order_by(Scan.finished_at.desc()).limit(1)).first()
 
     fill = demo.is_demo(account)
-    ids = [s.id for s in ctx["sites"]]
+    ids = [s.id for s in ctx["_sites"]]
     days = 30
     labels = demo.day_labels(days) if fill else []
 
@@ -841,7 +862,7 @@ def geo(session: Session, account: Account, site: Site | None) -> dict:
 
 def notifications(session: Session, account: Account) -> dict:
     ctx = _chrome(session, account, "notifications")
-    sites = ctx["sites"]
+    sites = ctx["_sites"]
     ids = [s.id for s in sites]
     names = {s.id: (s.client_name or s.hostname) for s in sites}
 
@@ -983,7 +1004,7 @@ def notifications(session: Session, account: Account) -> dict:
 
 def history(session: Session, account: Account) -> dict:
     ctx = _chrome(session, account, "history")
-    sites = ctx["sites"]
+    sites = ctx["_sites"]
     ids = [s.id for s in sites]
     names = {s.id: (s.client_name or s.hostname) for s in sites}
 
@@ -1092,7 +1113,7 @@ def _actors(log: list[dict]) -> list[dict]:
 
 def settings(session: Session, account: Account) -> dict:
     ctx = _chrome(session, account, "settings")
-    sites = ctx["sites"]
+    sites = ctx["_sites"]
 
     users = list(session.scalars(
         select(User).where(User.account_id == account.id)).all())

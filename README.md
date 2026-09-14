@@ -12,6 +12,23 @@ Reads a website for four things and says what to change about each:
 Findings are always probabilistic and educational. Nothing in here says a page
 "is" AI-written — see the rule that shapes the whole project in `CLAUDE.md`.
 
+## Two processes
+
+```
+frontend/   Next.js 16, the UI          npm run dev -- --port 3001
+app/        FastAPI, JSON only          uvicorn app.main:app --port 8000
+```
+
+The backend renders no HTML. `/api` is the workspace API the frontend reads
+(session cookie, one endpoint per surface); `/v1` is the partner API (API key,
+versioned, for resellers). `FIG_DEV_NO_AUTH=1` resolves every `/api` request to
+the seeded demo workspace so the frontend has data without a sign-in flow — set
+it to 0 before anything is public.
+
+Set `NEXT_PUBLIC_API_URL` in `frontend/.env.local` if the backend is not on
+port 8000, and `FIG_CORS_ORIGINS` if the frontend is not on 3000/3001.
+`/app/live` in the frontend shows whether the two are talking.
+
 ## Run it
 
 ```bash

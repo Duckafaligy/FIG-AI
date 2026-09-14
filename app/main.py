@@ -14,7 +14,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel
@@ -26,7 +25,7 @@ from app.api import hostname_of, router as api_router
 from app.auth import require_account
 from app.billing import router as billing_router
 from app.dashboard import NeedsSignIn
-from app.frontend import router as frontend_router
+from app.webapp import router as webapp_router
 from app.db import IS_SQLITE, get_session, init_db
 from app.jobs import queue_depth, start_workers, stop_workers
 from app.models import Account, Site
@@ -68,13 +67,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# The demo runs on the marketing site's origin and calls this API from there.
+# Two callers come from another origin: the marketing demo (no cookie) and the
+# Next.js app in `frontend/` (session cookie, so credentials must be allowed).
+# Origins stay explicit -- a wildcard is not permitted alongside credentials,
+# and would be wrong here anyway.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=config.SITE_ORIGINS,
-    allow_credentials=False,          # the public read needs no cookie
-    allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
+    allow_origins=sorted(set(config.SITE_ORIGINS) | set(config.CORS_ORIGINS)),
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # Signed, HttpOnly cookie. The Supabase access token is never put in it --
@@ -95,16 +97,25 @@ async def _needs_sign_in(request, _exc):
     return RedirectResponse("/login", status_code=303)
 
 
-app.mount("/static", StaticFiles(directory=str(config.ROOT / "static")), name="static")
 app.include_router(api_router)
 app.include_router(billing_router)
 
-# The page routes. `frontend.py` replaced the page half of dashboard.py and
-# public.py when the frontend was rebuilt to the new designs; those two modules
-# are still in the tree for their POST handlers and the public free-read logic,
-# but their templates were archived, so they are not mounted. The /v1 API and
-# billing above are unaffected.
-app.include_router(frontend_router)
+# The workspace JSON API the Next.js frontend reads. There are no server-
+# rendered pages any more: the Jinja frontend was archived when the frontend
+# moved to `frontend/` as its own Next.js app, so this process is API-only.
+app.include_router(webapp_router)
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    """Point a bare hit at the docs rather than a dead page."""
+    return {
+        "service": "fig-api",
+        "docs": "/docs",
+        "workspace_api": "/api",
+        "partner_api": "/v1",
+        "frontend": config.FRONTEND_URL,
+    }
 
 
 @app.get("/health")

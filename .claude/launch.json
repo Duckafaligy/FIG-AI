@@ -2,10 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "fig",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--port", "8010"],
-      "port": 8010
+      "name": "fig-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "3001"],
+      "cwd": "frontend",
+      "port": 3001,
+      "autoPort": false
     }
   ]
 }

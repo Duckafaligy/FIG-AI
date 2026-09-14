@@ -158,36 +158,58 @@ configured: SQLite on disk, dashboard at `/app`, API at `/v1`, docs at
 - `app/billing.py` — Stripe: graduated per-site tiers, checkout, portal,
   webhook, and `sync_quantity` so provisioning changes the invoice without a
   renegotiation. Degrades quietly with no key.
-### The frontend (rebuilt September 2026, to supplied designs)
+### Two processes: API here, frontend in `frontend/`
 
-Eleven pages, server-rendered Jinja, one stylesheet, no build step. Built 1:1
-from design images the founder produced; `static/fig.css` is the design system
-and `templates/_ui.html` holds every repeated shape as a macro, so a component
-change lands on all eleven pages at once.
+**This backend serves no HTML.** The Jinja frontend it used to render was
+archived to `archive/jinja-frontend-2026-09-13/` when the frontend moved to
+its own Next.js 16 app in `frontend/`, built separately. This process is JSON
+only. Do not add templates back.
 
-- `app/frontend.py` — every page route. Thin: resolve the workspace, call
-  `pages`, render. **This replaced the page half of `dashboard.py` and
-  `public.py`**, whose templates were archived; those two modules are still in
-  the tree for their POST handlers but are no longer mounted. `/v1` and billing
-  are unaffected.
-- `app/pages.py` — one function per page, each a real query against Supabase.
-  **Read the docstring before touching it.** The rule it follows: a count that
-  is genuinely zero renders `0`; a value that *cannot be known yet* (traffic
-  with no Search Console, citations with no model crawl) renders `None`, which
-  the templates draw as an em dash plus a note saying what it needs. Zero and
-  unknown are different and the UI says which. Nothing is estimated to make a
-  panel look alive. Gaps are marked `NEEDS:`.
-- `app/charts.py` — line, donut and ring geometry as pure functions, rendered
-  as inline SVG. With no data the builders return empty and the macro draws an
-  explicit "no data yet" panel rather than an invented curve.
-- `templates/site/` — homepage, pricing, sign in, sign up.
-- `templates/app/` — projects dashboard, overview, SEO, GEO, notifications,
-  history, settings.
+`frontend/` has its own `AGENTS.md`: **Next 16 differs from training data —
+read `frontend/node_modules/next/dist/docs/` before writing any Next code.**
+Two differences that already bit: `cookies()` is async (`await cookies()`),
+and `searchParams` is a Promise in Server Components.
 
-The workspace the app pages resolve to is a separate empty account, so the
-seeded demo estate is untouched and still available as fillers
-(`python -m app.seed`). Sign-in is **not** wired into the new auth pages yet —
-the forms say so out loud instead of failing silently.
+**Two APIs, deliberately different:**
+
+- `/v1` (`app/api.py`) — the **partner** API. `fig_live_*` key auth,
+  versioned, stable, meant to be embedded by an agency or a platform
+  reselling FIG. Changing it breaks someone else's build.
+- `/api` (`app/webapp.py`) — the **workspace** API, for our own frontend.
+  Session-cookie auth, one endpoint per surface (a page does one request, not
+  eleven), free to change alongside the UI. Every endpoint delegates to
+  `app/pages.py`, so there is one implementation of "what is on the overview"
+  rather than two that drift.
+
+`app/pages.py` returns JSON-safe payloads. It keeps a few `_`-prefixed keys
+holding ORM objects for its own internal use; `webapp._public()` strips
+anything starting with `_` before it leaves the process. **Read its docstring
+before touching it** — the zero-versus-unknown rule below lives there.
+
+- **A real zero renders `0`. Something not knowable yet renders `null`**,
+  which the frontend draws as an em dash with a note naming what it needs
+  (Search Console, the model-visibility crawl, a keyword source). Nothing is
+  estimated to make a panel look alive. Gaps are tagged `NEEDS:`.
+- `app/demo.py` supplies filler metrics **for the seeded demo account only**,
+  derived from a hash of the site id so figures never jump between reloads.
+  Any other workspace still gets `null`. One module, easy to delete.
+
+**The frontend's data layer** (added here, kept additive so it never collides
+with frontend work in flight):
+
+- `frontend/lib/api.ts` — typed client. `apiServer` forwards the session
+  cookie from a Server Component; `apiClient`/`apiSend` use
+  `credentials: "include"` from the browser. Nothing throws: every call
+  returns a result object so the UI can fall back to its static preview.
+- `frontend/lib/live.ts` — `fetchOverlay()` on the server produces a **plain
+  JSON overlay** of values keyed by the `area` names the design already sets;
+  `applyOverlay()` on the client merges it into the statically imported page.
+  The split exists because `DashboardPage.icon` is a lucide component and a
+  function cannot cross the server/client boundary.
+- Wiring a designed page is two lines — see `frontend/app/app/live/page.tsx`,
+  a diagnostics route that shows connection state and renders each surface
+  live. The design in `frontend/lib/dashboard-pages.ts` stays the source of
+  truth for structure; the overlay only replaces values.
 
 - `app/dashboard.py` + `templates/dash/` (archived) — the previous dashboard: an
   overview built to the Figma design, the sites list and site detail, findings

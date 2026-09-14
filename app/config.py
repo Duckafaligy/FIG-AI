@@ -94,3 +94,17 @@ PUBLIC_URL = os.environ.get("FIG_PUBLIC_URL", "http://127.0.0.1:8000")
 # Where the marketing site lives. The auth pages link back to it, and its
 # origin is the one allowed to call this API from a browser.
 MARKETING_URL = os.environ.get("FIG_MARKETING_URL", "http://127.0.0.1:8123")
+
+
+# --- the frontend ---------------------------------------------------------
+# The Next.js app in `frontend/` runs separately and calls this API across an
+# origin, so its origin has to be allowed explicitly. Comma-separated for the
+# cases where preview deploys need adding.
+FRONTEND_URL = os.environ.get("FIG_FRONTEND_URL", "http://localhost:3001")
+CORS_ORIGINS = [
+    o.strip() for o in os.environ.get(
+        "FIG_CORS_ORIGINS",
+        "http://localhost:3000,http://localhost:3001,"
+        "http://127.0.0.1:3000,http://127.0.0.1:3001",
+    ).split(",") if o.strip()
+]
