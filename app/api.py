@@ -8,7 +8,6 @@ consumer of these same endpoints.
 from __future__ import annotations
 
 from datetime import datetime
-from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -20,17 +19,33 @@ from app.db import get_session
 from app.jobs import enqueue_estate, enqueue_scan, queue_depth
 from app.models import Account, Finding, Page, Scan, Site
 from app.rules.scoring import LAYER_LABEL, LAYER_SUB, verdict
+from app.validation import ValidationError, assert_public_host, normalise_target
 from app.verification import generate_verification_token, verify_via_dns_txt, verify_via_meta_tag
 
 router = APIRouter(prefix="/v1", tags=["v1"])
 
 
+def _rejected(value: str, exc: ValidationError) -> HTTPException:
+    return HTTPException(422, {"code": exc.code, "message": exc.message, "input": value})
+
+
 def hostname_of(value: str) -> str:
-    v = value.strip()
-    parsed = urlparse(v if "://" in v else f"https://{v}")
-    host = (parsed.netloc or parsed.path).lower().strip("/")
-    if not host or "." not in host:
-        raise HTTPException(422, f"{value!r} does not look like a hostname")
+    """The syntax half of the validation system (app/validation.py): reduce
+    whatever was typed to a hostname, or 422 with a stable code. No network."""
+    try:
+        return normalise_target(value).hostname
+    except ValidationError as exc:
+        raise _rejected(value, exc) from None
+
+
+def public_hostname(value: str) -> str:
+    """Both halves: syntax, then DNS -- the name must resolve, and only to
+    public addresses. Used wherever a hostname is about to be crawled."""
+    host = hostname_of(value)
+    try:
+        assert_public_host(host)
+    except ValidationError as exc:
+        raise _rejected(value, exc) from None
     return host
 
 
@@ -81,6 +96,7 @@ class FindingOut(BaseModel):
     fix: str | None
     evidence: list | None
     page_url: str | None
+    ai_written: bool = False
 
 
 class ScanOut(BaseModel):
@@ -119,7 +135,8 @@ def scan_out(session: Session, scan: Scan, with_findings: bool = False) -> ScanO
     if with_findings:
         out.findings = [
             FindingOut(check=f.check, layer=f.layer, severity=f.severity, summary=f.summary,
-                       why=f.why, fix=f.fix, evidence=f.evidence, page_url=f.page_url)
+                       why=f.why, fix=f.fix, evidence=f.evidence, page_url=f.page_url,
+                       ai_written=f.ai_written)
             for f in scan.findings
         ]
     return out
@@ -169,7 +186,7 @@ def add_site(body: SiteIn, account: Account = Depends(require_account),
              session: Session = Depends(get_session)):
     """Provisioning. A partner calls this when their own customer turns the
     feature on; the site starts billing from here."""
-    host = hostname_of(body.hostname)
+    host = public_hostname(body.hostname)
     existing = session.scalars(
         select(Site).where(Site.account_id == account.id, Site.hostname == host)
     ).first()
@@ -235,28 +252,37 @@ def start_estate_scan(account: Account = Depends(require_account),
     return [scan_out(session, s) for s in scans]
 
 
+def _owned_scan(session: Session, account: Account, scan_id: str) -> Scan:
+    scan = session.get(Scan, scan_id)
+    site = session.get(Site, scan.site_id) if scan is not None else None
+    if site is None or site.account_id != account.id:
+        raise HTTPException(404, "no such scan")
+    return scan
+
+
 @router.get("/scans/{scan_id}", response_model=ScanOut)
 def get_scan(scan_id: str, account: Account = Depends(require_account),
              session: Session = Depends(get_session),
              findings: bool = Query(default=True)):
-    scan = session.get(Scan, scan_id)
-    if scan is None:
-        raise HTTPException(404, "no such scan")
-    site = session.get(Site, scan.site_id)
-    if site is None or site.account_id != account.id:
-        raise HTTPException(404, "no such scan")
+    scan = _owned_scan(session, account, scan_id)
     return scan_out(session, scan, with_findings=findings)
+
+
+@router.get("/scans/{scan_id}/trace")
+def get_scan_trace(scan_id: str, account: Account = Depends(require_account),
+                   session: Session = Depends(get_session)):
+    """How the scan went, stage by stage: validation, robots.txt, discovery,
+    every page read or skipped and why, rules, the AI step's model and token
+    cost, scoring. Null for scans that ran before tracing existed."""
+    scan = _owned_scan(session, account, scan_id)
+    return {"scan_id": scan.id, "status": scan.status, "error": scan.error,
+            "trace": scan.trace}
 
 
 @router.get("/scans/{scan_id}/pages")
 def get_scan_pages(scan_id: str, account: Account = Depends(require_account),
                    session: Session = Depends(get_session)):
-    scan = session.get(Scan, scan_id)
-    if scan is None:
-        raise HTTPException(404, "no such scan")
-    site = session.get(Site, scan.site_id)
-    if site is None or site.account_id != account.id:
-        raise HTTPException(404, "no such scan")
+    _owned_scan(session, account, scan_id)
     pages = session.scalars(select(Page).where(Page.scan_id == scan_id)).all()
     return [
         {"url": p.url, "path": p.path, "title": p.title, "status": p.status_code,

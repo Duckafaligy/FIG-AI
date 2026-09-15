@@ -111,7 +111,8 @@ a real competitor's site, Citalis, to understand its design).
 
 - **Backend:** FastAPI (Python)
 - **DB:** Postgres via Supabase
-- **Auth:** Supabase Auth (not yet wired up)
+- **Auth:** Supabase Auth (server-side token check built; not yet exercised
+  end to end with the frontend)
 - **Scraping:** BeautifulSoup4 + requests (Playwright only if/when computed
   CSS values are needed — not needed for v1)
 - **AI:** Claude API (`anthropic` SDK), currently `claude-haiku-4-5-20251001`
@@ -126,17 +127,34 @@ a real competitor's site, Citalis, to understand its design).
 
 ## Current state — what's actually built and tested
 
-Backend v0.2 (September 2026). `uvicorn app.main:app` boots with nothing
-configured: SQLite on disk, dashboard at `/app`, API at `/v1`, docs at
-`/docs`. See `README.md` for the run steps.
+Backend v0.3 (September 2026). `uvicorn app.main:app` boots with nothing
+configured: SQLite on disk, API at `/v1`, free read at `/scan`, docs at
+`/docs`. See `README.md` for the run steps and the route table.
 
-- `app/scraper.py` — fetch, robots courtesy check, and `crawl()`: sitemap
-  discovery (robots `Sitemap:` directives, then the conventional paths, one
-  level of index nesting) falling back to breadth-first over internal links.
-  One request per host at a time, spaced by `CRAWL_DELAY`. `parse_html` is
-  still a pure function usable with no network. It now also extracts sections
-  in document order, meta/canonical/lang, JSON-LD types, alt coverage,
-  internal vs external links and copy-specificity counts.
+**Currently run disconnected from the frontend:** `FIG_WORKSPACE_API=0` (set in
+the local `.env`) unmounts `/api` and allows no browser origin. `/v1`, `/scan`
+and `/health` are unaffected. Set it to 1 to reconnect.
+
+- `app/validation.py` — **the validation system**, and the reason the crawler
+  cannot be used as an SSRF proxy. Syntax first (no IP literals, no reserved
+  names like `localhost` or `*.internal`, http(s) only, standard ports), then
+  DNS: every resolved address must be globally routable. `check_url` re-runs
+  both on every request the crawler makes, including each redirect hop and
+  each sitemap. Stable error codes, returned by the API. The residual risk
+  (DNS rebinding between check and connect) is written up in its docstring.
+- `app/robots.py` — robots.txt read the RFC 9309 way: groups by user-agent
+  lines only, longest match wins, `*` and `$` wildcards. **Do not switch back to
+  `urllib.robotparser`:** it drops every rule after a blank line and applies
+  the first matching rule, and on launchvault.ca it let the crawler read
+  `/login` and `/signup` against the site's robots.txt (found in Test #1).
+- `app/scraper.py` — every request goes through `_http_get`: validated,
+  robots-checked on every hop, redirects followed by hand, bodies capped at
+  5 MB, one request per host at a time. `crawl()` resolves the base, discovers
+  URLs from the sitemap (stdlib XML parser — BeautifulSoup's `"xml"` mode needs
+  lxml, which was silently missing and had broken discovery on every scan),
+  then goes breadth-first over internal links, filling a `CrawlReport` with
+  every page read or skipped and why. `parse_html` is still a pure function.
+  Empty blocks (no words, images or controls) are not counted as sections.
 - `app/rules/checks.py` — **18** deterministic checks across four layers:
   craft (the original six), structure, search, answers. Every `Flag` carries
   its own `why` and `fix`.
@@ -146,18 +164,33 @@ configured: SQLite on disk, dashboard at `/app`, API at `/v1`, docs at
 - `app/rules/scoring.py` — four layer scores plus a weighted headline.
   Findings are counted per check, not per page, so a 40-page scan is not
   punished for one site-wide mistake.
-- `app/pipeline.py` — crawl → rules → score → persist, in one function.
+- `app/pipeline.py` — validate → resolve base → robots → discover → fetch →
+  rules → explain → score → persist, every stage written to `Scan.trace` and
+  served at `GET /v1/scans/{id}/trace`.
+- `app/ai_explain.py` — the one LLM call, `claude-haiku-4-5` by default
+  (`FIG_AI_MODEL`). It is sent one item per *distinct* finding plus the
+  hostname, never page content, and the prompt is layer-aware so only craft
+  findings are framed as generic or AI-made. Tokens and cost land in the trace.
 - `app/jobs.py` — DB-backed queue and worker threads. An estate scan is a
   queue depth, not a long request.
 - `app/models.py` — `Account` → `Site` → `Scan` → `Finding`/`Page`, plus
-  `ApiKey`, `Job`, `User`. **The meter is sites, not seats.**
+  `ApiKey`, `Job`, `User`. **The meter is sites, not seats.** A column added to
+  an existing table also goes in `app/db.py:_ADDED_COLUMNS`, because
+  `create_all` never alters a table.
 - `app/api.py` — `/v1` with API-key auth: provision a site, scan one or the
-  whole estate, poll a scan, pull `/v1/report` as a partner-renderable
-  roll-up, run ownership verification.
+  whole estate, poll a scan and pull its pages and trace, pull `/v1/report` as
+  a partner-renderable roll-up, run ownership verification.
+- `app/public.py` — `/scan`, the free read: validated, capped per browser, per
+  network and globally per day. `X-Forwarded-For` is only trusted when
+  `FIG_TRUST_PROXY=1`.
 - `app/auth.py` — `fig_live_*` keys, SHA-256 stored, plaintext shown once.
 - `app/billing.py` — Stripe: graduated per-site tiers, checkout, portal,
   webhook, and `sync_quantity` so provisioning changes the invoice without a
   renegotiation. Degrades quietly with no key.
+- `scripts/test_run.py` — the end-to-end test: starts the API disconnected,
+  drives it over HTTP, scans a real site with the real key, cross-checks the
+  database, and appends `## Test #N` to `Test Runs.md`. **Read a run's output,
+  not just its pass count** — Test #1 passed 53/53 and still hid three bugs.
 ### Two processes: API here, frontend in `frontend/`
 
 **This backend serves no HTML.** The Jinja frontend it used to render was
@@ -230,31 +263,41 @@ with frontend work in flight):
 - `app/seed.py` — an invented agency with 22 invented client sites. The
   findings are produced by running fixture pages through the real pipeline,
   not typed by hand.
-- `test_local.py` — passes with no network and no API key.
+- `test_local.py` — the rules engine; passes with no network and no API key.
+- `test_backend.py` — the validation system, robots.txt (RFC 9309), the
+  crawler's network rules against a fake network, and the AI step's grouping
+  and usage accounting; no network, no database, no key.
 
-**Auth is still a placeholder.** `FIG_DEV_NO_AUTH=1` resolves every dashboard
-request to the seeded demo account. It must be 0 before anything is public.
+**Auth:** the server half is built — `/api/session` verifies a Supabase access
+token server-side and sets our own signed cookie. `FIG_DEV_NO_AUTH=1` still
+resolves every workspace request to the seeded demo account, and must be 0
+before anything is public.
 
 ## Not yet wired up — the real next steps, roughly in order
 
-1. **Auth** — Supabase Auth on the dashboard; `app/auth.py:current_account`
-   is the single function that changes.
+1. **Auth end to end** — the server half exists (above); it has not been
+   exercised against the frontend while the backend runs disconnected from it.
 2. **Scheduled Watches** — `Site.monitor` / `monitor_days` exist and nothing
    reads them yet. APScheduler enqueueing the same jobs is the whole task.
 3. **Tune the reference lists and the role patterns.** This matters more than
    new checks. Run real generated sites and real hand-made ones through the
-   engine until they separate cleanly. Known weak spot: section role
-   classification over-matches `pricing` on pages that quote figures in prose.
+   engine until they separate cleanly — `scripts/test_run.py` is how. Known
+   weak spots: section role classification over-matches `pricing` on pages
+   that quote figures in prose; and where a page's body lives outside
+   `<section>` landmarks (launchvault.ca's legal pages), most of its copy is
+   not attributed to any section at all.
 4. **Shareable/white-label report output** — a public per-scan URL and a
    branded PDF. This is the growth mechanic, not just a feature.
 4b. **CMS adapters and a secret store** — WordPress first. Both the change
    queue and the content queue stop at the same missing piece: there is
    nowhere safe to keep a customer's CMS credential, so `Integration` holds a
    reference and a last-four hint and nothing else.
-5. **Wire `site/demo.js` to `POST /scan`** — the marketing demo is still a
-   scripted read and says so in its own header comment.
+5. **Call `POST /scan` from the frontend** — the free read is mounted,
+   validated and rate-limited; nothing calls it yet.
 6. **Stripe end to end** — the code is there; it has never run against a live
    key.
+7. **Pin crawler connections to the validated address** — closes the DNS
+   rebinding gap described in `app/validation.py`.
 
 ## Funding path (for context, not urgent)
 
@@ -276,8 +319,18 @@ export DATABASE_URL="postgresql://..."   # e.g. from Supabase
 uvicorn app.main:app --reload
 ```
 
-Test the rules engine with no network/API key required:
+Tests with no network, database or API key required:
 
 ```bash
-python test_local.py
+python test_local.py      # the rules engine
+python test_content.py    # the content queue
+python test_backend.py    # validation, robots.txt, crawler network rules, AI accounting
+```
+
+The end-to-end run — real network, real database, real Claude tokens (under a
+cent). It appends `## Test #N` to `Test Runs.md`; read the output, not just the
+pass count:
+
+```bash
+python scripts/test_run.py launchvault.ca
 ```

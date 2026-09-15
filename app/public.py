@@ -23,7 +23,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import config
-from app.api import hostname_of
+from app.api import public_hostname
 from app.auth import demo_account
 from app.db import get_session
 from app.jobs import enqueue_scan
@@ -52,7 +52,9 @@ def device_hash(request: Request, device_id: str | None) -> str:
 
 
 def ip_hash(request: Request) -> str:
-    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    ip = ""
+    if config.TRUST_PROXY:
+        ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
     if not ip and request.client:
         ip = request.client.host
     return hashlib.sha256((ip or "unknown").encode()).hexdigest()[:32]
@@ -74,6 +76,13 @@ def check_limits(session: Session, dev: str, ip: str) -> None:
     hour = _count_since(session, PublicRead.ip_hash, ip, _now() - timedelta(hours=1))
     if hour >= config.PUBLIC_SCANS_PER_HOUR_IP:
         raise HTTPException(429, "Too many reads from this network in the last hour.")
+    everyone = session.scalar(
+        select(func.count()).select_from(PublicRead)
+        .where(PublicRead.created_at >= _naive(_now() - timedelta(days=1)))
+    ) or 0
+    if everyone >= config.PUBLIC_SCANS_GLOBAL_PER_DAY:
+        raise HTTPException(429, "The free read has reached its daily ceiling. "
+                                 "Try again tomorrow.")
 
 
 # --- request/response shapes -------------------------------------------
@@ -101,7 +110,7 @@ def _public_account(session: Session) -> Account:
 @router.post("/scan")
 def start_public_read(body: ReadRequest, request: Request,
                       session: Session = Depends(get_session)):
-    host = hostname_of(body.url)
+    host = public_hostname(body.url)
     dev = device_hash(request, body.device_id)
     ip = ip_hash(request)
     check_limits(session, dev, ip)

@@ -200,6 +200,11 @@ class Scan(Base):
     finished_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=_now)
 
+    # Stage-by-stage record of how the scan went: validation, robots.txt,
+    # discovery, every page read or skipped, rules, the AI step and its token
+    # usage, scoring. Served at GET /v1/scans/{id}/trace.
+    trace = Column(JSON, nullable=True)
+
     site = relationship("Site", back_populates="scans")
     pages = relationship("Page", back_populates="scan", cascade="all, delete-orphan")
     findings = relationship(

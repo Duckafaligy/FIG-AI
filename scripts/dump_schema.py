@@ -18,7 +18,17 @@ from sqlalchemy.schema import CreateIndex, CreateTable  # noqa: E402
 from app.models import Base                          # noqa: E402
 
 d = postgresql.dialect()
-print("-- FIG schema. Generated from app/models.py by scripts/dump_schema.py.\n")
+print(
+    "-- FIG schema. Generated from app/models.py -- regenerate rather than\n"
+    "-- hand-editing, or the two drift apart.\n"
+    "--\n"
+    "-- You do not need to run this: app.db.init_db() calls create_all() on boot,\n"
+    "-- against whatever DATABASE_URL points at, then adds any column listed in\n"
+    "-- app/db.py:_ADDED_COLUMNS to tables that already existed. This file is\n"
+    "-- here for review, and for running by hand in the Supabase SQL editor.\n"
+    "--\n"
+    "--   python scripts/dump_schema.py > supabase_schema.sql\n"
+)
 for t in Base.metadata.sorted_tables:
     print(str(CreateTable(t).compile(dialect=d)).strip()
           .replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS", 1) + ";\n")

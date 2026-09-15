@@ -63,6 +63,14 @@ SITE_ORIGINS = [o.strip() for o in os.environ.get(
 PUBLIC_SCANS_PER_DAY = int(os.environ.get("FIG_PUBLIC_SCANS_PER_DAY", "3"))
 PUBLIC_SCANS_PER_HOUR_IP = int(os.environ.get("FIG_PUBLIC_SCANS_PER_HOUR_IP", "10"))
 PUBLIC_SCAN_MAX_PAGES = int(os.environ.get("FIG_PUBLIC_SCAN_MAX_PAGES", "6"))
+# A ceiling across everyone, per day. The per-browser and per-network limits
+# stop one visitor looping; this stops a crowd of them turning the free tier
+# into an unbounded crawling and Claude bill.
+PUBLIC_SCANS_GLOBAL_PER_DAY = int(os.environ.get("FIG_PUBLIC_SCANS_GLOBAL_PER_DAY", "200"))
+# X-Forwarded-For is only believed behind a proxy we control. Anywhere else it
+# is a header the caller writes, and trusting it lets anyone reset the
+# per-network limit on every single request.
+TRUST_PROXY = os.environ.get("FIG_TRUST_PROXY", "0") == "1"
 
 # --- crawling ---------------------------------------------------------
 USER_AGENT = os.environ.get(
@@ -74,6 +82,9 @@ REQUEST_TIMEOUT = int(os.environ.get("FIG_REQUEST_TIMEOUT", "12"))
 CRAWL_DELAY = float(os.environ.get("FIG_CRAWL_DELAY", "0.8"))
 MAX_PAGES_PER_SCAN = int(os.environ.get("FIG_MAX_PAGES", "40"))
 WORKER_COUNT = int(os.environ.get("FIG_WORKERS", "2"))
+# Hard caps on what a single request can cost: body size and redirect hops.
+MAX_RESPONSE_BYTES = int(os.environ.get("FIG_MAX_RESPONSE_BYTES", str(5 * 1024 * 1024)))
+MAX_REDIRECTS = int(os.environ.get("FIG_MAX_REDIRECTS", "5"))
 
 # A domain is only re-crawled this often on the free path (CLAUDE.md: the
 # per-domain weekly cache). Paid re-scans bypass it.
@@ -84,6 +95,13 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 # ai_explain is the only LLM call in the pipeline. Without a key the whole
 # scan still works; findings just carry their built-in explanation.
 AI_EXPLAIN_ENABLED = bool(ANTHROPIC_API_KEY) and os.environ.get("FIG_AI_EXPLAIN", "1") == "1"
+# The cheapest current model. Explaining already-detected findings is short,
+# structured writing; nothing about it needs a larger one.
+AI_MODEL = os.environ.get("FIG_AI_MODEL", "claude-haiku-4-5")
+# USD per million tokens, for the cost line in each scan's trace. These are
+# Claude Haiku 4.5 list prices -- change them alongside FIG_AI_MODEL.
+AI_PRICE_INPUT_PER_MTOK = float(os.environ.get("FIG_AI_PRICE_INPUT", "1.00"))
+AI_PRICE_OUTPUT_PER_MTOK = float(os.environ.get("FIG_AI_PRICE_OUTPUT", "5.00"))
 
 # --- billing ----------------------------------------------------------
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
@@ -108,3 +126,8 @@ CORS_ORIGINS = [
         "http://127.0.0.1:3000,http://127.0.0.1:3001",
     ).split(",") if o.strip()
 ]
+
+# The workspace API (`/api`) exists for the Next.js frontend. Set this to 0 to
+# run the backend disconnected from it: `/api` is not mounted and no browser
+# origin is allowed. `/v1`, `/scan` and `/health` are unaffected.
+WORKSPACE_API_ENABLED = os.environ.get("FIG_WORKSPACE_API", "1") == "1"

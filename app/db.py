@@ -16,7 +16,7 @@ import logging
 import os
 from contextlib import contextmanager
 
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import DATABASE_URL, SQLITE_URL
@@ -78,8 +78,29 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
                             future=True, class_=Session)
 
 
+# Columns added to a table that already exists in a deployed database.
+# create_all only ever creates missing tables -- it never alters one -- so an
+# additive, nullable column has to be added here. Idempotent.
+_ADDED_COLUMNS = (
+    ("scans", "trace", "JSON"),
+)
+
+
 def init_db() -> None:
     Base.metadata.create_all(engine)
+    _add_missing_columns()
+
+
+def _add_missing_columns() -> None:
+    inspector = inspect(engine)
+    for table, column, sql_type in _ADDED_COLUMNS:
+        if not inspector.has_table(table):
+            continue
+        if column in {c["name"] for c in inspector.get_columns(table)}:
+            continue
+        with engine.begin() as conn:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {sql_type}"))
+        log.info("added column %s.%s", table, column)
 
 
 @contextmanager

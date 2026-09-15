@@ -1,7 +1,6 @@
 fastapi
 uvicorn[standard]
 beautifulsoup4
-lxml                 # the XML parser sitemap discovery uses
 requests
 sqlalchemy
 jinja2
