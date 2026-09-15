@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./redesign.css";
+import "./dashboard-redesign.css";
+import "./dashboard-details.css";
+import "./laptop-polish.css";
+import "./visual-polish.css";
 
 export const metadata: Metadata = {
   title: "FIG — Content that gets found",

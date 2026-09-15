@@ -21,6 +21,7 @@ node_modules/
 .next/
 out/
 *.tsbuildinfo
+fig-preview*.log
 
 # editors / os
 .DS_Store

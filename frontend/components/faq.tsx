@@ -1,22 +1,28 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 export type FaqItem = { question: string; answer: string };
 
-export function Faq({ items }: { items: FaqItem[] }) {
+export function Faq({ items, columns = false }: { items: FaqItem[]; columns?: boolean }) {
   const [open, setOpen] = useState<number | null>(null);
+  const id = useId();
+
   return (
-    <div className="faq-list">
-      {items.map((item, index) => (
-        <div className={`faq-item ${open === index ? "is-open" : ""}`} key={item.question}>
-          <button onClick={() => setOpen(open === index ? null : index)} aria-expanded={open === index}>
-            {item.question}<ChevronDown size={18} />
-          </button>
-          <div className="faq-answer"><p>{item.answer}</p></div>
-        </div>
-      ))}
+    <div className={`faq-list ${columns ? "faq-list--columns" : ""}`}>
+      {items.map((item, index) => {
+        const expanded = open === index;
+        const answerId = `${id}-answer-${index}`;
+        return (
+          <article className={`faq-item ${expanded ? "is-open" : ""}`} key={item.question}>
+            <button className="faq-question" onClick={() => setOpen(expanded ? null : index)} aria-expanded={expanded} aria-controls={answerId}>
+              <span>{item.question}</span><ChevronDown className="faq-chevron" size={18} aria-hidden="true" />
+            </button>
+            <div className="faq-answer" id={answerId} hidden={!expanded}><p>{item.answer}</p></div>
+          </article>
+        );
+      })}
     </div>
   );
 }
