@@ -5,6 +5,7 @@ import "./dashboard-redesign.css";
 import "./dashboard-details.css";
 import "./laptop-polish.css";
 import "./visual-polish.css";
+import "./interaction-polish.css";
 
 export const metadata: Metadata = {
   title: "FIG — Content that gets found",

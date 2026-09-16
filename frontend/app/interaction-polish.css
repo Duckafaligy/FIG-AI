@@ -1,0 +1,187 @@
+/*
+ * Small, shared interaction and layout refinements. These are deliberately
+ * additive: they preserve the supplied visual direction while making controls
+ * feel responsive and keeping long dashboard content inside its own surface.
+ */
+
+:root {
+  --fig-motion-fast: 150ms;
+  --fig-motion-standard: 220ms;
+  --fig-motion-ease: cubic-bezier(.2, .72, .2, 1);
+}
+
+html { scroll-padding-top: 92px; }
+:target { scroll-margin-top: 92px; }
+
+:where(a, button, input, select, textarea) { -webkit-tap-highlight-color: transparent; }
+:where(.public-page, .projects-page, .dashboard-shell) :is(a, button, input, select, textarea) {
+  transition: color var(--fig-motion-fast) var(--fig-motion-ease),
+    background-color var(--fig-motion-fast) var(--fig-motion-ease),
+    border-color var(--fig-motion-fast) var(--fig-motion-ease),
+    box-shadow var(--fig-motion-standard) var(--fig-motion-ease),
+    transform var(--fig-motion-standard) var(--fig-motion-ease),
+    opacity var(--fig-motion-fast) var(--fig-motion-ease);
+}
+
+:where(.public-page, .projects-page, .dashboard-shell) :is(a, button, input, select, textarea):focus-visible {
+  outline: 3px solid rgba(96, 71, 255, .42);
+  outline-offset: 3px;
+}
+
+/* Keep action clusters aligned when text grows or the viewport narrows. */
+.home-hero-actions,
+.home-cta-actions,
+.cta-band-actions,
+.pricing-trust-list,
+.auth-social-buttons,
+.detail-publish-actions { row-gap: 10px; }
+
+.home-feature-card,
+.platform-tour-card,
+.home-plan-grid > article,
+.plan-card,
+.home-audience-grid article,
+.home-testimonial-grid article {
+  min-width: 0;
+}
+
+.home-feature-card h3,
+.platform-tour-card h3,
+.home-audience-grid h3,
+.home-plan-grid h3 { text-wrap: balance; }
+
+.home-feature-card p,
+.platform-tour-card p,
+.home-audience-grid p,
+.home-testimonial-grid p { text-wrap: pretty; }
+
+.footer-top { align-items: start; }
+.footer-column a { width: fit-content; }
+.footer-newsletter form { align-items: stretch; }
+.footer-newsletter input { min-width: 0; }
+
+.auth-layout,
+.signup-layout { align-items: start; }
+.auth-card,
+.signup-card { min-width: 0; }
+.auth-field input,
+.auth-field textarea { min-width: 0; }
+
+.dashboard-shell .dashboard-heading-row > div,
+.dashboard-shell .dashboard-panel,
+.dashboard-shell .settings-tab-content,
+.projects-panel,
+.projects-section-heading > div { min-width: 0; }
+
+.dashboard-shell .dashboard-heading-row { align-items: flex-start; }
+.dashboard-shell .dashboard-heading-row > .button { flex: 0 0 auto; }
+.dashboard-shell .dashboard-table-tools { gap: 8px; }
+.dashboard-shell .dashboard-panel { overflow: hidden; }
+.dashboard-shell .preview-table-body,
+.dashboard-shell .preview-feed { min-width: 0; }
+.dashboard-shell .settings-tab-sidebar { max-height: calc(100dvh - 36px); overflow: auto; }
+
+.projects-top-actions { min-width: 0; }
+.projects-workspace,
+.projects-date { overflow: hidden; text-overflow: ellipsis; }
+.projects-panel-heading > a { flex: 0 0 auto; }
+.projects-table,
+.projects-calendar-wrap { scrollbar-color: #c7cce1 transparent; scrollbar-width: thin; }
+
+@media (hover: hover) and (pointer: fine) {
+  .home-feature-card:hover,
+  .platform-tour-card:hover,
+  .home-plan-grid > article:hover,
+  .plan-card:hover,
+  .home-audience-grid article:hover,
+  .home-testimonial-grid article:hover {
+    transform: translateY(-4px);
+    border-color: rgba(111, 87, 244, .32);
+    box-shadow: 0 16px 34px rgba(41, 39, 98, .10);
+  }
+
+  .home-audience-grid article:hover img { transform: scale(1.025); }
+  .home-audience-grid img { transition: transform 480ms var(--fig-motion-ease); }
+
+  .dashboard-shell .dashboard-panel:hover,
+  .projects-panel:hover,
+  .projects-stat:hover {
+    border-color: #d2d7e9;
+    box-shadow: 0 10px 26px rgba(38, 44, 86, .075);
+  }
+
+  .dashboard-shell .settings-tab-sidebar nav button:hover,
+  .dashboard-shell .settings-row-action:hover,
+  .projects-calendar button:hover:not(.selectedDay) {
+    background-color: #f2f0ff;
+    color: #5b46dd;
+  }
+
+  .dashboard-shell .dashboard-sidebar nav a:hover { transform: translateX(2px); }
+  .projects-icon-button:hover { transform: translateY(-1px); color: #5f48e7; box-shadow: 0 6px 13px rgba(51, 46, 117, .10); }
+}
+
+@media (min-width: 1100px) {
+  .public-nav .page-shell { min-height: 78px; }
+  .home-hero-grid { min-height: 520px; }
+  .home-feature-card { min-height: 165px; }
+  .platform-tour-card { min-height: 245px; }
+  .dashboard-shell .dashboard-heading-row { margin-bottom: 24px; }
+}
+
+@media (max-width: 880px) {
+  html, :target { scroll-padding-top: 78px; scroll-margin-top: 78px; }
+  .footer-top { gap: 28px; }
+  .dashboard-shell .settings-tab-sidebar { max-height: none; }
+  .projects-top-actions .projects-date { max-width: 178px; }
+}
+
+@media (max-width: 640px) {
+  .home-hero-actions > a,
+  .home-cta-actions > a,
+  .cta-band-actions > a { flex: 1 1 150px; }
+  .footer-newsletter form { display: grid; grid-template-columns: 1fr; }
+  .footer-newsletter form .button { width: 100%; }
+  .dashboard-shell .dashboard-heading-row > .button { width: 100%; }
+  .projects-top-actions .projects-workspace,
+  .projects-top-actions .projects-date { display: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes fig-fade-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .public-page main > section:first-child .home-hero-copy,
+  .public-page main > section:first-child .pricing-hero-copy,
+  .auth-card,
+  .signup-card { animation: fig-fade-up 440ms var(--fig-motion-ease) both; }
+
+  .public-page .home-hero-product,
+  .pricing-hero-visual,
+  .auth-story,
+  .signup-story { animation: fig-fade-up 560ms 80ms var(--fig-motion-ease) both; }
+
+  .home-feature-card,
+  .home-outcome,
+  .platform-tour-card { animation: fig-fade-up 420ms var(--fig-motion-ease) both; }
+
+  .home-feature-card:nth-child(2), .home-outcome:nth-child(2), .platform-tour-card:nth-child(2) { animation-delay: 45ms; }
+  .home-feature-card:nth-child(3), .home-outcome:nth-child(3), .platform-tour-card:nth-child(3) { animation-delay: 90ms; }
+  .home-feature-card:nth-child(4), .home-outcome:nth-child(4), .platform-tour-card:nth-child(4) { animation-delay: 135ms; }
+
+  .dashboard-shell .dashboard-panel,
+  .projects-panel,
+  .projects-stat { animation: fig-fade-up 300ms var(--fig-motion-ease) both; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
