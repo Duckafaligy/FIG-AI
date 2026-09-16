@@ -50,7 +50,7 @@ const nav = [
 ];
 
 const searchCopy: Record<string, string> = {
-  "/app": "Search LaunchVault content…",
+  "/app": "Search Demo workspace content…",
   "/app/seo": "Search posts, keywords, or briefs…",
   "/app/geo": "Search prompts, answers, or sources…",
   "/app/notifications": "Search alerts and activity…",
@@ -92,7 +92,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <button ref={menuRef} className="dashboard-menu" onClick={() => setOpen((isOpen) => !isOpen)} aria-label={open ? "Close dashboard navigation" : "Open dashboard navigation"} aria-expanded={open} aria-controls={navigationId}>{open ? <X /> : <Menu />}</button>
       {open && <button className="dashboard-nav-backdrop" type="button" aria-label="Close dashboard navigation" onClick={closeNavigation} />}
       <aside id={navigationId} className={`dashboard-sidebar ${open ? "is-open" : ""}`}>
-        <Link className="dashboard-brand" href="/projects" aria-label="LaunchVault projects"><span><Zap size={14} fill="currentColor" /></span><strong>LaunchVault</strong></Link>
+        <Link className="dashboard-brand" href="/projects" aria-label="Demo workspace projects"><span><Zap size={14} fill="currentColor" /></span><strong>Demo workspace</strong></Link>
         <nav aria-label="Dashboard navigation">
           {nav.map((item) => {
             const exact = item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href);
@@ -101,14 +101,14 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="sidebar-bottom">
-          <Link href="/projects" onClick={() => setOpen(false)}><ArrowLeft size={18} />Back to dashboard</Link>
+          <Link href="/projects"><ArrowLeft size={18} />Back to dashboard</Link>
         </div>
       </aside>
       <div className="dashboard-main">
         <header className="dashboard-topbar">
-          <div className="dashboard-search"><Search size={17} /><input aria-label="Search current dashboard" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchCopy[pathname] ?? "Search LaunchVault…"} />{search ? <button aria-label="Clear dashboard search" onClick={() => setSearch("")}><X size={13} /></button> : <kbd>Search</kbd>}</div>
+          <div className="dashboard-search"><Search size={17} /><input aria-label="Search current dashboard" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchCopy[pathname] ?? "Search Demo workspace…"} />{search ? <button aria-label="Clear dashboard search" onClick={() => setSearch("")}><X size={13} /></button> : <kbd>Search</kbd>}</div>
           <div className="dashboard-top-actions">
-            <div className="workspace-switch" aria-label="Current project"><span className="workspace-mark">LV</span>LaunchVault.ca</div>
+            <div className="workspace-switch" aria-label="Current project"><span className="workspace-mark">DW</span>Demo workspace</div>
             <div className="workspace-switch" aria-label="Illustrative preview date range"><CalendarDays size={16} aria-hidden="true" /><span>May 12, 2025 – May 25, 2025</span><ChevronDown size={14} aria-hidden="true" /></div>
             <Link className="icon-button" href="/app/notifications" aria-label="Notifications"><Bell size={18} /></Link>
             <span className="avatar-button" aria-label="Current account: JD" style={{ cursor: "default" }}>JD</span>
@@ -126,7 +126,7 @@ export function DashboardHeader({ eyebrow, title, description, action = "Project
   const settingsAction = action === "Project settings" || action === "Manage alerts";
   return (
     <div className="dashboard-heading-row">
-      <div><span className="dashboard-eyebrow">{eyebrow}</span><h1>{title}</h1><p>{description}</p><span className="preview-source"><span />Demo data · LaunchVault.ca</span></div>
+      <div><span className="dashboard-eyebrow">{eyebrow}</span><h1>{title}</h1><p>{description}</p><span className="preview-source"><span />Demo data · Demo workspace</span></div>
       {settingsAction ? <Link className="button button--small" href="/app/settings"><Settings size={16} />{action}</Link> : <button className="button button--small" onClick={() => setShowAction(true)}><Plus size={16} />{action}</button>}
       {showAction && <HeaderActionDialog action={action} onClose={() => setShowAction(false)} />}
     </div>
@@ -137,8 +137,8 @@ function HeaderActionDialog({ action, onClose }: { action: string; onClose: () =
   const dialog = useRef<HTMLDialogElement>(null);
   const id = useId();
   useEffect(() => { const element = dialog.current; element?.showModal(); return () => element?.close(); }, []);
-  const description = action === "Edit profile" ? "LaunchVault.ca is the sample workspace. Profile editing will cover your workspace name, website, industry, and timezone once workspace storage is connected." : action === "Export log" ? "The audit log below contains illustrative activity. Live workspace exports will become available when activity tracking is connected." : action === "Add query" ? "Prompt tracking will let you add the questions your audience asks and follow LaunchVault citations across AI search platforms." : "Create a brief with a topic, audience, and target keywords. The content workflow below lets you preview, review, and organize sample drafts while your workspace is being set up.";
-  return <dialog ref={dialog} className="dashboard-detail-dialog" aria-labelledby={id} onCancel={onClose} onClick={(event) => { if (event.target === dialog.current) onClose(); }}><div className="detail-dialog-heading"><div><span>LaunchVault.ca</span><h2 id={id}>{action}</h2></div><button className="detail-close" aria-label="Close action details" onClick={onClose}><X size={19} /></button></div><div className="detail-dialog-body"><p className="detail-summary">{description}</p><p className="detail-demo-note">This workspace currently contains demo content. No live data has been changed.</p></div><div className="detail-dialog-footer"><button className="button button--small" onClick={onClose}>Continue exploring</button><Link className="button button--primary button--small" href="/app/settings" onClick={onClose}>Workspace settings</Link></div></dialog>;
+  const description = action === "Edit profile" ? "Demo workspace is the sample workspace. Profile editing will cover your workspace name, website, industry, and timezone once workspace storage is connected." : action === "Export log" ? "The audit log below contains illustrative activity. Live workspace exports will become available when activity tracking is connected." : action === "Add query" ? "Prompt tracking will let you add the questions your audience asks and follow Demo workspace citations across AI search platforms." : "Create a brief with a topic, audience, and target keywords. The content workflow below lets you preview, review, and organize sample drafts while your workspace is being set up.";
+  return <dialog ref={dialog} className="dashboard-detail-dialog" aria-labelledby={id} onCancel={onClose} onClick={(event) => { if (event.target === dialog.current) onClose(); }}><div className="detail-dialog-heading"><div><span>Demo workspace</span><h2 id={id}>{action}</h2></div><button className="detail-close" aria-label="Close action details" onClick={onClose}><X size={19} /></button></div><div className="detail-dialog-body"><p className="detail-summary">{description}</p><p className="detail-demo-note">This workspace currently contains demo content. No live data has been changed.</p></div><div className="detail-dialog-footer"><button className="button button--small" onClick={onClose}>Continue exploring</button><Link className="button button--primary button--small" href="/app/settings" onClick={onClose}>Workspace settings</Link></div></dialog>;
 }
 
 export function MetricCard({ label, value, change, detail, icon: Icon, tone = "purple", lowerIsBetter = false }: DashboardPage["metrics"][number]) {
@@ -269,7 +269,7 @@ function contentSlug(title: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "")
-    .slice(0, 68) || "launchvault-content";
+    .slice(0, 68) || "demo-content";
 }
 
 function DetailDialog({ row, columns, action, onClose, onUpdate, onRemove }: { row: DashboardRow; columns?: string[]; action: string; onClose: () => void; onUpdate: (status: string) => void; onRemove: () => void }) {
@@ -279,7 +279,7 @@ function DetailDialog({ row, columns, action, onClose, onUpdate, onRemove }: { r
   const [template, setTemplate] = useState("Guides · Learning article");
   const [schedule, setSchedule] = useState("Publish now (demo)");
   const [revision, setRevision] = useState(0);
-  const [seoTitle, setSeoTitle] = useState(`${row.title} | LaunchVault`);
+  const [seoTitle, setSeoTitle] = useState(`${row.title} | Demo workspace`);
   const [descriptionOverride, setDescriptionOverride] = useState<string | null>(null);
   const [slug, setSlug] = useState(contentSlug(row.title));
   const [archiveConfirmation, setArchiveConfirmation] = useState(false);
@@ -303,8 +303,8 @@ function DetailDialog({ row, columns, action, onClose, onUpdate, onRemove }: { r
   const impactScore = cellFor("Impact Score") ?? (row.status.match(/^\d+$/) ? row.status : "78");
   const status = cellFor("Status") ?? row.status;
   const pathPrefix = template.startsWith("Blog") ? "blog" : template.startsWith("Resources") ? "resources" : "guides";
-  const targetUrl = `launchvault.ca/${pathPrefix}/${slug}`;
-  const metaDescription = descriptionOverride ?? `Learn ${keyword} with practical examples, a reusable prompt, and a clear review checklist. Build useful AI skills with LaunchVault.`;
+  const targetUrl = `demo-workspace.example/${pathPrefix}/${slug}`;
+  const metaDescription = descriptionOverride ?? `Learn ${keyword} with practical examples, a reusable prompt, and a clear review checklist. Build useful AI skills with Demo workspace.`;
   const reviewChecks = [
     { label: "SEO title within 60 characters", ready: seoTitle.trim().length > 0 && seoTitle.length <= 60 },
     { label: "Description within 160 characters", ready: metaDescription.trim().length > 0 && metaDescription.length <= 160 },
@@ -315,8 +315,8 @@ function DetailDialog({ row, columns, action, onClose, onUpdate, onRemove }: { r
   const regenerate = () => {
     const next = revision + 1;
     setRevision(next);
-    setSeoTitle(next % 2 ? `${row.title}: A Practical Guide` : `${row.title} | LaunchVault`);
-    setDescriptionOverride(next % 2 ? `Get started with ${keyword}. Follow a worked example, adapt the prompt to your task, and review the result with LaunchVault’s step-by-step guide.` : `Make ${keyword} part of your routine. Explore a practical example, a reusable prompt, and a checklist for clear, accurate results.`);
+    setSeoTitle(next % 2 ? `${row.title}: A Practical Guide` : `${row.title} | Demo workspace`);
+    setDescriptionOverride(next % 2 ? `Get started with ${keyword}. Follow a worked example, adapt the prompt to your task, and review the result with this workspace’s step-by-step guide.` : `Make ${keyword} part of your routine. Explore a practical example, a reusable prompt, and a checklist for clear, accurate results.`);
     setLocalNotice(`Sample version ${next + 1} is ready. The introduction, prompt, and metadata have changed.`);
   };
   const statusLabel = status === "Published" ? "Published" : status === "In Review" ? "Ready for review" : status === "In Queue" ? "Draft" : status;
@@ -330,7 +330,7 @@ function DetailDialog({ row, columns, action, onClose, onUpdate, onRemove }: { r
     { id: "publish", label: "Publish setup", icon: LayoutTemplate }
   ];
   return <dialog className="dashboard-detail-dialog" ref={dialog} aria-labelledby={titleId} onCancel={onClose} onClick={(event) => { if (event.target === dialog.current) onClose(); }}>
-    <div className="detail-dialog-heading detail-dialog-heading--rich"><div><span>LaunchVault.ca · CMS template simulation</span><h2 id={titleId}>{isActivity ? "Activity details" : action === "Publish" ? "Publish content" : "Content details"}</h2></div><div className="detail-heading-actions"><span className="detail-demo-badge"><ShieldCheck size={13} />Local demo</span><button className="detail-close" onClick={onClose} aria-label="Close details"><X size={19} /></button></div></div>
+    <div className="detail-dialog-heading detail-dialog-heading--rich"><div><span>Demo workspace · CMS template simulation</span><h2 id={titleId}>{isActivity ? "Activity details" : action === "Publish" ? "Publish content" : "Content details"}</h2></div><div className="detail-heading-actions"><span className="detail-demo-badge"><ShieldCheck size={13} />Local demo</span><button className="detail-close" onClick={onClose} aria-label="Close details"><X size={19} /></button></div></div>
     <div className="detail-dialog-body detail-dialog-body--rich">
       <div className="detail-content-title detail-content-title--rich"><span className="detail-document-icon"><FileText size={24} /></span><div><div className="detail-title-line"><h3>{row.title}</h3><span className={`status-pill status-pill--${status === "Published" ? "green" : row.tone ?? "purple"}`}>{statusLabel}</span></div><p>{category} · {keyword}</p></div></div>
       {isActivity ? <>
@@ -366,13 +366,13 @@ function DetailDialog({ row, columns, action, onClose, onUpdate, onRemove }: { r
 
         {activeView === "publish" && <section className="detail-publish-view" role="tabpanel" id={`${titleId}-panel-publish`} aria-labelledby={`${titleId}-tab-publish`}>
           <div className="detail-view-heading"><div><span>Destination & delivery</span><h4>Review the final publishing snapshot</h4><p>This is a local template preview only. A CMS destination has not been verified or contacted.</p></div><span className="detail-connection-state"><span />Preview only</span></div>
-          <div className="detail-publish-snapshot"><div className="detail-snapshot-cover">LV</div><div><span>{category} · Sample version {revision + 1}</span><h4>{row.title}</h4><p>{metaDescription}</p><button className="detail-subtle-button" onClick={() => setActiveView("preview")}><Monitor size={14} />Review full page</button></div></div>
+          <div className="detail-publish-snapshot"><div className="detail-snapshot-cover">DW</div><div><span>{category} · Sample version {revision + 1}</span><h4>{row.title}</h4><p>{metaDescription}</p><button className="detail-subtle-button" onClick={() => setActiveView("preview")}><Monitor size={14} />Review full page</button></div></div>
           <div className="detail-publish-grid">
             <div className="detail-publish-form">
               <label><span>CMS template</span><select aria-label="CMS template" value={template} onChange={event => setTemplate(event.target.value)}><option>Guides · Learning article</option><option>Blog · Article with FAQ</option><option>Resources · Tutorial layout</option></select></label>
               <label><span>Delivery timing</span><select aria-label="Delivery timing" value={schedule} onChange={event => setSchedule(event.target.value)}><option>Publish now (demo)</option><option>Schedule · Tomorrow, 9:00 AM</option><option>Schedule · Next Monday, 10:00 AM</option></select></label>
               <label><span>Destination path</span><div className="detail-readonly-url"><Globe2 size={15} /><span>{targetUrl}</span></div></label>
-              <div className="detail-publish-destination"><LayoutTemplate size={18} /><div><strong>LaunchVault content collection</strong><span>{template}</span></div><small>Not verified</small></div>
+              <div className="detail-publish-destination"><LayoutTemplate size={18} /><div><strong>Demo workspace content collection</strong><span>{template}</span></div><small>Not verified</small></div>
             </div>
             <aside className="detail-publish-checklist"><div><span>Content review checks</span><b>{reviewChecks.filter(item => item.ready).length} / {reviewChecks.length}</b></div>{reviewChecks.map(item => <p key={item.label} className={item.ready ? "" : "needs-review"}>{item.ready ? <Check size={15} /> : <Eye size={15} />}{item.label}</p>)}</aside>
           </div>
@@ -432,7 +432,7 @@ export function DashboardSection({ area, title, description, icon: Icon, kind, v
   const isSearchable = kind === "table" && (variant === "library" || variant === "audit");
   const previewRow = (row: DashboardRow, action = "Preview") => setSelected({ row, action });
   const supportsTimeRange = kind === "chart" && chart !== "donut" && chart !== "reliability";
-  const context = meta ?? (kind === "chart" ? "Last 30 days" : kind === "table" ? "View all →" : kind === "flow" ? "How it works" : "LaunchVault.ca");
+  const context = meta ?? (kind === "chart" ? "Last 30 days" : kind === "table" ? "View all →" : kind === "flow" ? "How it works" : "Demo workspace");
   const spanClass = span === "wide" ? "dashboard-panel--wide" : span ? `dashboard-panel--span-${span}` : "";
   return (
     <section className={`dashboard-panel dashboard-panel--${kind} dashboard-panel--${variant} ${area ? `dashboard-panel--${area}` : ""} ${spanClass}`}>

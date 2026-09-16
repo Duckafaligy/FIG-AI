@@ -1,0 +1,237 @@
+/* The product remains live HTML inside a slim, front-facing device. */
+.laptop {
+  position: relative;
+  isolation: isolate;
+  container: laptop-device / inline-size;
+  overflow: visible;
+  filter: none;
+}
+
+.laptop::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 9%;
+  right: 9%;
+  bottom: -17px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(27, 32, 52, .19);
+  filter: blur(16px);
+  pointer-events: none;
+}
+
+.laptop::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 5%;
+  right: 5%;
+  bottom: -4px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(16, 21, 36, .25);
+  filter: blur(4px);
+  pointer-events: none;
+}
+
+.laptop .laptop-lid {
+  position: relative;
+  width: 91.5%;
+  padding: clamp(10px, 1.8cqw, 13px) clamp(6px, 1.15cqw, 9px) clamp(7px, 1.2cqw, 10px);
+  border: 1px solid #85888d;
+  border-bottom-color: #18191c;
+  border-radius: clamp(12px, 2.2cqw, 17px) clamp(12px, 2.2cqw, 17px) 6px 6px;
+  background: linear-gradient(128deg, #45474b 0%, #17191d 9%, #101114 42%, #1b1d20 76%, #45484c 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, .63),
+    inset 1px 0 1px rgba(255, 255, 255, .21),
+    inset -1px 0 1px rgba(0, 0, 0, .8),
+    0 1px 2px rgba(13, 16, 25, .32),
+    0 14px 26px -18px rgba(19, 26, 47, .4);
+}
+
+.laptop-lid::before {
+  content: "";
+  position: absolute;
+  top: 1px;
+  right: 14px;
+  left: 14px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .62) 23%, rgba(255, 255, 255, .08) 73%, transparent);
+  pointer-events: none;
+}
+
+.laptop .laptop-camera {
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  left: 50%;
+  width: 24px;
+  height: 4px;
+  margin: 0 0 0 -12px;
+  border-radius: 4px;
+  background: #101114;
+  box-shadow: inset 0 0 1px rgba(255, 255, 255, .1);
+}
+
+.laptop-camera::before {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 10px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, #57748b, #1d3043 40%, #090e16 76%);
+  box-shadow: 0 0 0 1px #05080c;
+}
+
+.laptop .laptop-screen {
+  position: relative;
+  z-index: 1;
+  border: 1px solid #08090c;
+  border-radius: 5px 5px 2px 2px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .035);
+}
+
+.laptop .laptop-base {
+  z-index: 3;
+  height: clamp(12px, 2.35cqw, 19px);
+  margin-top: -1px;
+  border: 1px solid #92979c;
+  border-top-color: #eceff2;
+  border-bottom-color: #747a81;
+  border-radius: 2px 2px 48% 48% / 2px 2px 75% 75%;
+  background:
+    linear-gradient(90deg, rgba(40, 45, 52, .5), transparent 4%, rgba(255, 255, 255, .32) 18%, transparent 38%, rgba(255, 255, 255, .38) 63%, transparent 88%, rgba(45, 50, 57, .52)),
+    linear-gradient(180deg, #dce0e4 0%, #bcc2c8 18%, #9da5ad 42%, #aeb5bd 55%, #dee2e6 66%, #9ea5ad 84%, #5f6872 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .7),
+    inset 0 -1px 1px rgba(16, 24, 33, .35),
+    0 2px 2px rgba(23, 28, 39, .23);
+}
+
+.laptop-base::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -3px;
+  left: 11%;
+  right: 11%;
+  height: 3px;
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(90deg, #15181d, #42474f 8%, #22262d 49%, #434850 92%, #15181d);
+}
+
+.laptop .laptop-base > span {
+  left: 41%;
+  width: 18%;
+  height: clamp(3px, .7cqw, 5px);
+  top: -1px;
+  border: 1px solid rgba(92, 99, 108, .6);
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
+  background: linear-gradient(180deg, #8e969f, #b1b8c0);
+  box-shadow: inset 0 -1px 1px rgba(255, 255, 255, .4);
+}
+
+.laptop .mini-app {
+  overflow: hidden;
+  background: linear-gradient(140deg, #fff, #f8faff 70%);
+}
+
+.laptop .mini-sidebar {
+  background: linear-gradient(110deg, #111c2f, #1d293d);
+  box-shadow: inset -1px 0 rgba(0, 0, 0, .15);
+}
+
+.laptop .mini-kpis > div {
+  box-shadow: 0 2px 5px rgba(35, 47, 75, .045);
+}
+
+.laptop .mini-review-row {
+  min-height: 0;
+}
+
+.laptop .mini-chart-preview svg {
+  width: 100%;
+  height: 100%;
+}
+
+.laptop .mini-chart-legend,
+.laptop .mini-chart-axis {
+  color: #64728f;
+}
+
+/* Pricing uses the same content as a browser preview, without device hardware. */
+.pricing-hero-visual .laptop::before,
+.pricing-hero-visual .laptop::after,
+.pricing-hero-visual .laptop-lid::before,
+.pricing-hero-visual .laptop-camera {
+  display: none;
+}
+
+.pricing-hero-visual .laptop .laptop-lid {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pricing-hero-visual .laptop .laptop-screen {
+  border-color: #e4e8f1;
+  border-radius: 7px;
+  box-shadow: none;
+}
+
+@container laptop-device (max-width: 440px) {
+  .laptop .laptop-screen {
+    aspect-ratio: 1.58;
+    grid-template-columns: 19% 81%;
+  }
+
+  .laptop .mini-sidebar { padding: 8px 4px; gap: 2px; }
+  .laptop .mini-sidebar > b { font-size: 9px; margin-bottom: 6px; }
+  .laptop .mini-sidebar > span { gap: 3px; padding: 4px 2px; font-size: 4.5px; }
+  .laptop .mini-sidebar svg { width: 8px; height: 8px; }
+  .laptop .mini-app { padding: 5px; }
+  .laptop .mini-top { gap: 3px; }
+  .laptop .mini-search { padding: 3px; font-size: 4px; }
+  .laptop .mini-project { padding: 2px; gap: 2px; font-size: 4px; }
+  .laptop .mini-project b { width: 9px; height: 9px; font-size: 3.5px; }
+  .laptop .mini-top > i { padding: 3px; font-size: 4px; white-space: nowrap; }
+  .laptop .mini-page-heading { padding-top: 5px; }
+  .laptop .mini-page-heading strong { font-size: 8px; }
+  .laptop .mini-page-heading span { font-size: 3.6px; }
+  .laptop .mini-kpis { gap: 3px; margin-top: 3px; }
+  .laptop .mini-kpis > div { padding: 4px 3px; }
+  .laptop .mini-kpis small, .laptop .mini-kpis em { font-size: 3.5px; }
+  .laptop .mini-kpis strong { margin: 2px 0; font-size: 8px; }
+  .laptop .mini-content-grid { gap: 4px; margin-top: 4px; }
+  .laptop .mini-chart, .laptop .mini-opportunities { padding: 4px; min-height: 0; }
+  .laptop .mini-panel-title { font-size: 5px; }
+  .laptop .mini-tabs { gap: 4px; margin-block: 3px; font-size: 3.5px; }
+  .laptop .mini-review-head { padding: 2px; min-height: 10px; font-size: 3.6px; }
+  .laptop .mini-review-row { padding: 2px; gap: 3px; }
+  .laptop .mini-review-row > span { gap: 2px; }
+  .laptop .mini-review-row svg { width: 6px; height: 6px; }
+  .laptop .mini-review-row b { font-size: 4px; line-height: 1.3; }
+  .laptop .mini-review-row small { font-size: 3.3px; }
+  .laptop .mini-review-row > strong { padding: 2px; font-size: 4px; }
+  .laptop .mini-status { padding: 2px 3px; font-size: 3.2px; }
+  .laptop .mini-opportunities { gap: 4px; }
+  .laptop .mini-opportunities > span { gap: 3px; padding: 3px; font-size: 4px; }
+  .laptop .mini-opportunities > span svg { width: 8px; height: 8px; }
+  .laptop .mini-chart-preview { min-height: 28px; height: auto; flex: 1; }
+  .laptop .mini-chart-preview svg { height: 100%; }
+  .laptop .mini-chart-legend, .laptop .mini-chart-axis { font-size: 3.5px; }
+  .laptop .mini-recent-panel { padding: 4px; margin-top: 4px; }
+  .laptop .mini-recent-row { min-height: 13px; padding-block: 2px; font-size: 3.5px; }
+  .laptop .mini-recent-row b, .laptop .mini-recent-row em, .laptop .mini-recent-row strong { font-size: 3.5px; }
+  .laptop .mini-health { padding: 4px; }
+  .laptop .mini-health b, .laptop .mini-health strong, .laptop .mini-health small { font-size: 3.6px; }
+  .laptop .mini-screen-footer { padding-top: 3px; font-size: 3px; }
+}
