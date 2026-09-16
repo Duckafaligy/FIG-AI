@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowUpRight, Sparkles } from "lucide-react";
 import { Brand } from "./brand";
 
 const columns = [
@@ -11,28 +12,33 @@ const columns = [
 export function Footer() {
   return (
     <footer className="footer">
-      <div className="page-shell footer-grid">
-        <div className="footer-brand">
+      <div className="page-shell footer-top">
+        <div className="footer-intro">
           <Brand />
-          <p>Content that gets you found.</p>
-          <span>© 2026 FIG. All rights reserved.</span>
+          <h2>Clearer content operations, from the first brief to the final review.</h2>
+          <p>FIG brings planning, SEO, GEO, collaboration, and publishing into one calm workspace for teams building visible, useful content.</p>
+          <div className="footer-intro-note"><Sparkles size={14} /><span>Frontend preview for <b>LaunchVault.ca</b> · illustrative data only</span></div>
         </div>
-        {columns.map((column) => (
-          <div className="footer-column" key={column.title}>
-            <strong>{column.title}</strong>
-            {column.links.map((link) => <Link href={link.href} key={link.label}>{link.label}</Link>)}
-          </div>
-        ))}
+        <div className="footer-navigation">
+          {columns.map((column) => (
+            <div className="footer-column" key={column.title}>
+              <strong>{column.title}</strong>
+              {column.links.map((link) => <Link href={link.href} key={link.label}>{link.label}</Link>)}
+            </div>
+          ))}
+        </div>
         <div className="footer-newsletter">
-          <strong>Get product updates</strong>
-          <p>Occasional notes on search, AI visibility, and FIG.</p>
+          <span className="footer-eyebrow">Keep in the loop</span>
+          <strong>Product notes, without the noise.</strong>
+          <p>Occasional previews of FIG’s search, AI visibility, and content workflow work.</p>
           <form action="/signup" method="get">
             <input aria-label="Email address" name="email" type="email" placeholder="you@company.com" />
-            <button className="button button--small" type="submit">Join preview</button>
+            <button className="button button--small" type="submit">Get preview <ArrowUpRight size={14} /></button>
           </form>
-          <small>Opens the FIG signup preview.</small>
+          <small>Opens the local signup preview. Your email is not submitted.</small>
         </div>
       </div>
+      <div className="page-shell footer-bottom"><span>© 2026 FIG. All rights reserved.</span><div><Link href="/projects">Explore demo</Link><Link href="/pricing">Pricing</Link><Link href="/signin">Sign in</Link><Link href="/#faq">Help</Link></div><span>Made for practical, discoverable content.</span></div>
     </footer>
   );
 }

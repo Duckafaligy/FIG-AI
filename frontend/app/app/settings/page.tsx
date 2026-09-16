@@ -1,16 +1,23 @@
-import type { LucideIcon } from "lucide-react";
+"use client";
+
+import { useState, type ComponentType } from "react";
 import {
+  BadgeCheck,
   BarChart3,
   Bell,
   BrainCircuit,
   Check,
+  ChevronRight,
   CircleDashed,
   CreditCard,
   Database,
   FileText,
   KeyRound,
   Link2,
+  LockKeyhole,
+  PlugZap,
   Search,
+  Settings2,
   ShieldCheck,
   ShoppingBag,
   SlidersHorizontal,
@@ -20,27 +27,22 @@ import {
 import { DashboardHeader } from "@/components/dashboard-shell";
 import { PreviewInfo } from "@/components/preview-info";
 
-type Service = {
-  name: string;
-  detail: string;
-  permission: string;
-  status: string;
-  tone: "blue" | "green" | "purple" | "amber";
-  icon: LucideIcon;
-};
+type Icon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
+type TabId = "workspace" | "team" | "integrations" | "billing" | "security" | "notifications" | "defaults" | "webhooks";
+type Service = { name: string; detail: string; permission: string; status: string; tone: "blue" | "green" | "purple" | "amber"; icon: Icon };
 
 const members = [
-  ["JD", "Jordan Davis", "Owner", "All permissions", "Active", "2 hours ago"],
+  ["JD", "Jordan Davis", "Owner", "All workspace permissions", "Active", "2 hours ago"],
   ["MC", "Maya Chen", "Admin", "Projects, settings, billing", "Active", "4 hours ago"],
   ["PS", "Priya Shah", "Content manager", "Create, edit, publish", "Active", "Yesterday"],
   ["DR", "Daniel Reyes", "SEO specialist", "SEO, GEO, analytics", "Active", "3 hours ago"],
-  ["EP", "Emma Patel", "Analyst", "Analytics and reports", "Active", "6 hours ago"]
+  ["EP", "Emma Patel", "Analyst", "View analytics and reports", "Active", "6 hours ago"]
 ];
 
 const services: Service[] = [
-  { name: "Supabase", detail: "Workspace database", permission: "Read / write", status: "Ready to verify", tone: "blue", icon: Database },
-  { name: "OpenAI", detail: "Content generation", permission: "Read / write", status: "Ready to verify", tone: "green", icon: BrainCircuit },
-  { name: "Anthropic", detail: "Content assistance", permission: "Read / write", status: "Ready to verify", tone: "purple", icon: BrainCircuit },
+  { name: "Supabase", detail: "Workspace database", permission: "Read / write", status: "Ready to configure", tone: "blue", icon: Database },
+  { name: "OpenAI", detail: "Content generation", permission: "Read / write", status: "Ready to configure", tone: "green", icon: BrainCircuit },
+  { name: "Anthropic", detail: "Content assistance", permission: "Read / write", status: "Ready to configure", tone: "purple", icon: BrainCircuit },
   { name: "Stripe", detail: "Plans and billing", permission: "Billing", status: "Backend pending", tone: "amber", icon: CreditCard },
   { name: "Shopify", detail: "Publishing destination", permission: "Not connected", status: "Optional", tone: "green", icon: ShoppingBag },
   { name: "Google Analytics", detail: "Traffic and conversions", permission: "Read", status: "Optional", tone: "amber", icon: BarChart3 },
@@ -48,56 +50,68 @@ const services: Service[] = [
   { name: "Webhooks", detail: "Workspace events", permission: "Send / receive", status: "Backend pending", tone: "purple", icon: Webhook }
 ];
 
-const usage = [
-  ["Content drafts", "126 / 500", "25%"],
-  ["API credits", "48.2K / 100K", "48%"],
-  ["AI generations", "312K / 1M", "31%"],
-  ["Team seats", "5 / 10", "50%"]
+const usage = [["Content drafts", "126 / 500", "25%"], ["API credits", "48.2K / 100K", "48%"], ["AI generations", "312K / 1M", "31%"], ["Team seats", "5 / 10", "50%"]];
+
+const tabs: { id: TabId; label: string; description: string; icon: Icon }[] = [
+  { id: "workspace", label: "Workspace", description: "Profile, plan, and workspace summary", icon: Settings2 },
+  { id: "team", label: "Team & roles", description: "People, access, and permissions", icon: Users },
+  { id: "integrations", label: "Integrations", description: "Services and connection preparation", icon: PlugZap },
+  { id: "billing", label: "Billing & usage", description: "Preview plan and product usage", icon: CreditCard },
+  { id: "security", label: "Security", description: "Authentication and access controls", icon: ShieldCheck },
+  { id: "notifications", label: "Notifications", description: "Delivery and alert preferences", icon: Bell },
+  { id: "defaults", label: "Content defaults", description: "Writing and output preferences", icon: SlidersHorizontal },
+  { id: "webhooks", label: "Webhooks", description: "Event delivery configuration", icon: Webhook }
 ];
 
+function LocalToggle({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: () => void }) {
+  return <div className="settings-toggle-row"><div><strong>{label}</strong><span>{description}</span></div><button type="button" className={`settings-switch${checked ? " is-on" : ""}`} aria-label={`${checked ? "Disable" : "Enable"} ${label} in local preview`} aria-pressed={checked} onClick={onChange}><i /></button></div>;
+}
+
+function UsageCards() {
+  return <div className="settings-usage-cards">{usage.map(([label, value, percent]) => <article key={label}><div><span>{label}</span><strong>{value}</strong></div><small>{percent} of illustrative allowance</small><i><b style={{ width: percent }} /></i></article>)}</div>;
+}
+
 export default function SettingsPage() {
-  return (
-    <>
-      <DashboardHeader eyebrow="Settings" title="Settings & workspace configuration" description="Manage the LaunchVault.ca workspace, members, connected services, and product defaults." action="Edit profile" />
-      <div className="settings-dashboard-grid">
-        <section className="dashboard-panel settings-profile-card">
-          <div className="panel-heading"><div><span className="panel-icon"><Users size={18} /></span><h2>Workspace profile</h2></div><PreviewInfo className="panel-action" label="Edit profile" message="LaunchVault.ca is the sample workspace for this preview. Editing the workspace name, website, industry, and timezone will become available when workspace storage is connected. No profile changes have been saved." /></div>
-          <div className="workspace-profile workspace-profile--detailed"><span className="workspace-logo">LV</span><div><div className="workspace-title-line"><strong>LaunchVault.ca</strong><span className="status-pill status-pill--green">Preview workspace</span></div><p>Plain-English AI lessons, prompts, courses, and practical workflows.</p></div></div>
-          <div className="profile-facts"><div><span>Workspace ID</span><strong>lv_workspace_01</strong></div><div><span>Owner</span><strong>Jordan Davis</strong></div><div><span>Industry</span><strong>Education & technology</strong></div><div><span>Timezone</span><strong>Eastern Time</strong></div><div><span>Website</span><strong>launchvault.ca</strong></div><div><span>Created</span><strong>Sep 13, 2026</strong></div></div>
-        </section>
+  const [activeTab, setActiveTab] = useState<TabId>("workspace");
+  const [settings, setSettings] = useState({ twoFactor: false, email: true, project: true, system: false, browser: true, approval: true, publish: false });
+  const [defaultsSaved, setDefaultsSaved] = useState(false);
+  const active = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
+  const ActiveIcon = active.icon;
+  const flip = (key: keyof typeof settings) => setSettings((current) => ({ ...current, [key]: !current[key] }));
 
-        <section className="dashboard-panel settings-overview-card">
-          <div className="panel-heading"><div><span className="panel-icon"><BarChart3 size={18} /></span><h2>Workspace overview</h2></div><span className="panel-meta">Demo data</span></div>
-          <div className="settings-overview-stats"><div><Users /><strong>5</strong><span>Team members</span></div><div><Link2 /><strong>8</strong><span>Services listed</span></div><div><FileText /><strong>1,500</strong><span>Library items</span></div><div><BrainCircuit /><strong>50</strong><span>Topics</span></div></div>
-        </section>
+  return <>
+    <DashboardHeader eyebrow="Settings" title="Settings & workspace configuration" description="Manage workspace details, team access, integrations, and content preferences." action="Edit profile" />
+    <div className="settings-tabbed-workbench">
+      <aside className="settings-tab-sidebar" aria-label="Settings sections">
+        <div className="settings-sidebar-workspace"><span className="settings-workspace-mark">LV</span><div><strong>LaunchVault.ca</strong><small>Frontend preview</small></div><ChevronRight size={15} /></div>
+        <nav role="tablist" aria-label="Workspace settings">
+          {tabs.map((tab) => { const TabIcon = tab.icon; const selected = tab.id === activeTab; return <button type="button" key={tab.id} role="tab" aria-selected={selected} className={selected ? "is-active" : ""} onClick={() => setActiveTab(tab.id)}><TabIcon size={17} /><span>{tab.label}</span>{tab.id === "integrations" && <small>8</small>}</button>; })}
+        </nav>
+        <div className="settings-sidebar-note"><CircleDashed size={15} /><span><strong>Local preview</strong>No credentials or settings are stored from this page.</span></div>
+      </aside>
 
-        <section className="dashboard-panel settings-members-card">
-          <div className="panel-heading"><div><span className="panel-icon"><Users size={18} /></span><h2>Seats & roles</h2></div><PreviewInfo className="button button--small" label="Invite member" message="The members shown here are sample profiles. Invitations and role assignments will be available once authentication and team access are connected. No invitation has been sent." /></div>
-          <div className="settings-table settings-members-table"><div className="settings-table-head"><span>User</span><span>Role</span><span>Permissions</span><span>Status</span><span>Last active</span><span>Actions</span></div>{members.map(([initials, name, role, permissions, status, active]) => <div className="settings-table-row" key={name}><span className="member-cell"><i>{initials}</i><strong>{name}</strong></span><span><b className="role-chip">{role}</b></span><span>{permissions}</span><span><b className="status-pill status-pill--green">{status}</b></span><span>{active}</span><span title={`Manage ${name}`}><PreviewInfo className="panel-action" label="Manage" message={`${name} is a sample ${role.toLowerCase()} profile with these example permissions: ${permissions}. Changing a role, revoking access, or removing a member will require the connected team service. This preview does not change anyone’s access.`} /></span></div>)}</div>
-        </section>
+      <section className="settings-tab-content" role="tabpanel" aria-label={active.label}>
+        <header className="settings-tab-header"><span className="settings-tab-icon"><ActiveIcon size={19} /></span><div><h2>{active.label}</h2><p>{active.description}</p></div><span className="settings-demo-chip"><span />LaunchVault.ca demo</span></header>
 
-        <section className="dashboard-panel settings-billing-card">
-          <div className="panel-heading"><div><span className="panel-icon"><CreditCard size={18} /></span><h2>Billing & usage</h2></div><PreviewInfo className="panel-action" label="Manage billing" message="The Pro plan and usage figures are illustrative. Stripe billing has not been connected in this preview, so there is no active subscription or payment method to manage here. No checkout session or charge has been created." /></div>
-          <div className="billing-layout"><div className="billing-plan"><span>Current plan</span><strong>Pro preview</strong><b>$79 <small>/ month</small></b><em>Billing connection pending</em></div><ul><li><Check />Up to 10 team members</li><li><Check />Five connected projects</li><li><Check />Full AI integrations</li><li><Check />Advanced analytics</li><li><Check />Priority support</li></ul></div>
-        </section>
+        {activeTab === "workspace" && <div className="settings-tab-stack">
+          <section className="settings-surface settings-workspace-surface"><div className="settings-surface-heading"><div><h3>Workspace profile</h3><p>The core details shown throughout this frontend preview.</p></div><PreviewInfo className="settings-link-button" label="Edit profile" message="Workspace editing is disabled in this frontend preview. No change is sent to LaunchVault.ca, Supabase, or any connected service." /></div><div className="settings-workspace-profile"><span className="settings-profile-logo">LV</span><div><strong>LaunchVault.ca</strong><p>Plain-English AI lessons, prompts, courses, and practical workflows.</p><span><BadgeCheck size={13} />Preview workspace</span></div></div><div className="settings-fact-grid"><article><span>Workspace ID</span><strong>lv_workspace_01</strong></article><article><span>Owner</span><strong>Jordan Davis</strong></article><article><span>Industry</span><strong>Education & technology</strong></article><article><span>Timezone</span><strong>Eastern Time</strong></article><article><span>Website</span><strong>launchvault.ca</strong></article><article><span>Created</span><strong>Sep 13, 2026</strong></article></div></section>
+          <div className="settings-two-column"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Workspace at a glance</h3><p>Sample counters for this one project.</p></div></div><div className="settings-glance-grid"><article><Users size={18} /><strong>5</strong><span>Team members</span></article><article><Link2 size={18} /><strong>8</strong><span>Services listed</span></article><article><FileText size={18} /><strong>1,500</strong><span>Library items</span></article><article><BrainCircuit size={18} /><strong>50</strong><span>Topics</span></article></div></section><section className="settings-surface settings-plan-surface"><div className="settings-surface-heading"><div><h3>Current plan</h3><p>Billing is not connected.</p></div><PreviewInfo className="settings-link-button" label="Manage billing" message="Stripe has not been connected. The plan and price are illustrative and no subscription, checkout, or payment method exists in this preview." /></div><strong className="settings-plan-name">Pro <span>preview</span></strong><div className="settings-plan-price">$79 <small>/ month</small></div><p>Team workflow, writing tools, and analytics shown as a product preview.</p></section></div>
+        </div>}
 
-        <section className="dashboard-panel settings-usage-card">
-          <div className="panel-heading"><div><span className="panel-icon"><BarChart3 size={18} /></span><h2>Monthly usage</h2></div><span className="panel-meta">Illustrative</span></div>
-          <div className="usage-grid">{usage.map(([label, value, percent]) => <div key={label}><strong>{value}</strong><span>{label}</span><i><b style={{ width: percent }} /></i><small>{percent}</small></div>)}</div>
-        </section>
+        {activeTab === "team" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>People & roles</h3><p>Sample workspace members with the permissions their roles would carry.</p></div><PreviewInfo className="button button--small" label="Invite member" message="Team invitations and role changes are not enabled in this frontend preview. No invitation has been sent." /></div><div className="settings-member-table" role="table" aria-label="LaunchVault team members"><div className="settings-member-head" role="row"><span>Person</span><span>Role</span><span>Permissions</span><span>Status</span><span>Last active</span><span /></div>{members.map(([initials, name, role, permissions, status, activeAt]) => <div className="settings-member-row" role="row" key={name}><span className="settings-person"><i>{initials}</i><strong>{name}</strong></span><span><b className="settings-role-chip">{role}</b></span><span>{permissions}</span><span><b className="settings-status settings-status--green">{status}</b></span><span>{activeAt}</span><span><PreviewInfo className="settings-row-action" label="Manage" message={`${name} is a sample ${role.toLowerCase()} profile. This preview can show intended permissions but cannot change a role, invite a person, or remove access.`} /></span></div>)}</div></section><section className="settings-surface settings-team-note"><Users size={19} /><div><strong>Roles are previewed, not enforced</strong><p>Authentication and workspace authorization will be added with the backend. These names and roles are local demo content only.</p></div></section></div>}
 
-        <section className="dashboard-panel settings-connections-card">
-          <div className="panel-heading"><div><span className="panel-icon"><Link2 size={18} /></span><h2>API connections</h2></div><PreviewInfo className="button button--small" label="Connect service" message="Choose a service from the table to see its intended role. Connecting accounts, storing credentials, and verifying permissions will be available during the integration phase. This preview does not accept API keys or authorize external accounts." /></div>
-          <div className="settings-table settings-connections-table"><div className="settings-table-head"><span>Service</span><span>Workspace purpose</span><span>Status</span><span>Permissions</span><span>Environment</span><span>Actions</span></div>{services.map((service) => { const Icon = service.icon; return <div className="settings-table-row" key={service.name}><span className="service-cell"><i className={`service-mark service-mark--${service.tone}`}><Icon size={17} /></i><strong>{service.name}</strong></span><span>{service.detail}</span><span><b className={`status-pill status-pill--${service.tone}`}><CircleDashed size={11} />{service.status}</b></span><span>{service.permission}</span><span>Frontend preview</span><span title={`Configure ${service.name}`}><PreviewInfo className="panel-action" label="Setup" message={`${service.name} is listed for ${service.detail.toLowerCase()}. Its current preview status is “${service.status}.” Configuration and connection tests are not available yet; no credentials, permissions, or live connection have been verified by this page.`} /></span></div>; })}</div>
-        </section>
+        {activeTab === "integrations" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Connection preparation</h3><p>Services FIG is designed to work with. Statuses are not credential checks.</p></div><PreviewInfo className="button button--small" label="Connect service" message="This frontend does not accept keys, OAuth permissions, or external connection requests. Each listed service is a configuration target for the backend phase." /></div><div className="settings-integration-list">{services.map((service) => { const ServiceIcon = service.icon; return <article key={service.name}><span className={`settings-service-icon settings-service-icon--${service.tone}`}><ServiceIcon size={18} /></span><div><strong>{service.name}</strong><small>{service.detail}</small></div><span className="settings-service-permission">{service.permission}</span><b className={`settings-status settings-status--${service.tone}`}><CircleDashed size={11} />{service.status}</b><PreviewInfo className="settings-row-action" label="Setup" message={`${service.name} is shown for ${service.detail.toLowerCase()}. No credentials, permissions, connected account, or live service status has been verified by this interface.`} /></article>; })}</div></section><section className="settings-surface settings-integration-note"><LockKeyhole size={19} /><div><strong>Credentials belong in the backend</strong><p>When integrations are connected, encrypted configuration and verification should happen server-side—not in this frontend page.</p></div></section></div>}
 
-        <section className="dashboard-panel settings-compact-card"><div className="panel-heading"><div><span className="panel-icon"><ShieldCheck size={18} /></span><h2>Security & access</h2></div><PreviewInfo className="panel-action" label="Manage" message="Two-factor authentication, single sign-on, and session management will be configured through the connected authentication service. The session shown here is illustrative, and this preview has not enabled or changed any security setting." /></div><div className="settings-option-list"><span><ShieldCheck /><div><strong>Two-factor authentication</strong><small>Ready for backend configuration</small></div><b className="status-pill status-pill--blue">Planned</b></span><span><KeyRound /><div><strong>Single sign-on</strong><small>Enterprise workspace option</small></div><b className="status-pill">Not configured</b></span><span><Users /><div><strong>Active sessions</strong><small>One illustrative session</small></div><b className="status-pill status-pill--green">Healthy</b></span></div></section>
-        <section className="dashboard-panel settings-compact-card"><div className="panel-heading"><div><span className="panel-icon"><Bell size={18} /></span><h2>Notification preferences</h2></div><PreviewInfo className="panel-action" label="Manage" message="These are example preferences for email, project activity, and system updates. Saving delivery preferences will be available when notification services are connected. This preview does not send email or change notification subscriptions." /></div><div className="settings-option-list"><span><Bell /><div><strong>Email notifications</strong><small>Product updates and approvals</small></div><b className="status-pill status-pill--green">Enabled</b></span><span><Users /><div><strong>Project activity</strong><small>Posts, approvals, and comments</small></div><b className="status-pill status-pill--green">Enabled</b></span><span><BrainCircuit /><div><strong>System updates</strong><small>Maintenance and new features</small></div><b className="status-pill status-pill--blue">Planned</b></span></div></section>
-        <section className="dashboard-panel settings-compact-card"><div className="panel-heading"><div><span className="panel-icon"><SlidersHorizontal size={18} /></span><h2>Content defaults</h2></div><PreviewInfo className="panel-action" label="Edit defaults" message="The brand voice, audience, tone, language, and post format shown are sample defaults for LaunchVault.ca. Saved defaults and model selection will become available when the workspace and content-generation services are connected." /></div><div className="content-defaults"><label>Brand voice<span>Professional & friendly</span></label><label>Target audience<span>General</span></label><label>Default tone<span>Informative</span></label><label>Language<span>English</span></label><label>AI model<span>Selected in backend</span></label><label>Post format<span>Auto-select</span></label></div></section>
+        {activeTab === "billing" && <div className="settings-tab-stack"><section className="settings-surface settings-billing-feature"><div><span className="settings-kicker">Billing preview</span><h3>Pro plan for LaunchVault.ca</h3><p>Use the workspace freely as a visual prototype. Stripe billing, metering, and plan enforcement are not connected yet.</p><PreviewInfo className="settings-link-button" label="View billing details" message="No Stripe customer, subscription, checkout, invoice, or payment method exists in this frontend preview." /></div><div><strong>$79</strong><span>/ month</span><small>Illustrative plan price</small></div></section><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Monthly usage</h3><p>Representative demo values, not live account metering.</p></div><span className="settings-demo-chip"><span />Illustrative</span></div><UsageCards /></section><section className="settings-surface settings-plan-includes"><h3>Included in the preview plan</h3><div>{["Up to 10 team members", "Five connected projects", "AI writing workflows", "Advanced analytics views", "Priority support"].map((item) => <span key={item}><Check size={15} />{item}</span>)}</div></section></div>}
 
-        <section className="dashboard-panel settings-limits-card"><div className="panel-heading"><div><span className="panel-icon"><BarChart3 size={18} /></span><h2>Rate limits / API usage</h2></div><span className="panel-meta">Illustrative</span></div><div className="usage-grid usage-grid--wide">{usage.map(([label, value, percent]) => <div key={label}><strong>{value}</strong><span>{label}</span><i><b style={{ width: percent }} /></i><small>{percent}</small></div>)}</div></section>
-        <section className="dashboard-panel settings-webhooks-card"><div className="panel-heading"><div><span className="panel-icon"><Webhook size={18} /></span><h2>Webhooks</h2></div><PreviewInfo className="panel-action" label="Manage" message="No webhook endpoints are connected. Endpoint configuration, signing secrets, event subscriptions, and delivery history will be available when webhook processing is connected. Opening this preview does not send an event." /></div><div className="webhook-summary"><div><strong>0</strong><span>Active webhooks</span></div><div><strong>—</strong><span>Events delivered</span></div><div><strong>Pending</strong><span>Backend connection</span></div></div><p><CircleDashed size={12} />No webhook events have been connected yet.</p></section>
-      </div>
-    </>
-  );
+        {activeTab === "security" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Sign-in & access</h3><p>Security controls are shown as local settings for the eventual workspace backend.</p></div><span className="settings-demo-chip"><span />No auth provider connected</span></div><div className="settings-toggle-list"><LocalToggle label="Two-factor authentication" description="Require an additional verification step for workspace sign-in." checked={settings.twoFactor} onChange={() => flip("twoFactor")} /><LocalToggle label="Session notifications" description="Show a local alert when a new browser session begins." checked={settings.browser} onChange={() => flip("browser")} /></div></section><div className="settings-two-column"><section className="settings-surface"><h3>Access options</h3><div className="settings-option-cards"><article><KeyRound size={18} /><div><strong>Single sign-on</strong><span>Enterprise setup option</span></div><b>Not configured</b></article><article><Users size={18} /><div><strong>Active sessions</strong><span>One illustrative local session</span></div><b>Preview</b></article></div></section><section className="settings-surface settings-security-tip"><ShieldCheck size={20} /><div><h3>Keep keys out of the UI</h3><p>Use secure server-side environment configuration for Supabase, OpenAI, Anthropic, Stripe, and CMS credentials.</p></div></section></div></div>}
+
+        {activeTab === "notifications" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Notification preferences</h3><p>Toggle sample preferences to see how the final settings interaction should feel.</p></div><span className="settings-demo-chip"><span />Changes reset on reload</span></div><div className="settings-toggle-list"><LocalToggle label="Email product updates" description="Product changes, release notes, and workspace notices." checked={settings.email} onChange={() => flip("email")} /><LocalToggle label="Project activity" description="Reviews, approvals, content movement, and comments." checked={settings.project} onChange={() => flip("project")} /><LocalToggle label="System updates" description="Maintenance, connection state, and workflow availability." checked={settings.system} onChange={() => flip("system")} /><LocalToggle label="Approval reminders" description="Follow up on content that is still waiting for a decision." checked={settings.approval} onChange={() => flip("approval")} /><LocalToggle label="Publishing alerts" description="Receive a preview alert when a content item is ready to ship." checked={settings.publish} onChange={() => flip("publish")} /></div></section><section className="settings-surface settings-notification-note"><Bell size={18} /><div><strong>Nothing is delivered from the demo</strong><p>These controls only update local visual state and do not email, notify, or subscribe anybody.</p></div></section></div>}
+
+        {activeTab === "defaults" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Content defaults</h3><p>Starting preferences for an editor or future generation workflow.</p></div><PreviewInfo className="settings-link-button" label="How defaults work" message="These fields are locally interactive presentation controls. Saving content defaults, selecting models, and using them in a generation workflow requires the backend connection phase." /></div><div className="settings-defaults-form"><label><span>Brand voice</span><select defaultValue="Professional & friendly"><option>Professional & friendly</option><option>Direct & practical</option><option>Warm & educational</option></select></label><label><span>Target audience</span><select defaultValue="Learners and operators"><option>Learners and operators</option><option>Marketing teams</option><option>Technical teams</option></select></label><label><span>Default tone</span><select defaultValue="Informative"><option>Informative</option><option>Conversational</option><option>Concise</option></select></label><label><span>Language</span><select defaultValue="English (US)"><option>English (US)</option><option>English (Canada)</option><option>French (Canada)</option></select></label><label><span>AI model</span><select defaultValue="Choose in backend"><option>Choose in backend</option><option>OpenAI content model</option><option>Anthropic content model</option></select></label><label><span>Post format</span><select defaultValue="Auto-select"><option>Auto-select</option><option>Guide</option><option>Article with FAQ</option></select></label></div><div className="settings-defaults-footer"><span><CircleDashed size={13} />{defaultsSaved ? "Saved locally for this browser session." : "Preview preferences only"}</span><button type="button" className="button button--small" onClick={() => setDefaultsSaved(true)}>Save local preview</button></div></section></div>}
+
+        {activeTab === "webhooks" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Webhook delivery</h3><p>Prepare the event layer your integrations will use once the backend is online.</p></div><PreviewInfo className="button button--small" label="Add endpoint" message="No endpoint can be added in this visual preview. Event subscriptions, signing secrets, and delivery logs need the backend webhook service." /></div><div className="settings-webhook-stats"><article><strong>0</strong><span>Active endpoints</span></article><article><strong>—</strong><span>Events delivered</span></article><article><strong>Pending</strong><span>Signing secret</span></article></div><div className="settings-webhook-empty"><Webhook size={22} /><div><strong>No webhook endpoints configured</strong><p>When available, events such as <code>content.published</code>, <code>review.requested</code>, and <code>project.updated</code> will appear here with a delivery history.</p></div><PreviewInfo className="settings-link-button" label="View example" message="Example event delivery will be shown here once a server-side endpoint configuration is available. No event has been sent from this frontend." /></div></section></div>}
+      </section>
+    </div>
+  </>;
 }

@@ -66,6 +66,7 @@
 .workspace-trend-plot svg { position: absolute; width: 100%; height: 100%; inset: 0; overflow: visible; }
 .workspace-trend-plot [role=button] { cursor: crosshair; outline: none; }
 .workspace-trend-plot [role=button]:focus-visible rect { fill: #7551f810; }
+.workspace-trend-dot { position: absolute; z-index: 1; width: 7px; height: 7px; display: block; border: 1.5px solid #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(36,49,87,.18); pointer-events: none; transform: translate(-50%,-50%); }
 .workspace-trend-tooltip { position: absolute; z-index: 2; top: 8px; min-width: 175px; padding: 11px; border: 1px solid #e2e7f3; border-radius: 6px; background: #fff; box-shadow: 0 5px 20px #25345115; pointer-events: none; }
 .workspace-trend-tooltip > strong { display: block; margin-bottom: 8px; font-size: 11px; color: #7c89a6; }
 .workspace-trend-tooltip > span { display: grid; grid-template-columns: 6px 1fr auto; align-items: center; gap: 6px; margin-top: 4px; font-size: 11px; color: #53658c; }

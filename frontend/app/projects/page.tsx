@@ -1,8 +1,10 @@
 "use client";
 
-import { useRef, useState, type CSSProperties } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { WorkspaceTrendChart } from "@/components/visibility-chart";
+import calendarStyles from "./projects-calendar.module.css";
+import { chartRanges as trendRanges, type ChartRange } from "@/lib/chart-range";
 import {
   ArrowRight,
   BarChart3,
@@ -11,6 +13,8 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   FileText,
   Globe2,
@@ -47,11 +51,79 @@ const opportunities = [
   ["Add comparison content", "8 suggested pages", "Medium"]
 ];
 
+type CalendarEvent = {
+  id: string;
+  date: string;
+  title: string;
+  time: string;
+  status: "Draft" | "Review" | "Scheduled" | "Published";
+  type: string;
+  template: string;
+};
+
+const calendarEvents: CalendarEvent[] = [
+  { id: "seo-checklist", date: "2025-05-01", title: "SEO checklist for practical AI lessons", time: "9:30 AM", status: "Published", type: "Guide", template: "Long-form guide" },
+  { id: "prompt-library", date: "2025-05-05", title: "Prompt library: work smarter with AI", time: "10:00 AM", status: "Scheduled", type: "Resource", template: "Resource library" },
+  { id: "prompt-writing", date: "2025-05-06", title: "Prompt writing workshop", time: "1:00 PM", status: "Review", type: "Lesson", template: "Course lesson" },
+  { id: "ai-agents", date: "2025-05-08", title: "AI agents: a practical guide", time: "11:30 AM", status: "Draft", type: "Guide", template: "Editorial guide" },
+  { id: "rag-explainer", date: "2025-05-12", title: "RAG explained without jargon", time: "9:00 AM", status: "Scheduled", type: "Explainer", template: "Article" },
+  { id: "workflow", date: "2025-05-15", title: "Build an AI workflow in one afternoon", time: "2:00 PM", status: "Review", type: "Tutorial", template: "Step-by-step tutorial" },
+  { id: "newsletter", date: "2025-05-19", title: "Weekly learning roundup", time: "8:30 AM", status: "Published", type: "Newsletter", template: "Email digest" },
+  { id: "learn-ai", date: "2025-05-21", title: "Learn AI in 5 Minutes a Day", time: "10:00 AM", status: "Published", type: "Guide", template: "LaunchVault guide" },
+  { id: "course-update", date: "2025-05-21", title: "Course update: prompt-writing basics", time: "3:00 PM", status: "Scheduled", type: "Lesson", template: "Course lesson" },
+  { id: "comparison", date: "2025-05-23", title: "AI tools comparison for beginners", time: "12:00 PM", status: "Draft", type: "Comparison", template: "Comparison page" },
+  { id: "weekly-roundup", date: "2025-05-27", title: "What to learn next: May roundup", time: "9:00 AM", status: "Review", type: "Newsletter", template: "Email digest" },
+  { id: "ai-planning", date: "2025-05-29", title: "Planning an AI study routine", time: "11:00 AM", status: "Scheduled", type: "Guide", template: "LaunchVault guide" }
+];
+
+function dateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function getCalendarDays(month: Date) {
+  const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
+  const start = new Date(month.getFullYear(), month.getMonth(), 1 - firstDay.getDay());
+  return Array.from({ length: 42 }, (_, index) => {
+    const day = new Date(start);
+    day.setDate(start.getDate() + index);
+    return day;
+  });
+}
+
+function formatMonth(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", { month: "long", year: "numeric" }).format(date);
+}
+
+function formatLongDate(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", { weekday: "long", month: "long", day: "numeric" }).format(date);
+}
+
 export default function ProjectsPage() {
   const [query, setQuery] = useState("");
   const [view, setView] = useState("grid");
+  const [trendRange, setTrendRange] = useState<ChartRange>("30");
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(2025, 4, 1));
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState("2025-05-21");
   const projectDialog = useRef<HTMLDialogElement>(null);
   const matchesProject = "launchvault.ca ai education prompts practical tools".includes(query.toLowerCase().trim());
+  const calendarDays = useMemo(() => getCalendarDays(calendarMonth), [calendarMonth]);
+  const monthOptions = Array.from({ length: 12 }, (_, month) => ({
+    value: `${calendarMonth.getFullYear()}-${month}`,
+    date: new Date(calendarMonth.getFullYear(), month, 1)
+  }));
+  const selectedDate = useMemo(() => new Date(`${selectedCalendarDate}T12:00:00`), [selectedCalendarDate]);
+  const selectedEvents = useMemo(() => calendarEvents.filter((event) => event.date === selectedCalendarDate), [selectedCalendarDate]);
+  const activeTrendRange = trendRanges.find((range) => range.value === trendRange) ?? trendRanges[3];
+
+  const changeCalendarMonth = (next: Date) => {
+    setCalendarMonth(next);
+    setSelectedCalendarDate(dateKey(next));
+  };
+
+  const selectCalendarMonth = (value: string) => {
+    const [year, month] = value.split("-").map(Number);
+    changeCalendarMonth(new Date(year, month, 1));
+  };
   return (
     <main className="projects-page">
       <header className="projects-topbar">
@@ -93,8 +165,18 @@ export default function ProjectsPage() {
 
         <div className="projects-dashboard-grid">
           <section className="projects-panel projects-panel--trend">
-            <div className="projects-panel-heading"><div><BarChart3 size={17} /><strong>Workspace Performance Trend</strong></div><button type="button">Last 30 days<ChevronDown size={13} /></button></div>
-            <WorkspaceTrendChart />
+            <div className="projects-panel-heading">
+              <div><BarChart3 size={17} /><strong>Workspace Performance Trend</strong></div>
+              <label className={calendarStyles.trendRangeSelect}>
+                <span className={calendarStyles.visuallyHidden}>Select performance chart timeframe</span>
+                <select value={trendRange} aria-label="Select performance chart timeframe" onChange={(event) => setTrendRange(event.target.value as ChartRange)}>
+                  {trendRanges.map((range) => <option key={range.value} value={range.value}>{range.label}</option>)}
+                </select>
+                <ChevronDown size={13} aria-hidden="true" />
+              </label>
+            </div>
+            <p className={calendarStyles.trendRangeNote} aria-live="polite">Showing illustrative performance activity from the {activeTrendRange.label.toLowerCase()}.</p>
+            <WorkspaceTrendChart range={trendRange} />
           </section>
 
           <section className="projects-panel projects-panel--health">
@@ -132,9 +214,50 @@ export default function ProjectsPage() {
             <div className="projects-feed projects-feed--opportunities">{opportunities.map(([title,detail,priority],index)=><article key={title}><span>{index+1}</span><div><strong>{title}</strong><small>{detail}</small></div><em>{priority}</em></article>)}</div>
           </section>
 
-          <section className="projects-panel projects-panel--calendar">
-            <div className="projects-panel-heading"><div><CalendarDays size={17}/><strong>Content Calendar</strong></div><button type="button">May 2025<ChevronDown size={12}/></button></div>
-            <div className="projects-calendar">{["Mon 19","Tue 20","Wed 21","Thu 22","Fri 23"].map((day,index)=><article key={day}><strong>{day}</strong><span>{["AI agents guide","Prompt writing","RAG explainer","AI workflows","Weekly roundup"][index]}</span><small>{index % 2 ? "Review" : "Scheduled"}</small></article>)}</div>
+          <section className={`projects-panel projects-panel--calendar ${calendarStyles.calendarPanel}`}>
+            <div className={`${"projects-panel-heading"} ${calendarStyles.calendarHeading}`}>
+              <div><CalendarDays size={17}/><strong>Content Calendar</strong><span className={calendarStyles.calendarWorkspace}>LaunchVault.ca</span></div>
+              <div className={calendarStyles.calendarControls}>
+                <button type="button" className={calendarStyles.calendarIconButton} aria-label="Previous month" onClick={() => changeCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}><ChevronLeft size={15}/></button>
+                <label className={calendarStyles.monthSelect}>
+                  <span className={calendarStyles.visuallyHidden}>Select calendar month</span>
+                  <select value={`${calendarMonth.getFullYear()}-${calendarMonth.getMonth()}`} aria-label="Select content calendar month" onChange={(event) => selectCalendarMonth(event.target.value)}>
+                    {monthOptions.map((option) => <option key={option.value} value={option.value}>{formatMonth(option.date)}</option>)}
+                  </select>
+                  <ChevronDown size={13} aria-hidden="true" />
+                </label>
+                <button type="button" className={calendarStyles.calendarIconButton} aria-label="Next month" onClick={() => changeCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}><ChevronRight size={15}/></button>
+              </div>
+            </div>
+            <div className={calendarStyles.calendarLayout}>
+              <div className={calendarStyles.calendarGrid} role="group" aria-label={`${formatMonth(calendarMonth)} content calendar`}>
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((weekday) => <span key={weekday} className={calendarStyles.weekday}>{weekday}</span>)}
+                {calendarDays.map((day) => {
+                  const key = dateKey(day);
+                  const dayEvents = calendarEvents.filter((event) => event.date === key);
+                  const isCurrentMonth = day.getMonth() === calendarMonth.getMonth();
+                  const isSelected = key === selectedCalendarDate;
+                  const isToday = key === "2025-05-21";
+                  return <button key={key} type="button" className={`${calendarStyles.calendarDay} ${!isCurrentMonth ? calendarStyles.mutedDay : ""} ${isSelected ? calendarStyles.selectedDay : ""}`} onClick={() => { setSelectedCalendarDate(key); if (!isCurrentMonth) setCalendarMonth(new Date(day.getFullYear(), day.getMonth(), 1)); }} aria-pressed={isSelected} aria-label={`${formatLongDate(day)}, ${day.getFullYear()}${dayEvents.length ? `, ${dayEvents.length} content item${dayEvents.length > 1 ? "s" : ""}` : ""}`}>
+                    <span className={`${calendarStyles.dayNumber} ${isToday ? calendarStyles.todayNumber : ""}`}>{day.getDate()}</span>
+                    <span className={calendarStyles.dayEvents}>
+                      {dayEvents.slice(0, 2).map((event) => <span className={`${calendarStyles.eventChip} ${calendarStyles[`status${event.status}`]}`} key={event.id}>{event.title}</span>)}
+                      {dayEvents.length > 2 && <span className={calendarStyles.moreEvents}>+{dayEvents.length - 2} more</span>}
+                    </span>
+                  </button>;
+                })}
+              </div>
+              <aside className={calendarStyles.calendarAgenda} aria-live="polite">
+                <div className={calendarStyles.agendaHeading}><span>Selected day</span><strong>{formatLongDate(selectedDate)}</strong></div>
+                {selectedEvents.length > 0 ? <div className={calendarStyles.agendaList}>{selectedEvents.map((event) => <article key={event.id} className={calendarStyles.agendaItem}>
+                  <span className={`${calendarStyles.agendaStatus} ${calendarStyles[`status${event.status}`]}`}>{event.status}</span>
+                  <strong>{event.title}</strong>
+                  <small>{event.time} · {event.type}</small>
+                  <em>{event.template}</em>
+                </article>)}</div> : <div className={calendarStyles.agendaEmpty}><CalendarDays size={18}/><strong>Nothing scheduled</strong><span>Select a highlighted date to review the sample publishing plan.</span></div>}
+                <div className={calendarStyles.agendaFooter}><span>Workspace</span><strong>LaunchVault.ca</strong></div>
+              </aside>
+            </div>
           </section>
 
           <section className="projects-panel projects-panel--automation">

@@ -339,13 +339,13 @@ export default function HomePage() {
         </section>
 
         <section className="section page-shell home-faq" id="faq">
-          <div className="home-faq-heading"><span className="section-kicker">Frequently asked questions</span><h2>Everything you need to know</h2></div>
+          <div className="home-faq-heading"><span className="section-kicker">Frequently asked questions</span><h2>Everything you need to know</h2><p>A few straight answers about this FIG frontend preview, its demo workspace, and what comes next.</p></div>
           <Faq items={frequentlyAsked} />
         </section>
 
         <section className="page-shell home-cta">
-          <div><h2>Ready to launch content that gets your brand found?</h2><p>Explore the frontend workspace, then shape FIG around your actual workflow.</p></div>
-          <div><Link className="secondary-button secondary-button--light" href="/projects">Try the demo</Link><Link className="button button--light" href="/signup">Start free</Link></div>
+          <div className="home-cta-copy"><span>See FIG in motion</span><h2>Ready to make the content workflow feel less scattered?</h2><p>Explore the LaunchVault.ca demo first, then shape the product around the way your team actually works.</p></div>
+          <div className="home-cta-actions"><div><Link className="secondary-button secondary-button--light" href="/projects">Explore demo</Link><Link className="button button--light" href="/signup">Create preview</Link></div><small>No account or payment is created in this frontend preview.</small></div>
         </section>
       </main>
       <Footer />
