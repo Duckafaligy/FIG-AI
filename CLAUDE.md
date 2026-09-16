@@ -88,6 +88,22 @@ reaction to. If you're tempted to "just
 ask the AI" for something a rule could check instead (uniformity, keyword
 presence, color similarity, size ratios), write the rule instead.
 
+**Same call, made again on 2026-09-15: no vision-model "here's your fixed
+design" feature.** The idea comes up naturally — screenshot the page, send it
+to a vision model, get back a mocked-up redesign. Rejected on purpose, twice
+over: (1) it's the same cost-shape problem as `content.py:draft()` above —
+image tokens and image generation are not the same bill as a batched text
+rewrite of already-flagged findings, and (2) it works against the point of
+the product. This is a self-check tool for someone learning to see the
+pattern themselves; handing back an AI-generated "corrected" design is the
+easy path to the redesign itself reading generically, on a tool whose whole
+job is catching that. If a screenshot-based feature gets built, the
+deterministic-and-cheap version is: Playwright screenshot + rule-based
+highlight boxes drawn from the evidence/coordinates checks already produce —
+no model in that loop at all. That still means adding Playwright, which
+CLAUDE.md's tech stack section marks as not-yet-needed, so it's not a small
+addition either.
+
 The "known tells" reference lists (`KNOWN_DEFAULT_COLORS`,
 `GENERIC_COPY_PHRASES`, `OVERUSED_ICON_NAMES` in `app/rules/checks.py`) are
 the actual differentiating IP of this product. They should be expanded over
@@ -155,6 +171,12 @@ and `/health` are unaffected. Set it to 1 to reconnect.
   then goes breadth-first over internal links, filling a `CrawlReport` with
   every page read or skipped and why. `parse_html` is still a pure function.
   Empty blocks (no words, images or controls) are not counted as sections.
+  **No JavaScript execution — `requests` + BeautifulSoup only.** This is the
+  scraper's real ceiling, not the page-count or robots limits: a client-rendered
+  route (content that only appears after a client component mounts/fetches)
+  reads as thin or empty rather than erroring loudly, so a scan can quietly
+  under-report a JS-heavy site instead of failing on it. Worth a "this page
+  may need JS to render" signal before Playwright is worth adding for it.
 - `app/rules/checks.py` — **18** deterministic checks across four layers:
   craft (the original six), structure, search, answers. Every `Flag` carries
   its own `why` and `fix`.
@@ -179,7 +201,10 @@ and `/health` are unaffected. Set it to 1 to reconnect.
   `create_all` never alters a table.
 - `app/api.py` — `/v1` with API-key auth: provision a site, scan one or the
   whole estate, poll a scan and pull its pages and trace, pull `/v1/report` as
-  a partner-renderable roll-up, run ownership verification.
+  a partner-renderable roll-up, run ownership verification. `GET /v1/checklist`
+  (no auth, no scan needed, mirrors `/v1/layers`) serves
+  `rules/checks.py:CHECKLIST` — every deterministic check and what triggers
+  it, so a user or partner UI can see what a scan actually looks for.
 - `app/public.py` — `/scan`, the free read: validated, capped per browser, per
   network and globally per day. `X-Forwarded-For` is only trusted when
   `FIG_TRUST_PROXY=1`.
@@ -252,6 +277,23 @@ with frontend work in flight):
   written without approval and every change keeps a before-state so it can be
   reverted. Judgement calls stay advice. No CMS adapter is written yet, so
   `publish()` refuses out loud rather than pretending.
+- `app/secrets_store.py` — Fernet encryption (key: `FIG_SECRET_KEY`) around
+  whatever `Integration.credential_ref` points at (table: `Secret` in
+  `app/models.py`). Not a real vault — one symmetric key, good enough to stop
+  a database dump handing over live tokens, meant to be swapped out before
+  this fronts real customer CMS credentials at scale. `store_secret`/
+  `read_secret`/`update_secret`/`delete_secret`; every call raises
+  `SecretsNotConfigured` rather than writing plaintext if the key is unset.
+- `app/oauth.py` — `/oauth/{platform}/start` and `/oauth/{platform}/callback`,
+  mounted unconditionally (like `billing_router`) since a platform's redirect
+  URI has to be stable regardless of `FIG_WORKSPACE_API`. Only Google
+  (Analytics, `analytics.readonly`, read-only) is wired up; `state` is a
+  signed, 10-minute-lived token (reuses `FIG_SESSION_SECRET`) carrying the
+  site/account being connected, so the callback can't be replayed or pointed
+  at a site the caller doesn't own. The token exchange happens server-side —
+  Google's code and the resulting access/refresh tokens never reach browser
+  JS. Every other OAuth platform in the roadmap (all but WordPress, which
+  uses Application Passwords, not OAuth) follows this same three-step shape.
 - `app/content.py` — the content queue behind `/app/seo`. Findings that need a
   *page* rather than a field edit (an unanswered question, a thin page, copy
   with no figures, a site with no structured data) become briefs, which move
@@ -288,10 +330,11 @@ before anything is public.
    not attributed to any section at all.
 4. **Shareable/white-label report output** — a public per-scan URL and a
    branded PDF. This is the growth mechanic, not just a feature.
-4b. **CMS adapters and a secret store** — WordPress first. Both the change
-   queue and the content queue stop at the same missing piece: there is
-   nowhere safe to keep a customer's CMS credential, so `Integration` holds a
-   reference and a last-four hint and nothing else.
+4b. **CMS write adapters** — WordPress first, still not built. The secret
+   store this needed now exists (`app/secrets_store.py`, below), so this is
+   down to per-platform adapter code + OAuth app registration, not a missing
+   architecture piece. `publish()` in `app/publishing.py` still refuses out
+   loud for every platform.
 5. **Call `POST /scan` from the frontend** — the free read is mounted,
    validated and rate-limited; nothing calls it yet.
 6. **Stripe end to end** — the code is there; it has never run against a live

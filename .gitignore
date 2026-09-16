@@ -23,6 +23,9 @@ out/
 *.tsbuildinfo
 fig-preview*.log
 
+# vercel project link (created at repo root for CLI deploys of frontend/)
+.vercel/
+
 # editors / os
 .DS_Store
 Thumbs.db

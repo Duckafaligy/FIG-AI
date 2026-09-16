@@ -18,6 +18,7 @@ from app.auth import require_account
 from app.db import get_session
 from app.jobs import enqueue_estate, enqueue_scan, queue_depth
 from app.models import Account, Finding, Page, Scan, Site
+from app.rules.checks import checklist
 from app.rules.scoring import LAYER_LABEL, LAYER_SUB, verdict
 from app.validation import ValidationError, assert_public_host, normalise_target
 from app.verification import generate_verification_token, verify_via_dns_txt, verify_via_meta_tag
@@ -166,6 +167,14 @@ def get_layers():
         {"key": k, "label": LAYER_LABEL[k], "sub": LAYER_SUB[k]}
         for k in ("craft", "structure", "search", "answers")
     ]
+
+
+@router.get("/checklist")
+def get_checklist():
+    """Every deterministic check FIG runs, and what triggers it — no auth
+    required, no scan required. Lets a user (or a partner's UI) see what a
+    scan actually looks for, independent of any one result."""
+    return checklist()
 
 
 # --- sites --------------------------------------------------------------

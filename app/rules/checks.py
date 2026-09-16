@@ -621,3 +621,80 @@ def run_all_checks(signal: PageSignal) -> list[Flag]:
     for multi in MULTI_CHECKS:
         flags.extend(multi(signal))
     return flags
+
+
+# --- checklist -------------------------------------------------------------
+
+# A user-facing description of every check above, grouped the same way this
+# file is. `ids` lists the Flag.check values a function can emit — a few
+# functions (check_h1, check_title, check_meta_description,
+# check_structured_data) emit one of two ids depending on which branch fires.
+# Hand-maintained rather than introspected from the functions, same as the
+# reference lists above: keep this in sync when a check's condition changes.
+CHECKLIST: list[dict] = [
+    # craft
+    {"ids": ["component_uniformity"], "layer": "craft", "title": "Uniform card styling",
+     "flags": "3 or more card-like elements sharing the exact same rounded-corner + "
+              "shadow combination, on 60% or more of the cards found."},
+    {"ids": ["numbered_eyebrows"], "layer": "craft", "title": "Numbered step/feature labels",
+     "flags": "3 or more short standalone labels such as '01', '02', or 'Step 3' used "
+              "as section eyebrows."},
+    {"ids": ["generic_copy"], "layer": "craft", "title": "Generic marketing phrasing",
+     "flags": "Headings or copy matching a maintained list of ~30 filler phrases "
+              "('elevate your', 'unlock the power of', 'seamlessly integrate', ...)."},
+    {"ids": ["default_color_palette"], "layer": "craft", "title": "Unmodified default colors",
+     "flags": "2 or more hex colors on the page within a close RGB distance of known "
+              "component-library or page-builder defaults (Tailwind, shadcn, common "
+              "gradient blues)."},
+    {"ids": ["flat_typography"], "layer": "craft", "title": "Flat heading hierarchy",
+     "flags": "4 or more headings where 75% or more collapse into 2 or fewer distinct "
+              "heading levels."},
+    {"ids": ["overused_icons"], "layer": "craft", "title": "Overused icon set",
+     "flags": "2 or more uses of icons from a maintained list overused in generated UI "
+              "(sparkles, arrow-right, zap, rocket, shield-check, star, ...)."},
+    # structure
+    {"ids": ["section_order"], "layer": "structure", "title": "Sections out of a sensible order",
+     "flags": "A section (e.g. pricing) sitting before the section that would justify "
+              "it, based on the role each section is classified as."},
+    {"ids": ["missing_h1", "multiple_h1"], "layer": "structure", "title": "H1 count",
+     "flags": "Zero h1 headings on the page, or more than one."},
+    {"ids": ["heading_skips"], "layer": "structure", "title": "Heading level skips",
+     "flags": "2 or more places where the heading level jumps more than one step, "
+              "such as h2 straight to h4."},
+    {"ids": ["thin_page"], "layer": "structure", "title": "Thin page",
+     "flags": "Fewer than 120 words of body copy on the page."},
+    # search
+    {"ids": ["missing_title", "title_length"], "layer": "search", "title": "Page title",
+     "flags": "No <title> tag, or a title over 65 characters that gets truncated in "
+              "search results."},
+    {"ids": ["missing_meta_description", "meta_description_length"], "layer": "search",
+     "title": "Meta description",
+     "flags": "No meta description, or one outside the 60-175 character range."},
+    {"ids": ["missing_canonical"], "layer": "search", "title": "Canonical link",
+     "flags": "No <link rel=\"canonical\"> on the page."},
+    {"ids": ["missing_lang"], "layer": "search", "title": "Language attribute",
+     "flags": "No lang attribute on the <html> element."},
+    {"ids": ["missing_alt"], "layer": "search", "title": "Image alt text",
+     "flags": "3 or more images on the page, 40% or more missing alt text."},
+    {"ids": ["few_internal_links"], "layer": "search", "title": "Orphan pages",
+     "flags": "2 or fewer internal links from a page carrying 150+ words."},
+    # answers
+    {"ids": ["no_structured_data", "thin_structured_data"], "layer": "answers",
+     "title": "Structured data (JSON-LD)",
+     "flags": "No JSON-LD on the page, or JSON-LD present but none of it a useful type "
+              "(Organization, Product, FAQPage, Article, ...)."},
+    {"ids": ["no_answerable_questions"], "layer": "answers", "title": "No Q&A block",
+     "flags": "250+ words of copy with no FAQ block and no plainly-worded question "
+              "headings."},
+    {"ids": ["low_specificity"], "layer": "answers", "title": "Low specificity",
+     "flags": "200+ words of copy with fewer than 4 concrete numbers, and under 1 "
+              "number per 100 words."},
+]
+
+
+def checklist() -> list[dict]:
+    """JSON-safe: every check FIG runs, what triggers it, grouped by layer.
+    No AI call is involved — this is a direct, hand-maintained description of
+    the deterministic rules above. Served at GET /v1/checklist so a user can
+    see what a scan actually looked for before or after running one."""
+    return CHECKLIST

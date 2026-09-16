@@ -29,6 +29,7 @@ from app.api import router as api_router
 from app.billing import router as billing_router
 from app.db import IS_SQLITE, get_session, init_db
 from app.jobs import queue_depth, start_workers, stop_workers
+from app.oauth import router as oauth_router
 from app.public import router as public_router
 from app.webapp import router as webapp_router
 
@@ -99,6 +100,7 @@ app.add_middleware(
 app.include_router(api_router)
 app.include_router(billing_router)
 app.include_router(public_router)
+app.include_router(oauth_router)
 if config.WORKSPACE_API_ENABLED:
     app.include_router(webapp_router)
 
@@ -127,4 +129,6 @@ def health(session: Session = Depends(get_session)):
         "billing": config.BILLING_ENABLED,
         "workspace_api": config.WORKSPACE_API_ENABLED,
         "dev_no_auth": config.DEV_NO_AUTH,
+        "secrets_configured": bool(config.SECRET_ENCRYPTION_KEY),
+        "google_oauth": config.GOOGLE_OAUTH_ENABLED,
     }

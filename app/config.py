@@ -131,3 +131,27 @@ CORS_ORIGINS = [
 # run the backend disconnected from it: `/api` is not mounted and no browser
 # origin is allowed. `/v1`, `/scan` and `/health` are unaffected.
 WORKSPACE_API_ENABLED = os.environ.get("FIG_WORKSPACE_API", "1") == "1"
+
+# --- secrets ------------------------------------------------------------
+# Encrypts anything app/secrets_store.py stores (OAuth tokens, CMS
+# credentials) -- see that module's docstring. Generate with:
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# Unset means integrations can be *initiated* but nothing can actually be
+# stored -- store_secret() raises rather than writing plaintext.
+SECRET_ENCRYPTION_KEY = os.environ.get("FIG_SECRET_KEY", "")
+
+# --- oauth: google (Analytics) -------------------------------------------
+# The only OAuth platform wired up so far. Every CMS in CLAUDE.md's roadmap
+# (WordPress excepted -- it uses Application Passwords, not OAuth) follows
+# this same shape once it has a client id/secret: app/oauth.py.
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+# Must exactly match a Redirect URI registered on the OAuth client in Google
+# Cloud Console. Points at this backend directly, never at the frontend --
+# the token is exchanged server-side and never crosses browser JS.
+GOOGLE_OAUTH_REDIRECT_URI = os.environ.get(
+    "GOOGLE_OAUTH_REDIRECT_URI", "http://localhost:8000/oauth/google/callback")
+GOOGLE_OAUTH_ENABLED = bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
+
+# Where a browser lands after the OAuth round trip finishes, success or not.
+OAUTH_RETURN_URL = os.environ.get("FIG_OAUTH_RETURN_URL", f"{FRONTEND_URL}/app/settings")

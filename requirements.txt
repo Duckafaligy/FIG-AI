@@ -13,6 +13,7 @@ psycopg2-binary      # only needed when DATABASE_URL points at Postgres
 python-dotenv
 dnspython
 stripe               # billing; the app boots and runs without it
+cryptography         # encrypts OAuth/CMS secrets at rest — app/secrets_store.py
 
 # Planned per the tech stack in CLAUDE.md, not yet imported by any module:
 # apscheduler   # scheduled Watch jobs

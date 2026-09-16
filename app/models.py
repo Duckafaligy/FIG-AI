@@ -383,6 +383,22 @@ class Integration(Base):
         return bool(self.credential_ref and self.connected_at)
 
 
+class Secret(Base):
+    """What `Integration.credential_ref` points at — see app/secrets_store.py.
+
+    The table holds only Fernet-encrypted ciphertext, keyed by this row's own
+    id. Nothing here is readable without FIG_SECRET_KEY, which lives in
+    process environment, never in the database.
+    """
+
+    __tablename__ = "secrets"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    ciphertext = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=_now)
+    updated_at = Column(DateTime, default=_now, onupdate=_now)
+
+
 CHANGE_STATES = ("proposed", "approved", "published", "rejected", "failed", "reverted")
 
 

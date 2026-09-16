@@ -8,7 +8,7 @@ those. The structure/search/answers checks are hygiene, and a bare fixture
 legitimately fails them — so those are asserted separately rather than
 expecting silence across the board.
 """
-from app.rules.checks import run_all_checks
+from app.rules.checks import CHECKLIST, checklist, run_all_checks
 from app.rules.sections import roles_for
 from app.scraper import parse_html
 
@@ -140,9 +140,34 @@ def test_section_roles_and_order():
     print(f"       {order[0].summary}")
 
 
+def test_checklist_ids_are_unique_and_cover_observed_flags():
+    """CHECKLIST is hand-maintained (see rules/checks.py), so the one thing
+    worth guarding automatically is that it does not drift into duplicate or
+    missing ids as checks change. Cross-checked against every id the fixtures
+    above are already known to trigger."""
+    seen: dict[str, str] = {}
+    for entry in CHECKLIST:
+        for check_id in entry["ids"]:
+            assert check_id not in seen, f"'{check_id}' declared in two checklist entries"
+            seen[check_id] = entry["title"]
+    all_ids = set(seen)
+
+    observed: set[str] = set()
+    for html in (GENERIC_HTML, HANDCRAFTED_HTML, BAD_ORDER_HTML):
+        signal = parse_html("https://checklist-coverage.test/", html)
+        observed |= {f.check for f in run_all_checks(signal)}
+    missing = observed - all_ids
+    assert not missing, f"checks fire that CHECKLIST does not describe: {missing}"
+
+    assert checklist() == CHECKLIST
+    print(f"[PASS] checklist describes {len(all_ids)} check ids, "
+          f"{len(observed)} observed in fixtures")
+
+
 if __name__ == "__main__":
     test_generic_html_triggers_expected_flags()
     test_handcrafted_html_stays_quiet_on_craft()
     test_hygiene_layers_fire_when_head_is_bare()
     test_section_roles_and_order()
+    test_checklist_ids_are_unique_and_cover_observed_flags()
     print("\nAll local rule-engine tests passed.")
