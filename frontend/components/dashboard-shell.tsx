@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Bell,
@@ -36,6 +36,7 @@ import {
 import { createContext, useContext, useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import type { DashboardPage, DashboardRow } from "@/lib/dashboard-pages";
 import { chartHitArea, chartRanges, chartSamples, type ChartRange } from "@/lib/chart-range";
+import { actions } from "@/lib/api";
 import { ContentTemplatePreview } from "./content-template-preview";
 
 const DashboardSearchContext = createContext("");
@@ -60,13 +61,23 @@ const searchCopy: Record<string, string> = {
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const menuRef = useRef<HTMLButtonElement>(null);
   const navigationId = useId();
   const closeNavigation = () => {
     setOpen(false);
     window.setTimeout(() => menuRef.current?.focus(), 0);
+  };
+
+  const signOut = async () => {
+    setSigningOut(true);
+    await actions.signOut();
+    router.push("/signin");
+    router.refresh();
   };
 
   useEffect(() => {
@@ -111,7 +122,47 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <div className="workspace-switch" aria-label="Current project"><span className="workspace-mark">LV</span>LaunchVault.ca</div>
             <div className="workspace-switch" aria-label="Illustrative preview date range"><CalendarDays size={16} aria-hidden="true" /><span>May 12, 2025 – May 25, 2025</span><ChevronDown size={14} aria-hidden="true" /></div>
             <Link className="icon-button" href="/app/notifications" aria-label="Notifications"><Bell size={18} /></Link>
-            <span className="avatar-button" aria-label="Current account: JD" style={{ cursor: "default" }}>JD</span>
+            <div style={{ position: "relative" }}>
+              <button
+                className="avatar-button"
+                aria-label="Account menu"
+                aria-expanded={accountMenuOpen}
+                onClick={() => setAccountMenuOpen((isOpen) => !isOpen)}
+                style={{ cursor: "pointer" }}
+              >
+                JD
+              </button>
+              {accountMenuOpen && (
+                <>
+                  <button
+                    aria-label="Close account menu"
+                    onClick={() => setAccountMenuOpen(false)}
+                    style={{ position: "fixed", inset: 0, background: "transparent", border: "none", cursor: "default", zIndex: 40 }}
+                  />
+                  <div
+                    role="menu"
+                    style={{
+                      position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 50,
+                      minWidth: 160, borderRadius: 12, border: "1px solid rgba(148,163,184,.28)",
+                      background: "var(--surface, #fff)", boxShadow: "0 12px 32px rgba(15,23,42,.14)",
+                      padding: 6,
+                    }}
+                  >
+                    <button
+                      role="menuitem"
+                      onClick={signOut}
+                      disabled={signingOut}
+                      style={{
+                        width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: 8,
+                        border: "none", background: "transparent", cursor: "pointer", font: "inherit",
+                      }}
+                    >
+                      {signingOut ? "Signing out…" : "Sign out"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
             <ChevronDown size={14} aria-hidden="true" />
           </div>
         </header>

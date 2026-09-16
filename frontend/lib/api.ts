@@ -57,18 +57,17 @@ async function unwrap<T>(res: Response): Promise<ApiResult<T>> {
  * saying so keeps it true if a `use cache` boundary is added above.
  */
 export async function apiServer<T>(path: string): Promise<ApiResult<T>> {
+  // Deliberately not wrapped in try/catch: calling `cookies()` is what tells
+  // Next this route reads the request and can't be prerendered. Swallowing
+  // that here silently made every page using apiServer eligible for static
+  // caching again -- including the /app auth gate, which then never re-ran
+  // per request. Let it throw; Next catches its own bailout above us.
   const { cookies } = await import("next/headers");
-  let cookieHeader = "";
-  try {
-    const jar = await cookies();
-    cookieHeader = jar
-      .getAll()
-      .map((c) => `${c.name}=${c.value}`)
-      .join("; ");
-  } catch {
-    // Called outside a request scope (a build-time render, say). Carry on
-    // unauthenticated and let the caller fall back to the preview.
-  }
+  const jar = await cookies();
+  const cookieHeader = jar
+    .getAll()
+    .map((c) => `${c.name}=${c.value}`)
+    .join("; ");
 
   try {
     const res = await fetch(apiUrl(path), {
