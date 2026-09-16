@@ -147,9 +147,10 @@ Backend v0.3 (September 2026). `uvicorn app.main:app` boots with nothing
 configured: SQLite on disk, API at `/v1`, free read at `/scan`, docs at
 `/docs`. See `README.md` for the run steps and the route table.
 
-**Currently run disconnected from the frontend:** `FIG_WORKSPACE_API=0` (set in
-the local `.env`) unmounts `/api` and allows no browser origin. `/v1`, `/scan`
-and `/health` are unaffected. Set it to 1 to reconnect.
+**Now connected to the frontend:** `FIG_WORKSPACE_API=1` in the local `.env`
+mounts `/api` and allows the Next.js dev origins. Set it to 0 to disconnect
+again (unmounts `/api`, allows no browser origin); `/v1`, `/scan` and
+`/health` are unaffected either way.
 
 - `app/validation.py` — **the validation system**, and the reason the crawler
   cannot be used as an SSRF proxy. Syntax first (no IP literals, no reserved
@@ -310,31 +311,44 @@ with frontend work in flight):
   crawler's network rules against a fake network, and the AI step's grouping
   and usage accounting; no network, no database, no key.
 
-**Auth:** the server half is built — `/api/session` verifies a Supabase access
-token server-side and sets our own signed cookie. `FIG_DEV_NO_AUTH=1` still
-resolves every workspace request to the seeded demo account, and must be 0
-before anything is public.
+**Auth:** wired end to end and verified against a real Supabase user and the
+real Postgres database (2026-09-16) — `frontend/components/auth-form.tsx`
+calls Supabase directly for sign-in/sign-up, exchanges the access token for
+this app's session cookie via `POST /api/session`
+(`frontend/lib/api.ts:actions.signIn`), and `frontend/app/app/layout.tsx`
+gates every `/app/*` route server-side, redirecting to `/signin` only when
+the backend affirmatively answers "not signed in" — an unreachable backend
+still falls back to the static preview rather than locking everyone out.
+Sign-out is wired from the dashboard's account menu. `FIG_DEV_NO_AUTH` must
+stay `0` for this gate to mean anything; `.env` already has it at `0`.
+**Google/Shopify "continue with" buttons on the auth form are still
+placeholders** — only email/password goes through Supabase for now.
 
 ## Not yet wired up — the real next steps, roughly in order
 
-1. **Auth end to end** — the server half exists (above); it has not been
-   exercised against the frontend while the backend runs disconnected from it.
-2. **Scheduled Watches** — `Site.monitor` / `monitor_days` exist and nothing
+1. **Scheduled Watches** — `Site.monitor` / `monitor_days` exist and nothing
    reads them yet. APScheduler enqueueing the same jobs is the whole task.
-3. **Tune the reference lists and the role patterns.** This matters more than
+2. **Tune the reference lists and the role patterns.** This matters more than
    new checks. Run real generated sites and real hand-made ones through the
    engine until they separate cleanly — `scripts/test_run.py` is how. Known
    weak spots: section role classification over-matches `pricing` on pages
    that quote figures in prose; and where a page's body lives outside
    `<section>` landmarks (launchvault.ca's legal pages), most of its copy is
    not attributed to any section at all.
-4. **Shareable/white-label report output** — a public per-scan URL and a
+3. **Shareable/white-label report output** — a public per-scan URL and a
    branded PDF. This is the growth mechanic, not just a feature.
-4b. **CMS write adapters** — WordPress first, still not built. The secret
+3b. **CMS write adapters** — WordPress first, still not built. The secret
    store this needed now exists (`app/secrets_store.py`, below), so this is
    down to per-platform adapter code + OAuth app registration, not a missing
    architecture piece. `publish()` in `app/publishing.py` still refuses out
    loud for every platform.
+4. **Finish Google Analytics OAuth** — `app/oauth.py` has the plumbing
+   (start/callback, signed state, encrypted token storage via
+   `app/secrets_store.py`), but it does nothing usable yet: no
+   `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are configured, no
+   `FIG_SECRET_KEY` is set, the Settings page's "Google Analytics" row is
+   still static mock data with no real "Connect" button, and nothing reads
+   the stored token back — `pages.py`'s `ga` fields are hardcoded `None`.
 5. **Call `POST /scan` from the frontend** — the free read is mounted,
    validated and rate-limited; nothing calls it yet.
 6. **Stripe end to end** — the code is there; it has never run against a live
