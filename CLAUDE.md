@@ -196,6 +196,10 @@ again (unmounts `/api`, allows no browser origin); `/v1`, `/scan` and
   findings are framed as generic or AI-made. Tokens and cost land in the trace.
 - `app/jobs.py` — DB-backed queue and worker threads. An estate scan is a
   queue depth, not a long request.
+- `app/scheduler.py` — Scheduled Watches: an APScheduler sweep, off by
+  default (`FIG_WATCH_ENABLED`), that finds verified/monitored/active sites
+  due for a re-scan and calls `app/jobs.py:enqueue_scan` the same way a
+  manual audit does. A Watch is a queue depth, same as everything else here.
 - `app/models.py` — `Account` → `Site` → `Scan` → `Finding`/`Page`, plus
   `ApiKey`, `Job`, `User`. **The meter is sites, not seats.** A column added to
   an existing table also goes in `app/db.py:_ADDED_COLUMNS`, because
@@ -345,8 +349,15 @@ placeholders** — only email/password goes through Supabase for now.
 
 ## Not yet wired up — the real next steps, roughly in order
 
-1. **Scheduled Watches** — `Site.monitor` / `monitor_days` exist and nothing
-   reads them yet. APScheduler enqueueing the same jobs is the whole task.
+1. **Scheduled Watches — done (2026-09-17).** `app/scheduler.py` sweeps
+   verified/monitored/active sites hourly (`FIG_WATCH_SWEEP_HOURS`) and
+   enqueues a scan through the normal `app.jobs.enqueue_scan` for any whose
+   `monitor_days` interval has elapsed, guarding against duplicate-enqueueing
+   a site whose previous watch scan hasn't finished yet. Off by default
+   (`FIG_WATCH_ENABLED=0`) so nothing runs silently in dev or a test.
+   Verified against the real database, not just a type-check — see that
+   commit. **Still open:** no API to toggle `Site.monitor`/`monitor_days`
+   after a site is created (only settable at `POST /v1/sites` time).
 2. **Tune the reference lists and the role patterns — ongoing, not finished.**
    This matters more than new checks. Run real generated sites and real
    hand-made ones through the engine until they separate cleanly —
