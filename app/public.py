@@ -153,6 +153,7 @@ def public_read_result(scan_id: str, session: Session = Depends(get_session)):
         "pages": scan.pages_crawled,
         "score": scan.score,
         "verdict": verdict(scan.score) if scan.score is not None else None,
+        "finished_at": scan.finished_at.isoformat() if scan.finished_at else None,
         "layers": {"craft": scan.score_craft, "structure": scan.score_structure,
                    "search": scan.score_search, "answers": scan.score_answers},
         "findings": [

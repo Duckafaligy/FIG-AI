@@ -1,0 +1,241 @@
+.main {
+  padding: 56px 0 96px;
+}
+
+.state {
+  max-width: 640px;
+  margin: 64px auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.state h1 {
+  font-size: 28px;
+  letter-spacing: -0.02em;
+}
+
+.state p {
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.stateBad {
+  color: var(--red);
+}
+
+.hero {
+  max-width: 760px;
+  margin: 0 auto 40px;
+  text-align: center;
+}
+
+.hero h1 {
+  font-size: 34px;
+  letter-spacing: -0.02em;
+  margin: 12px 0 6px;
+  word-break: break-word;
+}
+
+.sub {
+  color: var(--muted);
+  margin: 0 0 28px;
+}
+
+.scoreRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  text-align: left;
+  flex-wrap: wrap;
+}
+
+.scoreRow > div {
+  max-width: 380px;
+}
+
+.verdictLabel {
+  display: block;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+
+.scoreRow p {
+  color: var(--muted);
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+
+.ring {
+  flex-shrink: 0;
+}
+
+.ringLabel {
+  font-size: 30px;
+  font-weight: 700;
+  fill: var(--ink);
+}
+
+.layerGrid {
+  max-width: 760px;
+  margin: 0 auto 48px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.layerCard {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 14px;
+  text-align: center;
+  background: var(--surface);
+}
+
+.layerCard span {
+  display: block;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.layerCard strong {
+  display: block;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+
+.layerCard small {
+  display: block;
+  color: var(--muted-2);
+  font-size: 11.5px;
+  margin-top: 4px;
+}
+
+.findings {
+  max-width: 760px;
+  margin: 0 auto 48px;
+}
+
+.findings h2 {
+  font-size: 20px;
+  margin-bottom: 16px;
+}
+
+.findings ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.clean {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--green);
+}
+
+.finding {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 20px;
+  background: var(--surface);
+}
+
+.findingHead {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.severity {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+.severityHigh {
+  background: rgba(239, 70, 111, 0.12);
+  color: var(--red);
+}
+
+.severityMedium {
+  background: rgba(200, 131, 10, 0.14);
+  color: #c8830a;
+}
+
+.severityLow {
+  background: rgba(39, 104, 238, 0.1);
+  color: var(--blue);
+}
+
+.findingLayer {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.finding h3 {
+  font-size: 16px;
+  margin: 0 0 6px;
+}
+
+.finding p {
+  margin: 0 0 8px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.fix {
+  margin-bottom: 0 !important;
+  color: var(--muted) !important;
+}
+
+.cta {
+  max-width: 560px;
+  margin: 0 auto;
+  text-align: center;
+  border-top: 1px solid var(--line);
+  padding-top: 40px;
+}
+
+.cta h2 {
+  font-size: 22px;
+  margin-bottom: 6px;
+}
+
+.cta p {
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+@media (max-width: 640px) {
+  .layerGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .scoreRow {
+    flex-direction: column;
+    text-align: center;
+  }
+  .scoreRow > div {
+    text-align: center;
+  }
+  .scoreRow p {
+    text-align: left;
+  }
+}
