@@ -376,14 +376,15 @@ placeholders** — only email/password goes through Supabase for now.
    larger. This is a standing task, not a one-time fix: keep running real
    sites through it and watching for the next pattern that doesn't separate
    cleanly.
-3. **Shareable report output — half done (2026-09-17).** The public
-   per-scan URL exists: `frontend/app/report/[scanId]/page.tsx` renders
-   `GET /scan/{scan_id}` (`app/public.py`, already public/unauthenticated —
-   it just had no page), with real Open Graph metadata for when the link
-   gets shared. That's the free-tier half; account-owned site scans (`/v1`)
-   have no share mechanism yet and shouldn't get one silently — that needs
-   an explicit opt-in (a `Site`-level flag) before a paying customer's scan
-   is publicly reachable, deliberately not built without that consent step.
+3. **Shareable report output — done except the PDF (2026-09-17).** The
+   public per-scan URL exists: `frontend/app/report/[scanId]/page.tsx`
+   renders `GET /scan/{scan_id}` (`app/public.py`), with real Open Graph
+   metadata for when the link gets shared. Free-tier reads (`trigger ==
+   "demo"`) are always public. Account-owned site scans need explicit
+   opt-in — `Site.reports_public`, off by default, toggled from Settings'
+   Workspace tab (`POST /api/projects/{id}/share`) — found and closed a real
+   gap while building this: `GET /scan/{scan_id}` had no ownership check at
+   all before this, serving any scan by id regardless of who owned it.
    **A branded PDF is still not built** — needs a PDF-rendering dependency
    (e.g. WeasyPrint) not yet in `requirements.txt`.
 3b. **CMS write adapters** — WordPress first, still not built. The secret
