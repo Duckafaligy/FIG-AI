@@ -30,7 +30,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import charts, config, demo
+from app import charts, config, demo, ga
 from app.models import (Account, ApiKey, Change, ContentPost, Finding,
                         Integration, Job, Page, Scan, Site, User)
 
@@ -489,7 +489,9 @@ def overview(session: Session, account: Account, site: Site | None) -> dict:
             {"name": "Impact Score (x10)", "colour": charts.GREEN,
              "values": demo.curve(f"s:{site.id}", days, 620, growth=.3) if fill else []},
         ]),
-        "ga": [
+        "ga": (
+            ga.fetch_overview_metrics(session, site) if not fill else None
+        ) or [
             {"value": v if fill else None, "label": label,
              "delta": d if fill else None}
             for v, label, d in demo.GA_PANEL
@@ -533,8 +535,10 @@ def overview(session: Session, account: Account, site: Site | None) -> dict:
              "note": f"{latest.pages_crawled} pages read" if latest
                      else "Run an audit to start"},
             {"icon": "chart", "tone": "s", "name": "Analytics Integration",
-             "state": "Connected" if fill else "Not connected", "ok": fill,
-             "note": ("Receiving data from Google Analytics" if fill
+             "state": "Connected" if (fill or ga.is_connected(session, site)) else "Not connected",
+             "ok": fill or ga.is_connected(session, site),
+             "note": ("Receiving data from Google Analytics"
+                      if (fill or ga.is_connected(session, site))
                       else "Needs Google Analytics")},
         ],
     })

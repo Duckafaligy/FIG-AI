@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ComponentType, type KeyboardEvent } from "react";
+import { useEffect, useState, type ComponentType, type KeyboardEvent } from "react";
 import {
   BadgeCheck,
   BarChart3,
@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { DashboardHeader } from "@/components/dashboard-shell";
 import { PreviewInfo } from "@/components/preview-info";
+import { api, apiUrl } from "@/lib/api";
 
 type Icon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
 type TabId = "workspace" | "team" | "integrations" | "billing" | "security" | "notifications" | "defaults" | "webhooks";
@@ -75,6 +76,17 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("workspace");
   const [settings, setSettings] = useState({ twoFactor: false, email: true, project: true, system: false, browser: true, approval: true, publish: false });
   const [defaultsSaved, setDefaultsSaved] = useState(false);
+  const [liveProjectId, setLiveProjectId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.projects().then((result) => {
+      if (!cancelled && result.ok && result.data.project) setLiveProjectId(result.data.project.id);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const active = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
   const ActiveIcon = active.icon;
   const flip = (key: keyof typeof settings) => setSettings((current) => ({ ...current, [key]: !current[key] }));
@@ -114,7 +126,23 @@ export default function SettingsPage() {
 
         {activeTab === "team" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>People & roles</h3><p>Sample workspace members with the permissions their roles would carry.</p></div><PreviewInfo className="button button--small" label="Invite member" message="Team invitations and role changes are not enabled in this frontend preview. No invitation has been sent." /></div><div className="settings-member-table" role="table" aria-label="LaunchVault team members"><div className="settings-member-head" role="row"><span>Person</span><span>Role</span><span>Permissions</span><span>Status</span><span>Last active</span><span /></div>{members.map(([initials, name, role, permissions, status, activeAt]) => <div className="settings-member-row" role="row" key={name}><span className="settings-person"><i>{initials}</i><strong>{name}</strong></span><span><b className="settings-role-chip">{role}</b></span><span>{permissions}</span><span><b className="settings-status settings-status--green">{status}</b></span><span>{activeAt}</span><span><PreviewInfo className="settings-row-action" label="Manage" message={`${name} is a sample ${role.toLowerCase()} profile. This preview can show intended permissions but cannot change a role, invite a person, or remove access.`} /></span></div>)}</div></section><section className="settings-surface settings-team-note"><Users size={19} /><div><strong>Roles are previewed, not enforced</strong><p>Authentication and workspace authorization will be added with the backend. These names and roles are local demo content only.</p></div></section></div>}
 
-        {activeTab === "integrations" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Connection preparation</h3><p>Services FIG is designed to work with. Statuses are not credential checks.</p></div><PreviewInfo className="button button--small" label="Connect service" message="This frontend does not accept keys, OAuth permissions, or external connection requests. Each listed service is a configuration target for the backend phase." /></div><div className="settings-integration-list">{services.map((service) => { const ServiceIcon = service.icon; return <article key={service.name}><span className={`settings-service-icon settings-service-icon--${service.tone}`}><ServiceIcon size={18} /></span><div><strong>{service.name}</strong><small>{service.detail}</small></div><span className="settings-service-permission">{service.permission}</span><b className={`settings-status settings-status--${service.tone}`}><CircleDashed size={11} />{service.status}</b><PreviewInfo className="settings-row-action" label="Setup" message={`${service.name} is shown for ${service.detail.toLowerCase()}. No credentials, permissions, connected account, or live service status has been verified by this interface.`} /></article>; })}</div></section><section className="settings-surface settings-integration-note"><LockKeyhole size={19} /><div><strong>Credentials belong in the backend</strong><p>When integrations are connected, encrypted configuration and verification should happen server-side—not in this frontend page.</p></div></section></div>}
+        {activeTab === "integrations" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Connection preparation</h3><p>Services FIG is designed to work with. Statuses are not credential checks.</p></div><PreviewInfo className="button button--small" label="Connect service" message="This frontend does not accept keys, OAuth permissions, or external connection requests. Each listed service is a configuration target for the backend phase." /></div><div className="settings-integration-list">{services.map((service) => {
+                const ServiceIcon = service.icon;
+                const isGoogleAnalytics = service.name === "Google Analytics";
+                return (
+                  <article key={service.name}>
+                    <span className={`settings-service-icon settings-service-icon--${service.tone}`}><ServiceIcon size={18} /></span>
+                    <div><strong>{service.name}</strong><small>{service.detail}</small></div>
+                    <span className="settings-service-permission">{service.permission}</span>
+                    <b className={`settings-status settings-status--${service.tone}`}><CircleDashed size={11} />{service.status}</b>
+                    {isGoogleAnalytics && liveProjectId ? (
+                      <a className="settings-row-action button button--small" href={apiUrl(`/oauth/google/start?site_id=${liveProjectId}`)}>Connect</a>
+                    ) : (
+                      <PreviewInfo className="settings-row-action" label="Setup" message={`${service.name} is shown for ${service.detail.toLowerCase()}. No credentials, permissions, connected account, or live service status has been verified by this interface.`} />
+                    )}
+                  </article>
+                );
+              })}</div></section><section className="settings-surface settings-integration-note"><LockKeyhole size={19} /><div><strong>Credentials belong in the backend</strong><p>When integrations are connected, encrypted configuration and verification should happen server-side—not in this frontend page.</p></div></section></div>}
 
         {activeTab === "billing" && <div className="settings-tab-stack"><section className="settings-surface settings-billing-feature"><div><span className="settings-kicker">Billing preview</span><h3>Pro plan for LaunchVault.ca</h3><p>Use the workspace freely as a visual prototype. Stripe billing, metering, and plan enforcement are not connected yet.</p><PreviewInfo className="settings-link-button" label="View billing details" message="No Stripe customer, subscription, checkout, invoice, or payment method exists in this frontend preview." /></div><div><strong>$79</strong><span>/ month</span><small>Illustrative plan price</small></div></section><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Monthly usage</h3><p>Representative demo values, not live account metering.</p></div><span className="settings-demo-chip"><span />Illustrative</span></div><UsageCards /></section><section className="settings-surface settings-plan-includes"><h3>Included in the preview plan</h3><div>{["Up to 10 team members", "Five connected projects", "AI writing workflows", "Advanced analytics views", "Priority support"].map((item) => <span key={item}><Check size={15} />{item}</span>)}</div></section></div>}
 
