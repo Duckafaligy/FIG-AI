@@ -295,6 +295,13 @@ with frontend work in flight):
   Google's code and the resulting access/refresh tokens never reach browser
   JS. Every other OAuth platform in the roadmap (all but WordPress, which
   uses Application Passwords, not OAuth) follows this same three-step shape.
+- `app/ga.py` — the GA4 Data API client `app/oauth.py` hands off to: reads
+  the stored token via `app/secrets_store.py`, refreshes it against Google
+  when expired, auto-discovers the connected account's GA4 property (no
+  picker yet — first one wins), and returns real sessions/engagement/bounce
+  numbers for the overview's `ga` panel, current vs. prior 30 days in one
+  request. No connected integration means `None`, same as before this
+  existed — `app/pages.py` never guesses a number.
 - `app/content.py` — the content queue behind `/app/seo`. Findings that need a
   *page* rather than a field edit (an unanswered question, a thin page, copy
   with no figures, a site with no structured data) become briefs, which move
@@ -342,13 +349,18 @@ placeholders** — only email/password goes through Supabase for now.
    down to per-platform adapter code + OAuth app registration, not a missing
    architecture piece. `publish()` in `app/publishing.py` still refuses out
    loud for every platform.
-4. **Finish Google Analytics OAuth** — `app/oauth.py` has the plumbing
-   (start/callback, signed state, encrypted token storage via
-   `app/secrets_store.py`), but it does nothing usable yet: no
-   `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are configured, no
-   `FIG_SECRET_KEY` is set, the Settings page's "Google Analytics" row is
-   still static mock data with no real "Connect" button, and nothing reads
-   the stored token back — `pages.py`'s `ga` fields are hardcoded `None`.
+4. **Finish Google Analytics OAuth — one manual step left.** `app/oauth.py`
+   (start/callback), `app/secrets_store.py` (`FIG_SECRET_KEY` is generated
+   and set locally), `app/ga.py` (reads the stored token, refreshes it,
+   auto-discovers the GA4 property, pulls real metrics into `pages.py`'s
+   `ga` panel), and the Settings page's real "Connect" button are all done.
+   The only missing piece is `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` — a
+   Google Cloud Console OAuth 2.0 Client (Web application, redirect URI
+   `http://localhost:8000/oauth/google/callback`, consent screen can stay in
+   "Testing" mode) that only a human with a Google account can create.
+   `app/ga.py`'s property auto-discovery picks the first GA4 property the
+   connected account can see — fine for one property, needs a real picker
+   before an account with several is more than a coin flip.
 5. **Call `POST /scan` from the frontend** — the free read is mounted,
    validated and rate-limited; nothing calls it yet.
 6. **Stripe end to end** — the code is there; it has never run against a live
