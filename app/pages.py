@@ -1248,7 +1248,7 @@ def _api_rows(session: Session, integrations: list[Integration]) -> list[dict]:
         row("Shopify Store API", "shop", "g", "shopify", "Store", "Read / Write"),
         row("WordPress", "globe", "s", "wordpress", "Site", "Read / Write"),
         row("Webflow", "layers", "b", "webflow", "Site", "Read / Write"),
-        row("Google Analytics", "chart", "a", "ga", "Property", "Read"),
+        row("Google Analytics", "chart", "a", "google_analytics", "Property", "Read"),
         row("Google Search Console", "search", "b", "gsc", "Domain", "Read"),
         row("Anthropic", "spark", "v", "anthropic", "Claude API",
             "Read / Write", "ANTHROPIC_API_KEY"),
