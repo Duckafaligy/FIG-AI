@@ -585,7 +585,16 @@ def _section_blocks(soup: BeautifulSoup):
         return deep
 
     kids = [c for c in root.find_all(recursive=False) if c.name in _SECTION_TAGS]
-    return kids or deep
+    if kids or deep:
+        return kids or deep
+
+    # Bare semantic HTML: body text sitting directly under <main>/<body> with
+    # no wrapping <section>, <div>, or <article> at all -- common on
+    # legal/policy pages (found on launchvault.ca's). Every branch above
+    # returns nothing for this shape, which means none of that page's text
+    # gets attributed to any section at all. Treat the whole root as one
+    # unstructured content block instead of silently dropping it.
+    return [root] if root.get_text(strip=True) else []
 
 
 def _describe_section(idx: int, el) -> SectionSignal:

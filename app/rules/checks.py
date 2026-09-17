@@ -46,6 +46,22 @@ KNOWN_DEFAULT_COLORS: dict[str, str] = {
     "shadcn-primary": "#18181B",
     "shadcn-ring": "#A1A1AA",
     "generic-gradient-blue": "#3B82F6",
+    # Added 2026-09-17: each of these is >12 RGB-distance from every entry
+    # above (checked against COLOR_MATCH_THRESHOLD), so they widen real
+    # coverage rather than padding the list with near-duplicates that would
+    # already match. Red/amber/cyan/sky/rose/teal are Tailwind's other
+    # accent hues, left unmodified just as often as the indigo/violet/blue
+    # ones already here.
+    "tailwind-red-500": "#EF4444",
+    "tailwind-amber-500": "#F59E0B",
+    "tailwind-cyan-500": "#06B6D4",
+    "tailwind-sky-500": "#0EA5E9",
+    "tailwind-rose-500": "#F43F5E",
+    "tailwind-teal-500": "#14B8A6",
+    # Vercel's own brand blue, ubiquitous in v0.dev-generated output
+    # specifically (v0 is a Vercel product) -- distinct from the generic
+    # Tailwind blues above by a wide margin.
+    "vercel-geist-blue": "#0070F3",
 }
 
 GENERIC_COPY_PHRASES: list[str] = [
@@ -81,6 +97,20 @@ GENERIC_COPY_PHRASES: list[str] = [
     "world-class",
     "robust and scalable",
     "delve into",
+    # Added 2026-09-17: distinct from the phrases above, not near-duplicate
+    # rewordings of them -- picked for being widely and specifically
+    # documented as generic-AI-copy tells, not just common marketing
+    # language (which risks flagging genuinely hand-written copy).
+    "in today's digital landscape",
+    "look no further",
+    "harness the power of",
+    "unleash the potential",
+    "one-stop shop",
+    "gone are the days",
+    "picture this",
+    "navigate the complexities of",
+    "stay ahead of the curve",
+    "say goodbye to",
 ]
 
 OVERUSED_ICON_NAMES: list[str] = [
@@ -88,6 +118,11 @@ OVERUSED_ICON_NAMES: list[str] = [
     "shield-check", "shieldcheck", "check-circle", "checkcircle",
     "star", "trending-up", "trendingup", "bolt", "lightning-bolt",
     "wand", "wand-2", "wand2", "chevron-right", "chevronright",
+    # Added 2026-09-17: lucide-react (the icon set this frontend itself
+    # uses) renamed CheckCircle/CheckCircle2 to CircleCheck/CircleCheckBig
+    # around v0.263 -- newer generated output uses the new names, which the
+    # list above would otherwise miss entirely.
+    "circle-check", "circlecheck", "circle-check-big", "circlecheckbig",
 ]
 
 # --- Flag type -----------------------------------------------------------

@@ -140,6 +140,105 @@ def test_section_roles_and_order():
     print(f"       {order[0].summary}")
 
 
+STATS_WITH_DOLLARS_HTML = """
+<html>
+<head><title>Northwind results</title></head>
+<body>
+  <header><h1>Northwind</h1></header>
+  <section>
+    <h2>Results that speak for themselves</h2>
+    <ul>
+      <li>Grew revenue from $50k to $120k in one year</li>
+      <li>Cut support costs by $8k per quarter</li>
+      <li>500+ teams onboarded</li>
+    </ul>
+    <a class="button" href="/case-studies">Read the case studies</a>
+  </section>
+  <section>
+    <h2>What you get</h2>
+    <p>Everything you need to run a modern support desk.</p>
+  </section>
+  <footer><p>Northwind Inc.</p></footer>
+</body>
+</html>
+"""
+
+BARE_LEGAL_PAGE_HTML = """
+<html>
+<head><title>Privacy Policy</title></head>
+<body>
+  <h1>Privacy Policy</h1>
+  <p>We collect only what is needed to run this service, and nothing more
+  than that. This policy explains what we collect, why, and how long we
+  keep it before it is deleted from every system that holds a copy.</p>
+  <h2>What we collect</h2>
+  <p>Account email, hashed passwords, and the pages a signed-in user visits
+  inside the product. We do not sell any of it to a third party, ever.</p>
+</body>
+</html>
+"""
+
+
+def test_a_stats_section_quoting_dollar_figures_is_not_read_as_pricing():
+    """A results/stats section that happens to quote money in prose (a case
+    study, a savings figure) is not a pricing table. Section role keywords
+    on the heading now outrank the weak has-price-and-a-list heuristic."""
+    signal = parse_html("https://northwind.test/", STATS_WITH_DOLLARS_HTML)
+    roles = roles_for(signal)
+    assert "pricing" not in roles, roles
+    assert "stats" in roles, roles
+    print(f"[PASS] stats section with dollar figures classified as: {roles}")
+
+
+def test_bare_body_text_with_no_section_wrapper_is_still_attributed():
+    """A legal/policy page with no <section>/<div>/<article> wrapper at all
+    (bare <h1>/<p> directly under <body>) used to produce zero sections,
+    silently dropping all of its text from every section-based check."""
+    signal = parse_html("https://northwind.test/privacy", BARE_LEGAL_PAGE_HTML)
+    assert signal.sections, "expected at least one section, got none"
+    total_words = sum(s.word_count for s in signal.sections)
+    assert total_words > 20, f"expected real body text attributed, got {total_words} words"
+    print(f"[PASS] bare legal page attributed {total_words} words across "
+          f"{len(signal.sections)} section(s)")
+
+
+BLOG_CARD_HEADING_BLEED_HTML = """
+<html>
+<head><title>Northwind blog</title></head>
+<body>
+  <header><h1>Northwind blog</h1></header>
+  <section class="post-grid">
+    <article>
+      <h2>Claude's API Pricing Beats ChatGPT Plus</h2>
+      <p>A look at how usage-based pricing changes the calculus for teams.</p>
+    </article>
+    <article>
+      <h2>Shipping Faster With Small Teams</h2>
+      <p>Notes from three months of weekly releases.</p>
+    </article>
+    <article>
+      <h2>Why We Rewrote Our Onboarding Flow</h2>
+      <p>The old flow lost a third of signups before day two.</p>
+    </article>
+  </section>
+  <footer><p>Northwind Inc.</p></footer>
+</body>
+</html>
+"""
+
+
+def test_a_card_grids_first_article_title_does_not_relabel_the_whole_section():
+    """A blog/card-listing section is described by whichever heading
+    `_describe_section` finds first inside it -- the first card's own
+    title, not a real section label. A sentence-length title that happens
+    to contain a role keyword ("...Pricing Beats...") used to relabel the
+    entire grid as that role. Found on real launchvault.ca content pages."""
+    signal = parse_html("https://northwind.test/blog", BLOG_CARD_HEADING_BLEED_HTML)
+    roles = roles_for(signal)
+    assert "pricing" not in roles, roles
+    print(f"[PASS] card grid with a pricing-sounding article title classified as: {roles}")
+
+
 def test_checklist_ids_are_unique_and_cover_observed_flags():
     """CHECKLIST is hand-maintained (see rules/checks.py), so the one thing
     worth guarding automatically is that it does not drift into duplicate or
@@ -169,5 +268,8 @@ if __name__ == "__main__":
     test_handcrafted_html_stays_quiet_on_craft()
     test_hygiene_layers_fire_when_head_is_bare()
     test_section_roles_and_order()
+    test_a_stats_section_quoting_dollar_figures_is_not_read_as_pricing()
+    test_bare_body_text_with_no_section_wrapper_is_still_attributed()
+    test_a_card_grids_first_article_title_does_not_relabel_the_whole_section()
     test_checklist_ids_are_unique_and_cover_observed_flags()
     print("\nAll local rule-engine tests passed.")

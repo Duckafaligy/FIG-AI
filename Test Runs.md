@@ -650,3 +650,612 @@ This run re-tests the three fixes from Test #1's review. Same site, same setting
 
 None of these would fail a check, and none needs a pipeline change. If they recur, the cheaper fix is in the rule text the model receives, or a deterministic length check on suggested titles, rather than a larger model.
 
+---
+
+## Test #3 — launchvault.ca
+
+**PASS** · 54/54 checks passed · 2026-09-16 23:06 (UTC-0400) · 54.7 s total · `python scripts/test_run.py launchvault.ca`
+
+| | |
+|---|---|
+| Target | `launchvault.ca` → `launchvault.ca` (172.64.80.1) |
+| Scan | `done` · 40 pages read, 2 skipped · 44.8 s from queue to done |
+| Score | **82 / 100 — clean** · Craft 74 · Structure 90 · Search 87 · Answers 76 |
+| Findings | 138 findings across 7 distinct problems · 7 of 7 explained by Claude |
+| AI step | `claude-haiku-4-5` (served as `claude-haiku-4-5-20251001`) · 2 calls · 2,132 in / 726 out tokens · **$0.0058** |
+| Backend | `http://127.0.0.1:54273` · Postgres (aws-1-us-east-2.pooler.supabase.com) · workspace API off · up in 3.0 s |
+
+### 1. Environment
+
+- **Database:** Postgres (aws-1-us-east-2.pooler.supabase.com) — `FIG_DB_STRICT=1`, so an unreachable database fails the run instead of falling back to SQLite. Schema check (`init_db`) took 594 ms.
+- **AI:** key present, model `claude-haiku-4-5`, priced at $1.00 in / $5.00 out per million tokens.
+- **Crawler:** user agent `FIGBot/0.2 (+https://fig.tools/bot; site self-check and structure scanner)`, 0.8 s between requests to a host, up to 40 pages, 5,120.0 KB per response, 5 redirects.
+- **Server:** `python -m uvicorn app.main:app --host 127.0.0.1 --port 54273 --log-level info` with `FIG_WORKSPACE_API=0`, Python 3.12.10.
+
+### 2. Routes
+
+| # | Step | Request | Expected | Got | Time | | Note |
+|---|---|---|---|---|---|---|---|
+| 1 | service | `GET /` | 200 | 200 | 15 ms | ✅ | — |
+| 2 | service | `GET /health` | 200 | 200 | 188 ms | ✅ | — |
+| 3 | frontend disconnected | `GET /api/me` | 404 | 404 | 0 ms | ✅ | workspace API not mounted |
+| 4 | frontend disconnected | `GET /api/projects` | 404 | 404 | 0 ms | ✅ | workspace API not mounted |
+| 5 | frontend disconnected | `OPTIONS /v1/sites` | 400/405 | 405 | 0 ms | ✅ | CORS preflight from the Next.js dev origin |
+| 6 | auth | `GET /v1/account` | 401 | 401 | 15 ms | ✅ | no key |
+| 7 | auth | `GET /v1/account` | 401 | 401 | 78 ms | ✅ | wrong key |
+| 8 | auth | `GET /v1/account` | 200 | 200 | 219 ms | ✅ | key minted for this run |
+| 9 | validation | `POST /v1/sites` | 422 | 422 | 172 ms | ✅ | loopback address |
+| 10 | validation | `POST /v1/sites` | 422 | 422 | 188 ms | ✅ | cloud metadata endpoint |
+| 11 | validation | `POST /v1/sites` | 422 | 422 | 171 ms | ✅ | private address on a non-standard port |
+| 12 | validation | `POST /v1/sites` | 422 | 422 | 172 ms | ✅ | 127.0.0.1 written as a number |
+| 13 | validation | `POST /v1/sites` | 422 | 422 | 188 ms | ✅ | reserved name |
+| 14 | validation | `POST /v1/sites` | 422 | 422 | 172 ms | ✅ | internal-only suffix |
+| 15 | validation | `POST /v1/sites` | 422 | 422 | 250 ms | ✅ | real public DNS name that resolves to 127.0.0.1 |
+| 16 | validation | `POST /v1/sites` | 422 | 422 | 265 ms | ✅ | domain that does not exist |
+| 17 | validation | `POST /v1/sites` | 422 | 422 | 172 ms | ✅ | non-web scheme |
+| 18 | validation | `POST /v1/sites` | 422 | 422 | 188 ms | ✅ | not a hostname at all |
+| 19 | validation | `POST /v1/sites` | 422 | 422 | 172 ms | ✅ | empty input |
+| 20 | validation | `POST /scan` | 422 | 422 | 15 ms | ✅ | the free public read goes through the same gate |
+| 21 | provision | `POST /v1/sites` | 201 | 201 | 281 ms | ✅ | as typed |
+| 22 | provision | `POST /v1/sites` | 201 | 201 | 188 ms | ✅ | same site given as a full URL |
+| 23 | provision | `GET /v1/sites/cd9c6b21-07b0-4345-b04e-ae4ba4379ecd` | 200 | 200 | 344 ms | ✅ | — |
+| 24 | ownership | `POST /v1/sites/cd9c6b21-07b0-4345-b04e-ae4ba4379ecd/verification` | 200 | 200 | 218 ms | ✅ | issue a DNS TXT token |
+| 25 | ownership | `POST /v1/sites/cd9c6b21-07b0-4345-b04e-ae4ba4379ecd/verification/confirm` | 200 | 200 | 204 ms | ✅ | look the record up |
+| 26 | scan | `POST /v1/sites/cd9c6b21-07b0-4345-b04e-ae4ba4379ecd/scans` | 202 | 202 | 234 ms | ✅ | queued for a worker |
+| 27 | scan | `GET /v1/scans/5b5d2508-1839-4b80-8f2a-7196ad5ede4f?findings=false` | 200 | 200 | 220 ms | ✅ | polled 26x every 1.5s until done (ms is the average) |
+| 28 | results | `GET /v1/scans/5b5d2508-1839-4b80-8f2a-7196ad5ede4f` | 200 | 200 | 281 ms | ✅ | scores and findings |
+| 29 | results | `GET /v1/scans/5b5d2508-1839-4b80-8f2a-7196ad5ede4f/pages` | 200 | 200 | 219 ms | ✅ | pages read |
+| 30 | results | `GET /v1/scans/5b5d2508-1839-4b80-8f2a-7196ad5ede4f/trace` | 200 | 200 | 203 ms | ✅ | stage-by-stage trace |
+| 31 | results | `GET /v1/report` | 200 | 200 | 266 ms | ✅ | partner estate roll-up |
+| 32 | results | `GET /v1/scans/not-a-real-scan` | 404 | 404 | 203 ms | ✅ | unknown scan id |
+
+### 3. Validation system
+
+**Accepted:** `launchvault.ca` → `launchvault.ca` (nothing to change). Resolved to 172.64.80.1 — every address public, so the crawl was allowed. The same site given as `https://launchvault.ca/pricing?utm_source=fig-test` normalised to the same hostname and returned the existing site.
+
+**Ownership:** DNS TXT verification was issued and checked — verified: `False`. Ownership is only required to schedule monitoring; a one-off scan of any public site is allowed without it.
+
+**Rejected** (each is a `POST /v1/sites`, answered before anything is fetched):
+
+| Input | What it is | HTTP | Code | Expected | | Message |
+|---|---|---|---|---|---|---|
+| `127.0.0.1` | loopback address | 422 | `ip_literal` | `ip_literal` | ✅ | 127.0.0.1 is an IP address. FIG reads sites by domain name; give the site's hostname instead. |
+| `169.254.169.254` | cloud metadata endpoint | 422 | `ip_literal` | `ip_literal` | ✅ | 169.254.169.254 is an IP address. FIG reads sites by domain name; give the site's hostname instead. |
+| `http://10.0.0.1:8080/admin` | private address on a non-standard port | 422 | `has_port` | `has_port` | ✅ | Port 8080 is not supported. Give the site's hostname; sites are read over the standard ports. |
+| `2130706433` | 127.0.0.1 written as a number | 422 | `bad_hostname` | `bad_hostname` | ✅ | '2130706433' does not look like a public domain name. |
+| `localhost` | reserved name | 422 | `reserved_name` | `reserved_name` | ✅ | localhost is under the reserved name 'localhost', which never points at a public website. |
+| `printer.internal` | internal-only suffix | 422 | `reserved_name` | `reserved_name` | ✅ | printer.internal is under the reserved name 'internal', which never points at a public website. |
+| `127.0.0.1.nip.io` | real public DNS name that resolves to 127.0.0.1 | 422 | `non_public_address` | `non_public_address` | ✅ | 127.0.0.1.nip.io resolves to 127.0.0.1, which is not on the public internet. FIG only reads public sites. |
+| `fig-nx-01033d333c.com` | domain that does not exist | 422 | `dns_failed` | `dns_failed` | ✅ | fig-nx-01033d333c.com does not resolve ([Errno 11001] getaddrinfo failed). |
+| `ftp://launchvault.ca` | non-web scheme | 422 | `bad_scheme` | `bad_scheme` | ✅ | Only http and https sites can be read, not ftp://. |
+| `not a hostname` | not a hostname at all | 422 | `bad_hostname` | `bad_hostname` | ✅ | 'not a hostname' contains spaces, so it is not a hostname or URL. |
+| `(empty)` | empty input | 422 | `empty` | `empty` | ✅ | No hostname or URL was given. |
+
+### 4. Pipeline
+
+Trace total: 43.6 s inside the worker.
+
+| Stage | Status | Time | What happened |
+|---|---|---|---|
+| `validate` | ok | 0 ms | launchvault.ca → launchvault.ca → 172.64.80.1 (all public) |
+| `resolve_base` | ok | 1.2 s | https://launchvault.ca — tried: https://launchvault.ca/ ok 200 |
+| `robots` | ok | 531 ms | parsed (HTTP 200) · 16 rules apply to FIGBot · 1 sitemap(s) declared |
+| `discover` | ok | 1.6 s | 1 sitemap file(s) read · 500 URLs listed · 500 on this site |
+| `fetch` | ok | 31.3 s | 40 read · skipped: robots 2 · page limit reached |
+| `rules` | ok | 62 ms | 138 flags from 7 distinct checks (craft 66, search 11, answers 36, structure 25) |
+| `explain` | ok | 9.2 s | 7/7 distinct findings explained in 2 calls · 2,132 in / 726 out tokens · $0.0058 |
+| `score` | ok | 0 ms | overall 82 (clean) · {'craft': 74, 'structure': 90, 'search': 87, 'answers': 76} |
+| `persist` | ok | 187 ms | 40 pages and 138 findings saved, 138 with Claude-written text |
+
+#### robots.txt
+
+`https://launchvault.ca/robots.txt` → HTTP 200, outcome **parsed**, read in 531 ms.
+
+Rules that apply to FIGBot (enforced before every request, including redirect hops):
+
+```text
+Allow: /
+Allow: /features
+Allow: /pricing
+Allow: /about
+Allow: /privacy
+Allow: /terms
+Allow: /cookies
+Allow: /refund-policy
+Allow: /acceptable-use
+Allow: /dpa
+Disallow: /dashboard
+Disallow: /onboarding
+Disallow: /login
+Disallow: /signup
+Disallow: /checkout
+Disallow: /api/
+```
+
+- Declared sitemap: `https://launchvault.ca/sitemap.xml`
+
+**Independent robots check:** of 40 pages read, 0 are disallowed by robots.txt.
+
+#### Discovery
+
+| Sitemap | Outcome | HTTP | URLs | Child sitemaps | Time |
+|---|---|---|---|---|---|
+| `https://launchvault.ca/sitemap.xml` | ok | 200 | 1069 | 0 | 1.6 s |
+
+#### Pages
+
+40 read, 2 skipped; stopped because: page limit reached.
+
+| # | Path | Outcome | HTTP | Size | Time | Note |
+|---|---|---|---|---|---|---|
+| 1 | `/` | ✅ read | 200 | 149.8 KB | 1.2 s | “LaunchVault — Learn AI in Plain English. No Jargon, No Rush.” · 1682 words · sections: hero, content, features, content, features, content, pricing, content, content, faq, content, cta |
+| 2 | `/learn-ai` | ✅ read | 200 | 40.8 KB | 641 ms | “Learn AI — Free AI Learning Platform to Master AI \| LaunchVault” · 808 words · sections: hero, content, content, content, faq, content |
+| 3 | `/how-to-learn-ai` | ✅ read | 200 | 37.6 KB | 546 ms | “How to Learn AI in 2026 — Step-by-Step Guide \| LaunchVault” · 637 words · sections: hero, content, faq |
+| 4 | `/features` | ✅ read | 200 | 57.2 KB | 719 ms | “AI Learning Platform Features — Prompts, Courses & AI Agents \| LaunchVault” · 827 words · sections: hero, content, content, content, content, content, content |
+| 5 | `/how-it-works` | ✅ read | 200 | 48.9 KB | 781 ms | “How to Learn AI with LaunchVault — How It Works” · 604 words · sections: hero, how, features, content, pricing, content |
+| 6 | `/pricing` | ✅ read | 200 | 101.4 KB | 812 ms | “Pricing — AI Learning Platform Plans to Learn AI \| LaunchVault” · 903 words · sections: hero, content, content, content, pricing, content, content, cta, content |
+| 7 | `/library` | ✅ read | 200 | 134.9 KB | 1.2 s | “AI Prompt Library & Courses — Learn AI Free \| LaunchVault” · 1543 words · sections: hero, testimonials, pricing |
+| 8 | `/glossary` | ✅ read | 200 | 258.4 KB | 750 ms | “AI Glossary — AI Terms & Concepts Explained Simply \| LaunchVault” · 2208 words · sections: hero, content, how |
+| 9 | `/blog` | ✅ read | 200 | 161.6 KB | 531 ms | “Learn AI — Guides & Essays on Using AI \| LaunchVault Blog” · 1728 words · sections: hero, content, content, footer |
+| 10 | `/about` | ✅ read | 200 | 49.8 KB | 578 ms | “About LaunchVault — How Our AI Learning Platform Works” · 793 words · sections: hero, content, content, content, content, content, content |
+| 11 | `/contact` | ✅ read | 200 | 28.4 KB | 828 ms | “Contact — LaunchVault” · 250 words · sections: hero, content, content |
+| 12 | `/signup` | ⏭ robots | — | — | — | robots.txt disallows https://launchvault.ca/signup |
+| 13 | `/login` | ⏭ robots | — | — | — | robots.txt disallows https://launchvault.ca/login |
+| 14 | `/privacy` | ✅ read | 200 | 33.7 KB | 781 ms | “Privacy Policy — LaunchVault” · 1003 words · sections: hero, content, footer |
+| 15 | `/terms` | ✅ read | 200 | 35.0 KB | 828 ms | “Terms of Service — LaunchVault” · 1089 words · sections: hero, content, footer |
+| 16 | `/cookies` | ✅ read | 200 | 27.8 KB | 781 ms | “Cookie Policy — LaunchVault” · 441 words · sections: hero, content, footer |
+| 17 | `/refund-policy` | ✅ read | 200 | 29.2 KB | 812 ms | “Cancellation Policy — LaunchVault” · 619 words · sections: hero, content, footer |
+| 18 | `/acceptable-use` | ✅ read | 200 | 28.5 KB | 797 ms | “Acceptable Use Policy — LaunchVault” · 602 words · sections: hero, content, footer |
+| 19 | `/dpa` | ✅ read | 200 | 30.1 KB | 812 ms | “Data Processing Addendum — LaunchVault” · 607 words · sections: hero, content, footer |
+| 20 | `/domains/ai-prompting-mastery` | ✅ read | 200 | 86.7 KB | 1.1 s | “AI Prompting Mastery — LaunchVault” · 1075 words · sections: hero, content, content, content |
+| 21 | `/domains/prompt-engineering-fundamentals` | ✅ read | 200 | 76.4 KB | 719 ms | “Prompt Engineering Fundamentals — LaunchVault” · 934 words · sections: hero, content, content, content |
+| 22 | `/domains/advanced-prompt-engineering` | ✅ read | 200 | 84.5 KB | 813 ms | “Advanced Prompt Engineering — LaunchVault” · 1039 words · sections: hero, content, content, content |
+| 23 | `/domains/ai-for-business` | ✅ read | 200 | 85.2 KB | 797 ms | “AI for Business — LaunchVault” · 1043 words · sections: hero, content, content, content |
+| 24 | `/domains/ai-business-models` | ✅ read | 200 | 84.7 KB | 687 ms | “AI Business Models — LaunchVault” · 1039 words · sections: hero, pricing, content, content |
+| 25 | `/domains/ai-monetization` | ✅ read | 200 | 88.6 KB | 766 ms | “AI Monetization — LaunchVault” · 1081 words · sections: hero, content, content, content |
+| 26 | `/domains/ai-automation-workflows` | ✅ read | 200 | 75.8 KB | 797 ms | “AI Automation & Workflows — LaunchVault” · 916 words · sections: hero, how, content, content |
+| 27 | `/domains/no-code-ai-automation` | ✅ read | 200 | 88.5 KB | 797 ms | “No-Code AI Automation — LaunchVault” · 1082 words · sections: hero, content, content, content |
+| 28 | `/domains/ai-agents-blueprints` | ✅ read | 200 | 111.9 KB | 953 ms | “AI Agents & Blueprints — LaunchVault” · 1454 words · sections: hero, content, content, content |
+| 29 | `/domains/multi-agent-systems` | ✅ read | 200 | 92.9 KB | 641 ms | “Multi-Agent Systems — LaunchVault” · 1073 words · sections: hero, content, content, content |
+| 30 | `/domains/agent-memory-tool-use` | ✅ read | 200 | 77.8 KB | 797 ms | “Agent Memory & Tool Use — LaunchVault” · 946 words · sections: hero, content, content, content |
+| 31 | `/domains/machine-learning-basics` | ✅ read | 200 | 108.1 KB | 782 ms | “Machine Learning Basics — LaunchVault” · 1399 words · sections: hero, content, content, content |
+| 32 | `/domains/deep-learning-basics` | ✅ read | 200 | 84.8 KB | 781 ms | “Deep Learning Basics — LaunchVault” · 1041 words · sections: hero, content, content, content |
+| 33 | `/domains/data-literacy-for-ai` | ✅ read | 200 | 69.8 KB | 828 ms | “Data Literacy for AI — LaunchVault” · 865 words · sections: hero, content, content, content |
+| 34 | `/domains/ai-coding-development` | ✅ read | 200 | 78.8 KB | 797 ms | “AI Coding & Development — LaunchVault” · 981 words · sections: hero, testimonials, content, content |
+| 35 | `/domains/ai-app-building` | ✅ read | 200 | 65.9 KB | 797 ms | “AI App Building — LaunchVault” · 797 words · sections: hero, content, content, content |
+| 36 | `/domains/ai-saas-building` | ✅ read | 200 | 70.4 KB | 797 ms | “AI SaaS Building — LaunchVault” · 865 words · sections: hero, content, content, content |
+| 37 | `/domains/ai-productivity` | ✅ read | 200 | 88.8 KB | 828 ms | “AI Productivity & Personal Use — LaunchVault” · 1122 words · sections: hero, content, content, content |
+| 38 | `/domains/ai-content-creation` | ✅ read | 200 | 72.3 KB | 781 ms | “AI Content Creation — LaunchVault” · 871 words · sections: hero, content, content, content |
+| 39 | `/domains/ai-copywriting` | ✅ read | 200 | 64.8 KB | 796 ms | “AI Copywriting — LaunchVault” · 770 words · sections: hero, content, content, content |
+| 40 | `/domains/ai-marketing` | ✅ read | 200 | 87.0 KB | 750 ms | “AI Marketing — LaunchVault” · 1072 words · sections: hero, content, content, content |
+| 41 | `/domains/ai-sales` | ✅ read | 200 | 66.2 KB | 782 ms | “AI Sales — LaunchVault” · 793 words · sections: hero, content, content, content |
+| 42 | `/domains/ai-customer-support` | ✅ read | 200 | 92.0 KB | 828 ms | “AI Customer Support — LaunchVault” · 1141 words · sections: hero, pricing, content, content |
+
+#### Rules
+
+138 flags over 40 pages. Deterministic — no model involved.
+
+| Check | Layer | Times flagged |
+|---|---|---|
+| `overused_icons` | craft | 40 |
+| `no_answerable_questions` | answers | 36 |
+| `heading_skips` | structure | 25 |
+| `generic_copy` | craft | 15 |
+| `numbered_eyebrows` | craft | 11 |
+| `meta_description_length` | search | 10 |
+| `title_length` | search | 1 |
+
+#### AI step (the only model call in the pipeline)
+
+- Sent **7 items** (one per distinct finding) instead of 138 — a check that fires on many pages is explained once.
+- Model `claude-haiku-4-5`, served as `claude-haiku-4-5-20251001`: 2 calls, 0 failed batches.
+- Tokens: 2,132 input, 726 output → **$0.0058**.
+- Explained 7, kept the rule's own text for 0.
+- Request ids: `req_011Cf8GoBBbrTqVgUREF7zk2`, `req_011Cf8GogetsRXcRv8Fv77xk`
+
+#### Scores
+
+| Layer | Score |
+|---|---|
+| Craft | 74 |
+| Structure | 90 |
+| Search | 87 |
+| Answers | 76 |
+| **Overall** | **82 — clean** |
+
+### 5. Findings
+
+#### Craft (74/100)
+
+- **`generic_copy`** · medium · 15× on 15 pages (/, /how-it-works, /about, /domains/prompt-engineering-fundamentals…) · _Claude-written_
+  - **Found (one example):** 1 instance(s) of generic marketing phrasing found in headings/copy
+  - **Why:** Generic phrases like "Supercharge" and "True Value" don't differentiate LaunchVault or show specific benefits. They blend into standard marketing language across education sites.
+  - **Fix:** On / and /about, replace "Supercharge Your Prompts with Context" with concrete detail: e.g., "Add real data to prompts—get more accurate AI responses." Show what LaunchVault uniquely teaches.
+- **`overused_icons`** · low · 40× on 40 pages (/acceptable-use, /domains/data-literacy-for-ai, /dpa, /domains/ai-prompting-mastery…) · _Claude-written_
+  - **Found (one example):** 3 uses of icons commonly overused in generated UI (chevron-right, sparkles)
+  - **Why:** Arrow-right, sparkles, and rocket icons appear across 40 pages as visual clichés in generated design. They distract rather than clarify meaning for users scanning content.
+  - **Fix:** On / and high-traffic pages, swap decorative icons for functional ones. Keep arrow-right for navigation; replace sparkles (9 uses) with icons that match actual features—e.g., a document icon for "prompts."
+- **`numbered_eyebrows`** · low · 11× on 11 pages (/acceptable-use, /dpa, /, /how-to-learn-ai…) · _Claude-written_
+  - **Found (one example):** Found 6 short numbered labels (01, 02, 03, 04, 05) — a common auto-generated 'step/feature' eyebrow pattern
+  - **Why:** Numbered eyebrow labels read as template placeholders rather than meaningful section identifiers. Visitors scanning the page won't understand what each section covers.
+  - **Fix:** Replace numbered labels (4, 2, 3, etc.) with descriptive names. For example, on / use "Learn", "Practice", "Build" instead of numbers to clarify what each section offers.
+
+#### Structure (90/100)
+
+- **`heading_skips`** · low · 25× on 25 pages (/domains/data-literacy-for-ai, /domains/ai-prompting-mastery, /domains/prompt-engineering-fundamentals, /domains/ai-coding-development…) · _Claude-written_
+  - **Found (one example):** 2 places where the heading level jumps more than one step
+  - **Why:** Heading jumps confuse screen readers and break the logical outline scanners use to navigate. Readers expect consistent hierarchy (h1→h2→h3), so skipping levels signals disorganized content structure.
+  - **Fix:** On /domains/advanced-prompt-engineering and similar pages, insert missing h2 or h3 tags between jumps. For example, change 'h1 → h3' to 'h1 → h2 → h3' to restore proper nesting.
+
+#### Search (87/100)
+
+- **`meta_description_length`** · low · 10× on 10 pages (/, /learn-ai, /how-to-learn-ai, /features…) · _Claude-written_
+  - **Found (one example):** Meta description is 194 characters (long)
+  - **Why:** Meta descriptions over 160 characters truncate in search results, cutting off key messaging. Visitors see incomplete information before clicking.
+  - **Fix:** Trim homepage meta description to 155 characters: "Learn AI without jargon. Copy-ready prompts, courses, and guides for 50 everyday topics. Start free." Keep the strongest value prop visible.
+- **`title_length`** · low · 1× on 1 page (/features) · _Claude-written_
+  - **Found (one example):** Title is 74 characters and will be truncated
+  - **Why:** Title at 74 characters will truncate in search results and browser tabs. Searchers won't see the full page promise, affecting click-through rate.
+  - **Fix:** Shorten /features title to 60 characters: "AI Learning Platform: Prompts, Courses & Agents | LaunchVault" to fit on desktop and mobile search results.
+
+#### Answers (76/100)
+
+- **`no_answerable_questions`** · medium · 36× on 36 pages (/domains/data-literacy-for-ai, /features, /how-it-works, /glossary…) · _Claude-written_
+  - **Found (one example):** No question-and-answer block on this page
+  - **Why:** No Q&A blocks mean answer engines can't extract specific claims to quote or cite. The page stays invisible to AI-powered search and answer tools.
+  - **Fix:** Add a FAQ section to /about with 3–5 questions users ask: "What's the difference between a prompt and an AI agent?" Answer in complete sentences to make content quotable.
+
+### 6. Database cross-check
+
+| | Database | API |
+|---|---|---|
+| Scan status | done | done |
+| Findings | 138 | 138 |
+| AI-written findings | 138 | 138 |
+| Pages | 40 | 40 |
+| Trace stored | True | True |
+| Queue job | done, attempt 1 | — |
+
+### 7. Checks
+
+- ✅ **preflight** — database is Postgres, not a SQLite fallback
+- ✅ **preflight** — Anthropic API key is set
+- ✅ **preflight** — ai_explain is enabled
+- ✅ **preflight** — scans.trace column exists
+- ✅ **preflight** — API key minted on account `test-runs`
+- ✅ **server** — backend answers /health
+- ✅ **routes** — root lists the workspace API as not mounted
+- ✅ **routes** — /health reports Postgres, ai_explain on, workspace API off
+- ✅ **routes** — no browser origin is allowed (no CORS headers returned)
+- ✅ **validation** — every unsafe target answered with the expected reason code
+- ✅ **provision** — `launchvault.ca` stored as `launchvault.ca`
+- ✅ **provision** — the URL form resolves to the same site (no duplicate)
+- ✅ **ownership** — unverified (no TXT record) -- and a one-off scan is still allowed
+- ✅ **scan** — scan finished as `done`
+- ✅ **results** — trace covers every pipeline stage
+- ✅ **results** — report lists this site
+- ✅ **results** — no page the scan read is disallowed by robots.txt (independent check)
+- ✅ **database** — findings in the database match the API
+- ✅ **database** — AI-written flags match the API
+- ✅ **database** — pages in the database match the API
+- ✅ **database** — trace stored on the scan row
+- ✅ **database** — queue job finished on its first attempt
+- Plus 32 route calls in section 2, 32 as expected.
+
+### 8. Issues observed
+
+- ℹ️ 2 page(s) skipped because the site's robots.txt disallows them — expected, and correct: /signup, /login
+
+### 9. Server log (application lines, redacted)
+
+```text
+2026-09-16 23:06:03,641 INFO fig.jobs: worker w1 up
+2026-09-16 23:06:03,641 INFO fig.jobs: worker w2 up
+2026-09-16 23:06:03,641 INFO fig: FIG API up - db postgres, ai_explain claude-haiku-4-5, workspace API off (disconnected from the frontend)
+2026-09-16 23:06:53,120 INFO fig.pipeline: scan 5b5d2508-1839-4b80-8f2a-7196ad5ede4f done: 40 pages, score 82, 43640 ms
+```
+
+---
+
+## Test #4 — launchvault.ca
+
+**PASS** · 54/54 checks passed · 2026-09-16 23:11 (UTC-0400) · 53.1 s total · `python scripts/test_run.py launchvault.ca`
+
+| | |
+|---|---|
+| Target | `launchvault.ca` → `launchvault.ca` (172.64.80.1) |
+| Scan | `done` · 40 pages read, 2 skipped · 43.1 s from queue to done |
+| Score | **82 / 100 — clean** · Craft 74 · Structure 90 · Search 87 · Answers 76 |
+| Findings | 138 findings across 7 distinct problems · 7 of 7 explained by Claude |
+| AI step | `claude-haiku-4-5` (served as `claude-haiku-4-5-20251001`) · 2 calls · 2,137 in / 699 out tokens · **$0.0056** |
+| Backend | `http://127.0.0.1:63393` · Postgres (aws-1-us-east-2.pooler.supabase.com) · workspace API off · up in 3.2 s |
+
+### 1. Environment
+
+- **Database:** Postgres (aws-1-us-east-2.pooler.supabase.com) — `FIG_DB_STRICT=1`, so an unreachable database fails the run instead of falling back to SQLite. Schema check (`init_db`) took 609 ms.
+- **AI:** key present, model `claude-haiku-4-5`, priced at $1.00 in / $5.00 out per million tokens.
+- **Crawler:** user agent `FIGBot/0.2 (+https://fig.tools/bot; site self-check and structure scanner)`, 0.8 s between requests to a host, up to 40 pages, 5,120.0 KB per response, 5 redirects.
+- **Server:** `python -m uvicorn app.main:app --host 127.0.0.1 --port 63393 --log-level info` with `FIG_WORKSPACE_API=0`, Python 3.12.10.
+
+### 2. Routes
+
+| # | Step | Request | Expected | Got | Time | | Note |
+|---|---|---|---|---|---|---|---|
+| 1 | service | `GET /` | 200 | 200 | 32 ms | ✅ | — |
+| 2 | service | `GET /health` | 200 | 200 | 62 ms | ✅ | — |
+| 3 | frontend disconnected | `GET /api/me` | 404 | 404 | 0 ms | ✅ | workspace API not mounted |
+| 4 | frontend disconnected | `GET /api/projects` | 404 | 404 | 0 ms | ✅ | workspace API not mounted |
+| 5 | frontend disconnected | `OPTIONS /v1/sites` | 400/405 | 405 | 0 ms | ✅ | CORS preflight from the Next.js dev origin |
+| 6 | auth | `GET /v1/account` | 401 | 401 | 0 ms | ✅ | no key |
+| 7 | auth | `GET /v1/account` | 401 | 401 | 94 ms | ✅ | wrong key |
+| 8 | auth | `GET /v1/account` | 200 | 200 | 203 ms | ✅ | key minted for this run |
+| 9 | validation | `POST /v1/sites` | 422 | 422 | 188 ms | ✅ | loopback address |
+| 10 | validation | `POST /v1/sites` | 422 | 422 | 203 ms | ✅ | cloud metadata endpoint |
+| 11 | validation | `POST /v1/sites` | 422 | 422 | 187 ms | ✅ | private address on a non-standard port |
+| 12 | validation | `POST /v1/sites` | 422 | 422 | 188 ms | ✅ | 127.0.0.1 written as a number |
+| 13 | validation | `POST /v1/sites` | 422 | 422 | 187 ms | ✅ | reserved name |
+| 14 | validation | `POST /v1/sites` | 422 | 422 | 188 ms | ✅ | internal-only suffix |
+| 15 | validation | `POST /v1/sites` | 422 | 422 | 203 ms | ✅ | real public DNS name that resolves to 127.0.0.1 |
+| 16 | validation | `POST /v1/sites` | 422 | 422 | 250 ms | ✅ | domain that does not exist |
+| 17 | validation | `POST /v1/sites` | 422 | 422 | 187 ms | ✅ | non-web scheme |
+| 18 | validation | `POST /v1/sites` | 422 | 422 | 188 ms | ✅ | not a hostname at all |
+| 19 | validation | `POST /v1/sites` | 422 | 422 | 203 ms | ✅ | empty input |
+| 20 | validation | `POST /scan` | 422 | 422 | 0 ms | ✅ | the free public read goes through the same gate |
+| 21 | provision | `POST /v1/sites` | 201 | 201 | 250 ms | ✅ | as typed |
+| 22 | provision | `POST /v1/sites` | 201 | 201 | 219 ms | ✅ | same site given as a full URL |
+| 23 | provision | `GET /v1/sites/cd9c6b21-07b0-4345-b04e-ae4ba4379ecd` | 200 | 200 | 312 ms | ✅ | — |
+| 24 | ownership | `POST /v1/sites/cd9c6b21-07b0-4345-b04e-ae4ba4379ecd/verification` | 200 | 200 | 219 ms | ✅ | issue a DNS TXT token |
+| 25 | ownership | `POST /v1/sites/cd9c6b21-07b0-4345-b04e-ae4ba4379ecd/verification/confirm` | 200 | 200 | 219 ms | ✅ | look the record up |
+| 26 | scan | `POST /v1/sites/cd9c6b21-07b0-4345-b04e-ae4ba4379ecd/scans` | 202 | 202 | 234 ms | ✅ | queued for a worker |
+| 27 | scan | `GET /v1/scans/a092e2a7-b669-45a0-ac81-eb79d554bc22?findings=false` | 200 | 200 | 225 ms | ✅ | polled 25x every 1.5s until done (ms is the average) |
+| 28 | results | `GET /v1/scans/a092e2a7-b669-45a0-ac81-eb79d554bc22` | 200 | 200 | 265 ms | ✅ | scores and findings |
+| 29 | results | `GET /v1/scans/a092e2a7-b669-45a0-ac81-eb79d554bc22/pages` | 200 | 200 | 235 ms | ✅ | pages read |
+| 30 | results | `GET /v1/scans/a092e2a7-b669-45a0-ac81-eb79d554bc22/trace` | 200 | 200 | 218 ms | ✅ | stage-by-stage trace |
+| 31 | results | `GET /v1/report` | 200 | 200 | 266 ms | ✅ | partner estate roll-up |
+| 32 | results | `GET /v1/scans/not-a-real-scan` | 404 | 404 | 203 ms | ✅ | unknown scan id |
+
+### 3. Validation system
+
+**Accepted:** `launchvault.ca` → `launchvault.ca` (nothing to change). Resolved to 172.64.80.1 — every address public, so the crawl was allowed. The same site given as `https://launchvault.ca/pricing?utm_source=fig-test` normalised to the same hostname and returned the existing site.
+
+**Ownership:** DNS TXT verification was issued and checked — verified: `False`. Ownership is only required to schedule monitoring; a one-off scan of any public site is allowed without it.
+
+**Rejected** (each is a `POST /v1/sites`, answered before anything is fetched):
+
+| Input | What it is | HTTP | Code | Expected | | Message |
+|---|---|---|---|---|---|---|
+| `127.0.0.1` | loopback address | 422 | `ip_literal` | `ip_literal` | ✅ | 127.0.0.1 is an IP address. FIG reads sites by domain name; give the site's hostname instead. |
+| `169.254.169.254` | cloud metadata endpoint | 422 | `ip_literal` | `ip_literal` | ✅ | 169.254.169.254 is an IP address. FIG reads sites by domain name; give the site's hostname instead. |
+| `http://10.0.0.1:8080/admin` | private address on a non-standard port | 422 | `has_port` | `has_port` | ✅ | Port 8080 is not supported. Give the site's hostname; sites are read over the standard ports. |
+| `2130706433` | 127.0.0.1 written as a number | 422 | `bad_hostname` | `bad_hostname` | ✅ | '2130706433' does not look like a public domain name. |
+| `localhost` | reserved name | 422 | `reserved_name` | `reserved_name` | ✅ | localhost is under the reserved name 'localhost', which never points at a public website. |
+| `printer.internal` | internal-only suffix | 422 | `reserved_name` | `reserved_name` | ✅ | printer.internal is under the reserved name 'internal', which never points at a public website. |
+| `127.0.0.1.nip.io` | real public DNS name that resolves to 127.0.0.1 | 422 | `non_public_address` | `non_public_address` | ✅ | 127.0.0.1.nip.io resolves to 127.0.0.1, which is not on the public internet. FIG only reads public sites. |
+| `fig-nx-ca7ce00140.com` | domain that does not exist | 422 | `dns_failed` | `dns_failed` | ✅ | fig-nx-ca7ce00140.com does not resolve ([Errno 11001] getaddrinfo failed). |
+| `ftp://launchvault.ca` | non-web scheme | 422 | `bad_scheme` | `bad_scheme` | ✅ | Only http and https sites can be read, not ftp://. |
+| `not a hostname` | not a hostname at all | 422 | `bad_hostname` | `bad_hostname` | ✅ | 'not a hostname' contains spaces, so it is not a hostname or URL. |
+| `(empty)` | empty input | 422 | `empty` | `empty` | ✅ | No hostname or URL was given. |
+
+### 4. Pipeline
+
+Trace total: 42.5 s inside the worker.
+
+| Stage | Status | Time | What happened |
+|---|---|---|---|
+| `validate` | ok | 0 ms | launchvault.ca → launchvault.ca → 172.64.80.1 (all public) |
+| `resolve_base` | ok | 1.1 s | https://launchvault.ca — tried: https://launchvault.ca/ ok 200 |
+| `robots` | ok | 234 ms | parsed (HTTP 200) · 16 rules apply to FIGBot · 1 sitemap(s) declared |
+| `discover` | ok | 968 ms | 1 sitemap file(s) read · 500 URLs listed · 500 on this site |
+| `fetch` | ok | 31.6 s | 40 read · skipped: robots 2 · page limit reached |
+| `rules` | ok | 78 ms | 138 flags from 7 distinct checks (craft 66, search 11, answers 36, structure 25) |
+| `explain` | ok | 8.5 s | 7/7 distinct findings explained in 2 calls · 2,137 in / 699 out tokens · $0.0056 |
+| `score` | ok | 0 ms | overall 82 (clean) · {'craft': 74, 'structure': 90, 'search': 87, 'answers': 76} |
+| `persist` | ok | 172 ms | 40 pages and 138 findings saved, 138 with Claude-written text |
+
+#### robots.txt
+
+`https://launchvault.ca/robots.txt` → HTTP 200, outcome **parsed**, read in 234 ms.
+
+Rules that apply to FIGBot (enforced before every request, including redirect hops):
+
+```text
+Allow: /
+Allow: /features
+Allow: /pricing
+Allow: /about
+Allow: /privacy
+Allow: /terms
+Allow: /cookies
+Allow: /refund-policy
+Allow: /acceptable-use
+Allow: /dpa
+Disallow: /dashboard
+Disallow: /onboarding
+Disallow: /login
+Disallow: /signup
+Disallow: /checkout
+Disallow: /api/
+```
+
+- Declared sitemap: `https://launchvault.ca/sitemap.xml`
+
+**Independent robots check:** of 40 pages read, 0 are disallowed by robots.txt.
+
+#### Discovery
+
+| Sitemap | Outcome | HTTP | URLs | Child sitemaps | Time |
+|---|---|---|---|---|---|
+| `https://launchvault.ca/sitemap.xml` | ok | 200 | 1069 | 0 | 968 ms |
+
+#### Pages
+
+40 read, 2 skipped; stopped because: page limit reached.
+
+| # | Path | Outcome | HTTP | Size | Time | Note |
+|---|---|---|---|---|---|---|
+| 1 | `/` | ✅ read | 200 | 149.8 KB | 1.1 s | “LaunchVault — Learn AI in Plain English. No Jargon, No Rush.” · 1682 words · sections: hero, content, features, content, features, content, pricing, content, content, faq, content, cta |
+| 2 | `/learn-ai` | ✅ read | 200 | 40.8 KB | 578 ms | “Learn AI — Free AI Learning Platform to Master AI \| LaunchVault” · 808 words · sections: hero, content, content, content, faq, content |
+| 3 | `/how-to-learn-ai` | ✅ read | 200 | 37.6 KB | 797 ms | “How to Learn AI in 2026 — Step-by-Step Guide \| LaunchVault” · 637 words · sections: hero, content, content |
+| 4 | `/features` | ✅ read | 200 | 57.2 KB | 844 ms | “AI Learning Platform Features — Prompts, Courses & AI Agents \| LaunchVault” · 827 words · sections: hero, content, content, content, content, content, content |
+| 5 | `/how-it-works` | ✅ read | 200 | 48.9 KB | 797 ms | “How to Learn AI with LaunchVault — How It Works” · 604 words · sections: hero, how, features, content, pricing, content |
+| 6 | `/pricing` | ✅ read | 200 | 101.4 KB | 813 ms | “Pricing — AI Learning Platform Plans to Learn AI \| LaunchVault” · 903 words · sections: hero, content, content, content, pricing, content, content, cta, content |
+| 7 | `/library` | ✅ read | 200 | 134.9 KB | 875 ms | “AI Prompt Library & Courses — Learn AI Free \| LaunchVault” · 1543 words · sections: hero, testimonials, content |
+| 8 | `/glossary` | ✅ read | 200 | 258.4 KB | 891 ms | “AI Glossary — AI Terms & Concepts Explained Simply \| LaunchVault” · 2208 words · sections: hero, content, how |
+| 9 | `/blog` | ✅ read | 200 | 161.6 KB | 687 ms | “Learn AI — Guides & Essays on Using AI \| LaunchVault Blog” · 1728 words · sections: hero, content, content, footer |
+| 10 | `/about` | ✅ read | 200 | 49.8 KB | 625 ms | “About LaunchVault — How Our AI Learning Platform Works” · 793 words · sections: hero, content, content, content, content, content, content |
+| 11 | `/contact` | ✅ read | 200 | 28.4 KB | 829 ms | “Contact — LaunchVault” · 250 words · sections: hero, content, content |
+| 12 | `/signup` | ⏭ robots | — | — | — | robots.txt disallows https://launchvault.ca/signup |
+| 13 | `/login` | ⏭ robots | — | — | — | robots.txt disallows https://launchvault.ca/login |
+| 14 | `/privacy` | ✅ read | 200 | 33.7 KB | 781 ms | “Privacy Policy — LaunchVault” · 1003 words · sections: hero, content, footer |
+| 15 | `/terms` | ✅ read | 200 | 35.0 KB | 797 ms | “Terms of Service — LaunchVault” · 1089 words · sections: hero, content, footer |
+| 16 | `/cookies` | ✅ read | 200 | 27.8 KB | 813 ms | “Cookie Policy — LaunchVault” · 441 words · sections: hero, content, footer |
+| 17 | `/refund-policy` | ✅ read | 200 | 29.2 KB | 813 ms | “Cancellation Policy — LaunchVault” · 619 words · sections: hero, content, footer |
+| 18 | `/acceptable-use` | ✅ read | 200 | 28.5 KB | 812 ms | “Acceptable Use Policy — LaunchVault” · 602 words · sections: hero, content, footer |
+| 19 | `/dpa` | ✅ read | 200 | 30.1 KB | 797 ms | “Data Processing Addendum — LaunchVault” · 607 words · sections: hero, content, footer |
+| 20 | `/domains/ai-prompting-mastery` | ✅ read | 200 | 86.7 KB | 921 ms | “AI Prompting Mastery — LaunchVault” · 1075 words · sections: hero, content, content, content |
+| 21 | `/domains/prompt-engineering-fundamentals` | ✅ read | 200 | 76.4 KB | 844 ms | “Prompt Engineering Fundamentals — LaunchVault” · 934 words · sections: hero, content, content, content |
+| 22 | `/domains/advanced-prompt-engineering` | ✅ read | 200 | 84.5 KB | 688 ms | “Advanced Prompt Engineering — LaunchVault” · 1039 words · sections: hero, content, content, content |
+| 23 | `/domains/ai-for-business` | ✅ read | 200 | 85.2 KB | 812 ms | “AI for Business — LaunchVault” · 1043 words · sections: hero, content, content, content |
+| 24 | `/domains/ai-business-models` | ✅ read | 200 | 84.7 KB | 797 ms | “AI Business Models — LaunchVault” · 1039 words · sections: hero, content, content, content |
+| 25 | `/domains/ai-monetization` | ✅ read | 200 | 88.6 KB | 844 ms | “AI Monetization — LaunchVault” · 1081 words · sections: hero, content, content, content |
+| 26 | `/domains/ai-automation-workflows` | ✅ read | 200 | 75.8 KB | 735 ms | “AI Automation & Workflows — LaunchVault” · 916 words · sections: hero, how, content, content |
+| 27 | `/domains/no-code-ai-automation` | ✅ read | 200 | 88.5 KB | 797 ms | “No-Code AI Automation — LaunchVault” · 1082 words · sections: hero, content, content, content |
+| 28 | `/domains/ai-agents-blueprints` | ✅ read | 200 | 111.9 KB | 843 ms | “AI Agents & Blueprints — LaunchVault” · 1454 words · sections: hero, content, content, content |
+| 29 | `/domains/multi-agent-systems` | ✅ read | 200 | 92.9 KB | 750 ms | “Multi-Agent Systems — LaunchVault” · 1073 words · sections: hero, content, content, content |
+| 30 | `/domains/agent-memory-tool-use` | ✅ read | 200 | 77.8 KB | 843 ms | “Agent Memory & Tool Use — LaunchVault” · 946 words · sections: hero, content, content, content |
+| 31 | `/domains/machine-learning-basics` | ✅ read | 200 | 108.1 KB | 766 ms | “Machine Learning Basics — LaunchVault” · 1399 words · sections: hero, content, content, content |
+| 32 | `/domains/deep-learning-basics` | ✅ read | 200 | 84.8 KB | 813 ms | “Deep Learning Basics — LaunchVault” · 1041 words · sections: hero, content, content, content |
+| 33 | `/domains/data-literacy-for-ai` | ✅ read | 200 | 69.8 KB | 766 ms | “Data Literacy for AI — LaunchVault” · 865 words · sections: hero, content, content, content |
+| 34 | `/domains/ai-coding-development` | ✅ read | 200 | 78.8 KB | 797 ms | “AI Coding & Development — LaunchVault” · 981 words · sections: hero, testimonials, content, content |
+| 35 | `/domains/ai-app-building` | ✅ read | 200 | 65.9 KB | 860 ms | “AI App Building — LaunchVault” · 797 words · sections: hero, content, content, content |
+| 36 | `/domains/ai-saas-building` | ✅ read | 200 | 70.4 KB | 766 ms | “AI SaaS Building — LaunchVault” · 865 words · sections: hero, content, content, content |
+| 37 | `/domains/ai-productivity` | ✅ read | 200 | 88.8 KB | 750 ms | “AI Productivity & Personal Use — LaunchVault” · 1122 words · sections: hero, content, content, content |
+| 38 | `/domains/ai-content-creation` | ✅ read | 200 | 72.3 KB | 891 ms | “AI Content Creation — LaunchVault” · 871 words · sections: hero, content, content, content |
+| 39 | `/domains/ai-copywriting` | ✅ read | 200 | 64.8 KB | 718 ms | “AI Copywriting — LaunchVault” · 770 words · sections: hero, content, content, content |
+| 40 | `/domains/ai-marketing` | ✅ read | 200 | 87.0 KB | 813 ms | “AI Marketing — LaunchVault” · 1072 words · sections: hero, content, content, content |
+| 41 | `/domains/ai-sales` | ✅ read | 200 | 66.2 KB | 797 ms | “AI Sales — LaunchVault” · 793 words · sections: hero, content, content, content |
+| 42 | `/domains/ai-customer-support` | ✅ read | 200 | 92.0 KB | 828 ms | “AI Customer Support — LaunchVault” · 1141 words · sections: hero, content, content, content |
+
+#### Rules
+
+138 flags over 40 pages. Deterministic — no model involved.
+
+| Check | Layer | Times flagged |
+|---|---|---|
+| `overused_icons` | craft | 40 |
+| `no_answerable_questions` | answers | 36 |
+| `heading_skips` | structure | 25 |
+| `generic_copy` | craft | 15 |
+| `numbered_eyebrows` | craft | 11 |
+| `meta_description_length` | search | 10 |
+| `title_length` | search | 1 |
+
+#### AI step (the only model call in the pipeline)
+
+- Sent **7 items** (one per distinct finding) instead of 138 — a check that fires on many pages is explained once.
+- Model `claude-haiku-4-5`, served as `claude-haiku-4-5-20251001`: 2 calls, 0 failed batches.
+- Tokens: 2,137 input, 699 output → **$0.0056**.
+- Explained 7, kept the rule's own text for 0.
+- Request ids: `req_011Cf8HCqxdDxNAQVYmeeF7r`, `req_011Cf8HDL5K8uYfWrVXNCU3u`
+
+#### Scores
+
+| Layer | Score |
+|---|---|
+| Craft | 74 |
+| Structure | 90 |
+| Search | 87 |
+| Answers | 76 |
+| **Overall** | **82 — clean** |
+
+### 5. Findings
+
+#### Craft (74/100)
+
+- **`generic_copy`** · medium · 15× on 15 pages (/, /how-it-works, /about, /domains/prompt-engineering-fundamentals…) · _Claude-written_
+  - **Found (one example):** 1 instance(s) of generic marketing phrasing found in headings/copy
+  - **Why:** Overused phrases like "Supercharge," "True Value," and "The Future of Work" appear across multiple pages, making the site read as template-driven rather than substantive.
+  - **Fix:** Rewrite headings to be specific to LaunchVault's offering. For example, change "AI's True Value: It's Not Just About Automation" to something concrete like "Why Agent Memory Fails (And How LaunchVault Fixes It)."
+- **`overused_icons`** · low · 40× on 40 pages (/domains/data-literacy-for-ai, /acceptable-use, /dpa, /domains/ai-customer-support…) · _Claude-written_
+  - **Found (one example):** 3 uses of icons commonly overused in generated UI (sparkles, arrow-right)
+  - **Why:** Heavy reliance on generic icons (arrow-right, sparkles, zap, rocket) is commonly associated with auto-generated layouts and reduces visual distinctiveness.
+  - **Fix:** Replace 40% of generic icons with custom or fewer icons. Use arrow-right sparingly; remove sparkles and rocket icons entirely and rely on typography and color for visual hierarchy instead.
+- **`numbered_eyebrows`** · low · 11× on 11 pages (/acceptable-use, /dpa, /, /how-to-learn-ai…) · _Claude-written_
+  - **Found (one example):** Found 6 short numbered labels (01, 02, 03, 04, 05) — a common auto-generated 'step/feature' eyebrow pattern
+  - **Why:** Numbered labels without context read as auto-generated step sequences rather than meaningful section markers, weakening the sense of deliberate content organization.
+  - **Fix:** Replace numbered eyebrows with descriptive labels that reflect each section's actual purpose—e.g., "Getting Started," "Core Features," "Our Approach" instead of "1," "2," "3."
+
+#### Structure (90/100)
+
+- **`heading_skips`** · low · 25× on 25 pages (/domains/data-literacy-for-ai, /domains/ai-prompting-mastery, /domains/ai-coding-development, /domains/prompt-engineering-fundamentals…) · _Claude-written_
+  - **Found (one example):** 2 places where the heading level jumps more than one step
+  - **Why:** Heading jumps confuse screen readers and make the outline structure unclear, making it harder for readers to scan and understand page organization.
+  - **Fix:** On /domains/advanced-prompt-engineering and similar pages, insert missing h2 tags between h1 and h3, and h3 tags between h2 and h4, to create a proper hierarchy without gaps.
+
+#### Search (87/100)
+
+- **`meta_description_length`** · low · 10× on 10 pages (/, /learn-ai, /how-to-learn-ai, /features…) · _Claude-written_
+  - **Found (one example):** Meta description is 194 characters (long)
+  - **Why:** At 194 characters, meta descriptions truncate in search results around 155–160 characters, cutting off key information and reducing click incentive.
+  - **Fix:** Trim meta descriptions to 155 characters max. On the homepage, try: "Learn AI without jargon. Copy-ready prompts, courses, and agent blueprints across 50 everyday topics. Free to start."
+- **`title_length`** · low · 1× on 1 page (/features) · _Claude-written_
+  - **Found (one example):** Title is 74 characters and will be truncated
+  - **Why:** At 74 characters, the /features page title exceeds the typical 60-character display limit in search results, cutting off "LaunchVault" on desktop.
+  - **Fix:** Shorten to "AI Learning Features — Prompts, Courses & Agents | LaunchVault" (71 chars), or drop "Platform" to prioritize the value proposition.
+
+#### Answers (76/100)
+
+- **`no_answerable_questions`** · medium · 36× on 36 pages (/domains/data-literacy-for-ai, /contact, /domains/prompt-engineering-fundamentals, /features…) · _Claude-written_
+  - **Found (one example):** No question-and-answer block on this page
+  - **Why:** Pages without structured Q&A reduce chances of being cited by AI answer engines, which prioritize directly answerable questions and clear factual responses.
+  - **Fix:** Add a FAQ section to /about and /contact pages. Example: "What makes LaunchVault different?" followed by 2–3 sentence factual answer, formatted as structured data schema.
+
+### 6. Database cross-check
+
+| | Database | API |
+|---|---|---|
+| Scan status | done | done |
+| Findings | 138 | 138 |
+| AI-written findings | 138 | 138 |
+| Pages | 40 | 40 |
+| Trace stored | True | True |
+| Queue job | done, attempt 1 | — |
+
+### 7. Checks
+
+- ✅ **preflight** — database is Postgres, not a SQLite fallback
+- ✅ **preflight** — Anthropic API key is set
+- ✅ **preflight** — ai_explain is enabled
+- ✅ **preflight** — scans.trace column exists
+- ✅ **preflight** — API key minted on account `test-runs`
+- ✅ **server** — backend answers /health
+- ✅ **routes** — root lists the workspace API as not mounted
+- ✅ **routes** — /health reports Postgres, ai_explain on, workspace API off
+- ✅ **routes** — no browser origin is allowed (no CORS headers returned)
+- ✅ **validation** — every unsafe target answered with the expected reason code
+- ✅ **provision** — `launchvault.ca` stored as `launchvault.ca`
+- ✅ **provision** — the URL form resolves to the same site (no duplicate)
+- ✅ **ownership** — unverified (no TXT record) -- and a one-off scan is still allowed
+- ✅ **scan** — scan finished as `done`
+- ✅ **results** — trace covers every pipeline stage
+- ✅ **results** — report lists this site
+- ✅ **results** — no page the scan read is disallowed by robots.txt (independent check)
+- ✅ **database** — findings in the database match the API
+- ✅ **database** — AI-written flags match the API
+- ✅ **database** — pages in the database match the API
+- ✅ **database** — trace stored on the scan row
+- ✅ **database** — queue job finished on its first attempt
+- Plus 32 route calls in section 2, 32 as expected.
+
+### 8. Issues observed
+
+- ℹ️ 2 page(s) skipped because the site's robots.txt disallows them — expected, and correct: /signup, /login
+
+### 9. Server log (application lines, redacted)
+
+```text
+2026-09-16 23:11:25,190 INFO fig.jobs: worker w1 up
+2026-09-16 23:11:25,190 INFO fig.jobs: worker w2 up
+2026-09-16 23:11:25,190 INFO fig: FIG API up - db postgres, ai_explain claude-haiku-4-5, workspace API off (disconnected from the frontend)
+2026-09-16 23:12:13,612 INFO fig.pipeline: scan a092e2a7-b669-45a0-ac81-eb79d554bc22 done: 40 pages, score 82, 42516 ms
+```

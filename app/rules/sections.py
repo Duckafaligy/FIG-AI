@@ -81,11 +81,26 @@ def price_hits(section: SectionSignal) -> list[str]:
     return _PRICE_RE.findall(section.text or "")
 
 
+_HEADING_WORD_LIMIT = 5
+
+
 def classify(section: SectionSignal, position: int, total: int) -> str:
     """One section to one role. Order of the tests matters: the specific,
     high-confidence signals are checked before the shape-based fallbacks."""
     tag = section.tag.lower()
-    hay = f"{section.heading} {' '.join(section.classes)} {section.element_id}"
+    # A section's own heading is short and label-like ("Pricing", "How it
+    # works", "Frequently asked questions"). `section.heading` is actually
+    # whichever heading tag `_describe_section` found first inside the
+    # block, which on a card grid or blog-listing section is the first
+    # card's own title, not the section's -- a long, sentence-style one
+    # ("Claude's API Pricing Beats ChatGPT Plus", "Read it all. Free tier
+    # never expires.") reads as a genuine label to a keyword search even
+    # though it names one item, not the section. Found on real
+    # launchvault.ca content pages misclassified as "pricing" this way.
+    # Classes/ids are always short and deliberate, so they stay trusted.
+    heading_for_keywords = (
+        section.heading if len(section.heading.split()) <= _HEADING_WORD_LIMIT else "")
+    hay = f"{heading_for_keywords} {' '.join(section.classes)} {section.element_id}"
 
     if tag == "nav":
         return "nav"
@@ -106,11 +121,13 @@ def classify(section: SectionSignal, position: int, total: int) -> str:
         return "faq"
     if _RE["pricing"].search(hay):
         return "pricing"
-    # A price token on its own is much weaker evidence: it has to look like a
-    # priced block rather than a sentence that happens to contain a number.
-    if section.has_price and section.word_count < 700 and (
-            section.list_items >= 3 or section.button_count >= 1 or len(price_hits(section)) >= 2):
-        return "pricing?"
+    # Named-role keyword matches all outrank the weak price heuristic below.
+    # A "results" or "how it works" section that happens to quote a dollar
+    # figure (a case-study stat, a savings number) is not a pricing table --
+    # it just has money in the prose. Checking these first is what stops
+    # that section being claimed as "pricing?" before its own heading is
+    # ever read (found by testing against real sites with a stats section
+    # quoting figures next to a bulleted list).
     if _RE["testimonials"].search(hay):
         return "testimonials"
     if _RE["how"].search(hay):
@@ -125,6 +142,13 @@ def classify(section: SectionSignal, position: int, total: int) -> str:
         return "problem"
     if _RE["contact"].search(hay) and section.has_form:
         return "contact"
+    # A price token on its own is much weaker evidence than any of the named
+    # roles above: it has to look like a priced block rather than a sentence
+    # that happens to contain a number, and only gets a say once nothing more
+    # specific has already claimed the section.
+    if section.has_price and section.word_count < 700 and (
+            section.list_items >= 3 or section.button_count >= 1 or len(price_hits(section)) >= 2):
+        return "pricing?"
 
     # A logo strip: several images, almost no words.
     if section.image_count >= 3 and section.word_count < 40:
