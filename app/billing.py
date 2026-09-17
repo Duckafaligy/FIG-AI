@@ -154,7 +154,14 @@ async def webhook(request: Request, session: Session = Depends(get_session)):
     except Exception as exc:                       # noqa: BLE001
         raise HTTPException(400, f"bad signature: {exc}") from exc
 
-    obj = event["data"]["object"]
+    # construct_event() deserializes event.data.object into a typed Stripe
+    # object (a Subscription, a checkout Session, ...), not a plain dict --
+    # newer stripe-python raises on .get() against those ("a Subscription is
+    # not a dict"). This crashed on every single real event type below until
+    # caught by testing against a real signed event, since nothing in this
+    # file had run against a live key before. .to_dict() makes every .get()
+    # call below safe again.
+    obj = event["data"]["object"].to_dict()
     kind = event["type"]
 
     if kind in ("checkout.session.completed", "customer.subscription.created",
