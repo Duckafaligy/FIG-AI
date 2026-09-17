@@ -6,6 +6,22 @@
 
 This file documents the behavior that exists in the current frontend. It deliberately separates a working browser interaction from an actual product integration so nobody mistakes the prototype for a live CMS, billing, authentication, analytics, or AI system.
 
+> **2026-09-17 update — this is now partly out of date.** Authentication,
+> `/app`, `/app/seo`, `/app/geo`, `/app/notifications`, `/app/history`, and
+> `/app/settings` are wired to the real backend (`FIG_WORKSPACE_API=1`,
+> real Supabase sign-in, real session cookie). A **signed-in real account
+> with no data yet** now sees real zeros and null-safe placeholders
+> ("Never run," em dashes) instead of the LaunchVault numbers this file
+> describes — those numbers still appear for the seeded demo account and
+> for anyone not signed in (this file's descriptions are accurate for that
+> case). Local-state-only interactivity — search/filter, tabs, row dialogs,
+> Publish/Reject on a draft, security/notification toggles, content
+> defaults — is unchanged and still exactly as described below; none of
+> that was touched or lost in the live-wiring. See `CLAUDE.md`'s frontend
+> data layer section for the wiring details and what still isn't connected
+> (Stripe, `POST /scan`, most CMS/API integrations besides Google
+> Analytics).
+
 ## What the current frontend is — and is not
 
 | Status | Meaning in this build |

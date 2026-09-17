@@ -265,10 +265,22 @@ with frontend work in flight):
   `applyOverlay()` on the client merges it into the statically imported page.
   The split exists because `DashboardPage.icon` is a lucide component and a
   function cannot cross the server/client boundary.
-- Wiring a designed page is two lines — see `frontend/app/app/live/page.tsx`,
-  a diagnostics route that shows connection state and renders each surface
-  live. The design in `frontend/lib/dashboard-pages.ts` stays the source of
-  truth for structure; the overlay only replaces values.
+- Wiring a designed page is two lines, and it's now done for all five overlay
+  routes (2026-09-17): `/app`, `/app/seo`, `/app/geo`, `/app/notifications`,
+  and `/app/history` all fetch their overlay and render through
+  `LiveDashboardPage` instead of the static `DashboardPage`. Verified against
+  a real signed-in account and site, not just a type-check — see the git log
+  for that commit. `frontend/app/app/live/page.tsx` remains as a diagnostics
+  route (connection/session state, one page at a time via `?page=`), now
+  redundant with the real routes but still useful for debugging a broken
+  connection in isolation. The design in `frontend/lib/dashboard-pages.ts`
+  stays the source of truth for structure; the overlay only replaces values.
+  **Settings (`/app/settings`) is different** — it isn't part of the
+  `LivePageKey` overlay system (its shape doesn't fit the metric/section
+  model), so it fetches `api.settings()` directly and live-wires workspace
+  profile, team, plan, usage, webhook stats, and integration status.
+  Security, notifications, and content-defaults tabs are deliberately left
+  as local-only UI state — there's no persistence endpoint for them yet.
 
 - `app/dashboard.py` + `templates/dash/` (archived) — the previous dashboard: an
   overview built to the Figma design, the sites list and site detail, findings
