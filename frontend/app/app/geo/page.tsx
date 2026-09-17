@@ -1,2 +1,7 @@
-import { DashboardPage } from "@/components/dashboard-page";
-export default function Page() { return <DashboardPage page="geo" />; }
+import { LiveDashboardPage } from "@/components/live-dashboard-page";
+import { fetchOverlay } from "@/lib/live";
+
+export default async function Page() {
+  const { overlay } = await fetchOverlay("geo");
+  return <LiveDashboardPage page="geo" overlay={overlay} />;
+}
