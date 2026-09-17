@@ -83,6 +83,7 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
 # additive, nullable column has to be added here. Idempotent.
 _ADDED_COLUMNS = (
     ("scans", "trace", "JSON"),
+    ("sites", "reports_public", "BOOLEAN DEFAULT FALSE"),
 )
 
 

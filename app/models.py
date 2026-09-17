@@ -149,6 +149,14 @@ class Site(Base):
     monitor = Column(Boolean, nullable=False, default=False)
     monitor_days = Column(Integer, nullable=False, default=30)
 
+    # Off by default: an account-owned site's scan is a paying customer's
+    # data, and app/public.py's GET /scan/{scan_id} has no ownership check
+    # of its own (scan ids are unguessable UUIDs, same trust model as a
+    # Loom link, but that's a property of the id, not a decision anyone
+    # made) -- this is the explicit decision. The free/anonymous read path
+    # never sets this and is unaffected; it was always meant to be public.
+    reports_public = Column(Boolean, nullable=False, default=False)
+
     # Ownership proof is only needed to schedule monitoring, never for a
     # one-off read (CLAUDE.md, two-tier model).
     is_verified = Column(Boolean, nullable=False, default=False)

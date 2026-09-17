@@ -220,6 +220,25 @@ def remove_project(project_id: str, request: Request,
     return {"ok": True, "id": site.id, "billable_sites": account.billable_sites()}
 
 
+@router.post("/projects/{project_id}/share")
+def share_project(project_id: str, request: Request, payload: dict = Body(...),
+                  session: Session = Depends(get_session)):
+    """Turns the public report link for this site's latest finished scan on
+    or off. Off by default (Site.reports_public) -- this is the only way an
+    account-owned scan ever becomes reachable at GET /scan/{scan_id}
+    (app/public.py), which otherwise 404s it even if someone has the id."""
+    account = _account(request, session)
+    site = _project(session, account, project_id)
+    if site is None:
+        raise HTTPException(404, "no such project")
+    site.reports_public = bool((payload or {}).get("public"))
+    session.commit()
+    latest = site.latest_scan()
+    report_url = (f"{config.FRONTEND_URL}/report/{latest.id}"
+                  if site.reports_public and latest else None)
+    return {"ok": True, "public": site.reports_public, "report_url": report_url}
+
+
 @router.post("/projects/{project_id}/audit")
 def audit_project(project_id: str, request: Request,
                   session: Session = Depends(get_session)):

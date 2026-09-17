@@ -366,6 +366,7 @@ export type ApiHistoryPage = ApiChrome & {
 };
 
 export type ApiSettingsPage = ApiChrome & {
+  sharing: { public: boolean; can_share: boolean; report_url: Nullable<string> };
   profile: { name: string; slug: string; kind: string; created: string; email: string; white_label: boolean };
   counts: { members: number; services: number; projects: number; published: number };
   seats: { name: string; email: string; role: string; perms: string; active: string; initials: string }[];
@@ -411,6 +412,8 @@ export const actions = {
     apiSend<{ id: string; hostname: string; scan_id: string }>("/api/projects", "POST", { hostname, name }),
   removeProject: (id: string) => apiSend<{ ok: true }>(`/api/projects/${id}`, "DELETE"),
   auditProject: (id: string) => apiSend<{ ok: true; scan_id: string }>(`/api/projects/${id}/audit`, "POST"),
+  shareProject: (id: string, isPublic: boolean) =>
+    apiSend<{ ok: true; public: boolean; report_url: string | null }>(`/api/projects/${id}/share`, "POST", { public: isPublic }),
   auditAll: () => apiSend<{ ok: true; queued: number }>("/api/audit-all", "POST"),
   proposeBriefs: () => apiSend<{ ok: true; briefs: number }>("/api/content/propose", "POST"),
   moveContent: (id: string, to: string) => apiSend<unknown>(`/api/content/${id}/move`, "POST", { to }),

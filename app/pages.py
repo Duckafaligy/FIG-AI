@@ -1118,6 +1118,7 @@ def _actors(log: list[dict]) -> list[dict]:
 def settings(session: Session, account: Account) -> dict:
     ctx = _chrome(session, account, "settings")
     sites = ctx["_sites"]
+    site = ctx["_site"]
 
     users = list(session.scalars(
         select(User).where(User.account_id == account.id)).all())
@@ -1136,8 +1137,15 @@ def settings(session: Session, account: Account) -> dict:
                ContentPost.state == "published")) or 0) if sites else 0
 
     rate = account.rate_override_cents or Account.rate_for(max(1, len(sites)))
+    latest = site.latest_scan() if site else None
 
     return ctx | {
+        "sharing": {
+            "public": bool(site.reports_public) if site else False,
+            "can_share": latest is not None,
+            "report_url": (f"{config.FRONTEND_URL}/report/{latest.id}"
+                           if site and site.reports_public and latest else None),
+        },
         "profile": {
             "name": account.name, "slug": account.slug,
             "kind": account.kind.title(),

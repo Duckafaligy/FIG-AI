@@ -7,11 +7,14 @@ import {
   Bell,
   BrainCircuit,
   Check,
+  CheckCheck,
   ChevronRight,
   CircleDashed,
+  Copy,
   CreditCard,
   Database,
   FileText,
+  Globe2,
   KeyRound,
   Link2,
   LockKeyhole,
@@ -26,7 +29,7 @@ import {
 } from "lucide-react";
 import { DashboardHeader } from "@/components/dashboard-shell";
 import { PreviewInfo } from "@/components/preview-info";
-import { api, apiUrl, fmt, type ApiSettingsPage } from "@/lib/api";
+import { actions, api, apiUrl, fmt, type ApiSettingsPage } from "@/lib/api";
 
 type Icon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
 type TabId = "workspace" | "team" | "integrations" | "billing" | "security" | "notifications" | "defaults" | "webhooks";
@@ -82,7 +85,13 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState({ twoFactor: false, email: true, project: true, system: false, browser: true, approval: true, publish: false });
   const [defaultsSaved, setDefaultsSaved] = useState(false);
   const [live, setLive] = useState<ApiSettingsPage | null>(null);
+  const [sharingBusy, setSharingBusy] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
+  const loadSettings = () => api.settings().then((result) => {
+    if (result.ok) setLive(result.data);
+    return result;
+  });
   useEffect(() => {
     let cancelled = false;
     api.settings().then((result) => {
@@ -93,6 +102,21 @@ export default function SettingsPage() {
     };
   }, []);
   const liveProjectId = live?.project?.id ?? null;
+
+  const toggleSharing = async () => {
+    if (!liveProjectId || !live) return;
+    setSharingBusy(true);
+    await actions.shareProject(liveProjectId, !live.sharing.public);
+    await loadSettings();
+    setSharingBusy(false);
+  };
+  const copyReportLink = () => {
+    if (!live?.sharing.report_url) return;
+    navigator.clipboard?.writeText(live.sharing.report_url).then(() => {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    });
+  };
   const liveApi = (name: string) => live?.apis.find((a) => a.name === name);
   const usageRows = live
     ? live.usage.map((u) => ({
@@ -136,6 +160,31 @@ export default function SettingsPage() {
         {activeTab === "workspace" && <div className="settings-tab-stack">
           <section className="settings-surface settings-workspace-surface"><div className="settings-surface-heading"><div><h3>Workspace profile</h3><p>{live ? "The account behind this workspace." : "The core details shown throughout this frontend preview."}</p></div><PreviewInfo className="settings-link-button" label="Edit profile" message="Workspace editing isn't wired up yet. No change is sent to Supabase or any connected service." /></div><div className="settings-workspace-profile"><span className="settings-profile-logo">{live ? live.initials : "LV"}</span><div><strong>{live ? live.profile.name : "LaunchVault.ca"}</strong>{!live && <p>Plain-English AI lessons, prompts, courses, and practical workflows.</p>}<span><BadgeCheck size={13} />{live ? (live.profile.kind === "Direct" ? "Direct workspace" : live.profile.kind) : "Preview workspace"}</span></div></div><div className="settings-fact-grid"><article><span>Workspace ID</span><strong>{live ? live.profile.slug : "lv_workspace_01"}</strong></article><article><span>Owner</span><strong>{live ? (live.seats[0]?.email ?? "—") : "Jordan Davis"}</strong></article><article><span>Industry</span><strong>{live ? "—" : "Education & technology"}</strong></article><article><span>Timezone</span><strong>{live ? "—" : "Eastern Time"}</strong></article><article><span>Website</span><strong>{live ? (live.project?.hostname ?? "—") : "launchvault.ca"}</strong></article><article><span>Created</span><strong>{live ? live.profile.created : "Sep 13, 2026"}</strong></article></div></section>
           <div className="settings-two-column"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Workspace at a glance</h3><p>{live ? "Real counters for this workspace." : "Sample counters for this one project."}</p></div></div><div className="settings-glance-grid"><article><Users size={18} /><strong>{live ? live.counts.members : 5}</strong><span>Team members</span></article><article><Link2 size={18} /><strong>{live ? live.counts.services : 8}</strong><span>Services connected</span></article><article><FileText size={18} /><strong>{live ? live.counts.projects : 1500}</strong><span>{live ? "Projects" : "Library items"}</span></article><article><BrainCircuit size={18} /><strong>{live ? live.counts.published : 50}</strong><span>{live ? "Published posts" : "Topics"}</span></article></div></section><section className="settings-surface settings-plan-surface"><div className="settings-surface-heading"><div><h3>Current plan</h3><p>{live ? (live.plan.state === "Trial" ? `${live.plan.days} day${live.plan.days === 1 ? "" : "s"} left in trial.` : "Billed per site.") : "Billing is not connected."}</p></div><PreviewInfo className="settings-link-button" label="Manage billing" message="Stripe checkout and the customer portal aren't wired up from this page yet." /></div><strong className="settings-plan-name">{live ? live.plan.name : "Pro"} <span>{live ? live.plan.state.toLowerCase() : "preview"}</span></strong><div className="settings-plan-price">{live ? live.plan.price : "$79"} <small>/ {live ? live.plan.unit : "month"}</small></div><p>{live ? "Real trial/plan state for this account." : "Team workflow, writing tools, and analytics shown as a product preview."}</p></section></div>
+
+          <section className="settings-surface">
+            <div className="settings-surface-heading">
+              <div><h3>Public report link</h3><p>{live ? "Share your latest audit with anyone, no sign-in required." : "Sharing needs a real connected workspace."}</p></div>
+              {live && <Globe2 size={19} aria-hidden="true" />}
+            </div>
+            {!live ? (
+              <p style={{ opacity: 0.7, fontSize: 14 }}>This preview has no real scan to share. Sign in and run an audit to enable this.</p>
+            ) : !live.sharing.can_share ? (
+              <p style={{ opacity: 0.7, fontSize: 14 }}>Run your first audit to get a report worth sharing.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div className="settings-toggle-row">
+                  <div><strong>{live.sharing.public ? "Report is public" : "Report is private"}</strong><span>{live.sharing.public ? "Anyone with the link can view your latest audit." : "Only your workspace can see this audit."}</span></div>
+                  <button type="button" className={`settings-switch${live.sharing.public ? " is-on" : ""}`} aria-label={live.sharing.public ? "Make report private" : "Make report public"} aria-pressed={live.sharing.public} onClick={toggleSharing} disabled={sharingBusy}><i /></button>
+                </div>
+                {live.sharing.public && live.sharing.report_url && (
+                  <div className="settings-fact-grid" style={{ gridTemplateColumns: "1fr auto" }}>
+                    <article style={{ overflow: "hidden" }}><span>Report URL</span><strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{live.sharing.report_url}</strong></article>
+                    <button type="button" className="button button--small" onClick={copyReportLink}>{copiedLink ? <CheckCheck size={15} /> : <Copy size={15} />}{copiedLink ? "Copied" : "Copy link"}</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
         </div>}
 
         {activeTab === "team" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>People & roles</h3><p>{live ? "Everyone signed in to this workspace." : "Sample workspace members with the permissions their roles would carry."}</p></div><PreviewInfo className="button button--small" label="Invite member" message="Team invitations aren't wired up yet. No invitation has been sent." /></div><div className="settings-member-table" role="table" aria-label="Workspace team members"><div className="settings-member-head" role="row"><span>Person</span><span>Role</span><span>Permissions</span><span>Status</span><span>Last active</span><span /></div>{(live ? live.seats.map((s) => [s.initials, s.name, s.role, s.perms, "Active", s.active] as const) : members).map(([initials, name, role, permissions, status, activeAt]) => <div className="settings-member-row" role="row" key={name}><span className="settings-person"><i>{initials}</i><strong>{name}</strong></span><span><b className="settings-role-chip">{role}</b></span><span>{permissions}</span><span><b className="settings-status settings-status--green">{status}</b></span><span>{activeAt}</span><span><PreviewInfo className="settings-row-action" label="Manage" message={`Role changes and access removal for ${name} aren't wired up yet.`} /></span></div>)}</div></section><section className="settings-surface settings-team-note"><Users size={19} /><div><strong>Roles are previewed, not enforced</strong><p>Role changes and invitations aren't wired up yet. {live ? "Names and emails above are real." : "These names and roles are local demo content only."}</p></div></section></div>}

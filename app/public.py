@@ -142,6 +142,14 @@ def public_read_result(scan_id: str, session: Session = Depends(get_session)):
         raise HTTPException(404, "no such read")
     site = session.get(Site, scan.site_id)
 
+    # Free-tier reads (trigger="demo", see start_public_read above) were
+    # always meant to be public. An account-owned scan -- someone's real,
+    # possibly-paying site -- only becomes public once its Site has opted
+    # in. Same 404 either way: "not found" doesn't confirm a private scan
+    # exists at that id.
+    if scan.trigger != "demo" and not (site and site.reports_public):
+        raise HTTPException(404, "no such read")
+
     if scan.status != "done":
         return {"scan_id": scan.id, "hostname": site.hostname if site else "",
                 "status": scan.status, "error": scan.error}
