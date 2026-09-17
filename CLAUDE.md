@@ -435,8 +435,23 @@ placeholders** — only email/password goes through Supabase for now.
    SEO's "Keyword Ranking Momentum" bars remain unwired — the former is a
    different component entirely, the latter has no matching `ApiChart`
    field on the backend yet.
-6. **Stripe end to end** — the code is there; it has never run against a live
-   key.
+6. **Stripe — tested against real test-mode keys 2026-09-17, one real bug
+   found and fixed.** `stripe.Webhook.construct_event()` returns a typed
+   Stripe object, not a dict; every `.get()` call in `webhook()` crashed on
+   every real event with `'get' is a dict method, but a Subscription is not
+   a dict` — fixed with `.to_dict()`. Quote, checkout, portal, and
+   `sync_quantity` were all verified against a real Stripe customer and a
+   real active test subscription (`pm_card_visa`), confirmed by retrieving
+   the subscription back from Stripe after a sync, not just trusting the
+   local response. Webhook handling was verified with locally-signed test
+   events (Stripe's own documented method) for `checkout.session.completed`
+   and `customer.subscription.deleted`, plus bad-signature rejection.
+   **Still open:** nothing in the frontend calls `/v1/billing/checkout` or
+   `/portal` yet (Settings' billing tab is still the static preview from
+   before this session), and real webhook *delivery* has never been tested
+   — that needs a registered endpoint in the Stripe dashboard pointing at a
+   real public URL, which doesn't exist yet, to get a real
+   `STRIPE_WEBHOOK_SECRET`.
 7. **Pin crawler connections to the validated address** — closes the DNS
    rebinding gap described in `app/validation.py`.
 
