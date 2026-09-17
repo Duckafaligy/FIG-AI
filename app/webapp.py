@@ -29,7 +29,7 @@ from app.auth import current_account, end_session, session_user, start_session
 from app.db import get_session
 from app.jobs import enqueue_estate, enqueue_scan, queue_depth
 from app.models import Account, Site
-from app.api import hostname_of
+from app.api import public_hostname
 
 router = APIRouter(prefix="/api", tags=["workspace"])
 
@@ -179,9 +179,15 @@ def add_project(request: Request, payload: dict = Body(...),
                 session: Session = Depends(get_session)):
     """Add a project and immediately queue its first audit."""
     account = _account(request, session)
-    host = hostname_of((payload or {}).get("hostname", ""))
-    if not host:
+    raw = (payload or {}).get("hostname", "")
+    if not raw:
         raise HTTPException(400, "a hostname is required")
+    # Full validation (syntax + DNS resolves to a public address), not just
+    # syntax -- this is a real user submitting an arbitrary hostname, same
+    # trust level as the free /scan endpoint. The crawler re-checks on every
+    # request regardless, but failing here means a clear 422 instead of a
+    # Site row that can only ever produce a failed scan.
+    host = public_hostname(raw)
 
     existing = next((s for s in pages.sites_of(session, account)
                      if s.hostname == host), None)
