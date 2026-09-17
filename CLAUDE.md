@@ -279,12 +279,17 @@ with frontend work in flight):
   redundant with the real routes but still useful for debugging a broken
   connection in isolation. The design in `frontend/lib/dashboard-pages.ts`
   stays the source of truth for structure; the overlay only replaces values.
-  **Settings (`/app/settings`) is different** — it isn't part of the
-  `LivePageKey` overlay system (its shape doesn't fit the metric/section
-  model), so it fetches `api.settings()` directly and live-wires workspace
-  profile, team, plan, usage, webhook stats, and integration status.
-  Security, notifications, and content-defaults tabs are deliberately left
-  as local-only UI state — there's no persistence endpoint for them yet.
+  **Settings (`/app/settings`) and Projects (`/projects`) are different** —
+  neither is part of the `LivePageKey` overlay system (their shapes don't
+  fit the metric/section model), so each fetches its own endpoint directly
+  (`api.settings()`, `api.projects()`) and live-wires what it needs.
+  Settings: workspace profile, team, plan, usage, webhook stats, integration
+  status — security, notifications, and content-defaults tabs stay
+  local-only UI state, since there's no persistence endpoint for them yet.
+  Projects: cards, KPIs, SEO/GEO health, top content, distribution,
+  activity, the performance table, opportunities, automation, and the real
+  "Add project" form — the trend chart and content calendar stay static
+  (bespoke components, not this shape).
 
 - `app/dashboard.py` + `templates/dash/` (archived) — the previous dashboard: an
   overview built to the Figma design, the sites list and site detail, findings
@@ -398,8 +403,23 @@ placeholders** — only email/password goes through Supabase for now.
    `app/ga.py`'s property auto-discovery picks the first GA4 property the
    connected account can see — fine for one property, needs a real picker
    before an account with several is more than a coin flip.
-5. **Call `POST /scan` from the frontend** — the free read is mounted,
-   validated and rate-limited; nothing calls it yet.
+5. **Call `POST /scan` from the frontend** — the free, anonymous read is
+   mounted, validated and rate-limited; nothing on the public marketing site
+   calls it yet. Not the same gap as the one just closed below — this is the
+   unauthenticated homepage entry point ("paste your URL, no signup"), not
+   the authenticated dashboard's own project-adding flow.
+5b. **`/projects` → real data — done (2026-09-17).** Was 100% static, one
+   hardcoded demo card, an "Add project" dialog that only explained why it
+   couldn't add one. Now fetches `api.projects()` (the shape `app/pages.py`
+   already matched field for field) and the dialog is a real form calling
+   `actions.addProject()`, which queues a real scan the same way every other
+   path does. This was the actual blocker behind everything else wired this
+   session: without it, a real signed-in user had no way to get a real site
+   into their own account through the UI at all. Verified against a real
+   account end to end — see that commit. Left static on purpose: the trend
+   chart and content calendar, both bespoke components with their own
+   internal sample-data generators, not part of the dashboard's
+   row/stat-overlay shape.
 6. **Stripe end to end** — the code is there; it has never run against a live
    key.
 7. **Pin crawler connections to the validated address** — closes the DNS
