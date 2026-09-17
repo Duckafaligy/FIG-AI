@@ -31,6 +31,7 @@ from app.db import IS_SQLITE, get_session, init_db
 from app.jobs import queue_depth, start_workers, stop_workers
 from app.oauth import router as oauth_router
 from app.public import router as public_router
+from app import scheduler
 from app.webapp import router as webapp_router
 
 logging.basicConfig(level=logging.INFO,
@@ -42,10 +43,12 @@ log = logging.getLogger("fig")
 async def lifespan(_app: FastAPI):
     init_db()
     start_workers()
-    log.info("FIG API up - db %s, ai_explain %s, workspace API %s",
+    scheduler.start()
+    log.info("FIG API up - db %s, ai_explain %s, workspace API %s, watches %s",
              "sqlite" if IS_SQLITE else "postgres",
              config.AI_MODEL if config.AI_EXPLAIN_ENABLED else "off",
-             "on" if config.WORKSPACE_API_ENABLED else "off (disconnected from the frontend)")
+             "on" if config.WORKSPACE_API_ENABLED else "off (disconnected from the frontend)",
+             "on" if config.WATCH_ENABLED else "off")
     if config.DEV_NO_AUTH:
         log.warning("FIG_DEV_NO_AUTH=1 - the workspace API is open with no sign-in")
     if config.WORKSPACE_API_ENABLED:
@@ -56,6 +59,7 @@ async def lifespan(_app: FastAPI):
             log.warning("FIG_SESSION_SECRET is unset - sessions are signed with a "
                         "per-process key, so a restart signs everyone out")
     yield
+    scheduler.stop()
     stop_workers()
 
 
@@ -131,4 +135,5 @@ def health(session: Session = Depends(get_session)):
         "dev_no_auth": config.DEV_NO_AUTH,
         "secrets_configured": bool(config.SECRET_ENCRYPTION_KEY),
         "google_oauth": config.GOOGLE_OAUTH_ENABLED,
+        "watches": config.WATCH_ENABLED,
     }

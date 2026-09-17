@@ -82,6 +82,13 @@ REQUEST_TIMEOUT = int(os.environ.get("FIG_REQUEST_TIMEOUT", "12"))
 CRAWL_DELAY = float(os.environ.get("FIG_CRAWL_DELAY", "0.8"))
 MAX_PAGES_PER_SCAN = int(os.environ.get("FIG_MAX_PAGES", "40"))
 WORKER_COUNT = int(os.environ.get("FIG_WORKERS", "2"))
+# How often app/scheduler.py checks which verified, monitored sites are due
+# for an automatic Watch re-scan. Hourly is plenty of granularity against a
+# per-site interval measured in days.
+WATCH_SWEEP_HOURS = float(os.environ.get("FIG_WATCH_SWEEP_HOURS", "1"))
+# Off by default so a local dev run or a test doesn't start silently
+# enqueueing scans against real sites. Set to 1 once Watches should run.
+WATCH_ENABLED = os.environ.get("FIG_WATCH_ENABLED", "0") == "1"
 # Hard caps on what a single request can cost: body size and redirect hops.
 MAX_RESPONSE_BYTES = int(os.environ.get("FIG_MAX_RESPONSE_BYTES", str(5 * 1024 * 1024)))
 MAX_REDIRECTS = int(os.environ.get("FIG_MAX_REDIRECTS", "5"))
