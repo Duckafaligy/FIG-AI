@@ -347,13 +347,19 @@ placeholders** — only email/password goes through Supabase for now.
 
 1. **Scheduled Watches** — `Site.monitor` / `monitor_days` exist and nothing
    reads them yet. APScheduler enqueueing the same jobs is the whole task.
-2. **Tune the reference lists and the role patterns.** This matters more than
-   new checks. Run real generated sites and real hand-made ones through the
-   engine until they separate cleanly — `scripts/test_run.py` is how. Known
-   weak spots: section role classification over-matches `pricing` on pages
-   that quote figures in prose; and where a page's body lives outside
-   `<section>` landmarks (launchvault.ca's legal pages), most of its copy is
-   not attributed to any section at all.
+2. **Tune the reference lists and the role patterns — ongoing, not finished.**
+   This matters more than new checks. Run real generated sites and real
+   hand-made ones through the engine until they separate cleanly —
+   `scripts/test_run.py` is how. Three real false positives found this way
+   were fixed 2026-09-17 (see that commit): the weak price-heuristic
+   outranking named-role keywords, a card grid's first-item heading bleeding
+   into the section's own role, and bare-HTML pages losing their body text
+   to no section at all. `KNOWN_DEFAULT_COLORS`, `GENERIC_COPY_PHRASES`, and
+   `OVERUSED_ICON_NAMES` were also expanded — accuracy-focused (verified each
+   new color is genuinely distinct by RGB distance, not padding), not just
+   larger. This is a standing task, not a one-time fix: keep running real
+   sites through it and watching for the next pattern that doesn't separate
+   cleanly.
 3. **Shareable report output — half done (2026-09-17).** The public
    per-scan URL exists: `frontend/app/report/[scanId]/page.tsx` renders
    `GET /scan/{scan_id}` (`app/public.py`, already public/unauthenticated —
