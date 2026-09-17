@@ -232,7 +232,54 @@ function ChartRangeSelect({ value, onChange, label }: { value: ChartRange; onCha
   </label>;
 }
 
-function PreviewChart({ legend, distribution, chart = "trend", score, range = "30" }: { legend?: string[]; distribution?: number[]; chart?: DashboardPage["sections"][number]["chart"]; score?: DashboardPage["sections"][number]["score"]; range?: ChartRange }) {
+function LiveTrendChart({ data, legend }: { data: NonNullable<DashboardPage["sections"][number]["liveChart"]>; legend?: string[] }) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const first = data.lines[0];
+  const pointCount = first.points.length;
+  const activePoints = activeIndex !== null ? data.lines.map((line) => line.points[activeIndex]).filter(Boolean) : [];
+  return (
+    <div className="preview-chart" aria-label="Trend chart">
+      <ChartLegend legend={legend ?? data.lines.map((l) => l.name)} />
+      <div className="chart-plot-with-scale">
+        <div className="chart-y-axis">{[...data.ticks].reverse().map((t) => <span key={t.y}>{t.label}</span>)}</div>
+        <div className="preview-chart-art">
+          <div className="chart-grid-lines" />
+          <svg viewBox={`0 0 ${data.w} ${data.h}`} preserveAspectRatio="none" role="group" aria-label={`Trends for ${data.lines.map((l) => l.name).join(", ")}`}>
+            {data.lines.map((line) => line.area && <path key={`${line.name}-area`} d={line.area} fill={line.colour} fillOpacity={0.08} stroke="none" />)}
+            {data.lines.map((line) => <path key={line.name} d={line.path} fill="none" stroke={line.colour} strokeWidth={2} vectorEffect="non-scaling-stroke" />)}
+            {Array.from({ length: pointCount }, (_, index) => (
+              <g key={index} tabIndex={0} role="button"
+                aria-label={`${data.xlabels.find((x) => Math.round(x.x) === Math.round(first.points[index]?.x ?? -1))?.label ?? ""}: ${data.lines.map((l) => `${l.name} ${l.points[index]?.v ?? 0}`).join(", ")}`}
+                onFocus={() => setActiveIndex(index)} onBlur={() => setActiveIndex(null)}
+                onMouseEnter={() => setActiveIndex(index)} onMouseLeave={() => setActiveIndex(null)}
+                onKeyDown={(event) => { if (event.key === "Escape") setActiveIndex(null); }}
+              >
+                <rect {...chartHitArea(index, pointCount, data.w)} y="0" height={data.h} fill="transparent" />
+                {activeIndex === index && <line x1={first.points[index]?.x} x2={first.points[index]?.x} y1="0" y2={data.h} stroke="#aeb7d6" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />}
+              </g>
+            ))}
+          </svg>
+          {data.lines.flatMap((line) => line.points.map((p, index) => (
+            <span className="chart-dot" aria-hidden="true" key={`${line.name}-${index}`}
+              style={{ left: `${(p.x / data.w) * 100}%`, top: `${(p.y / data.h) * 100}%`, background: line.colour }} />
+          )))}
+          {activeIndex !== null && activePoints.length > 0 && (
+            <ChartTooltipPosition index={activeIndex} count={pointCount}>
+              <strong>{data.xlabels.find((x) => Math.round(x.x) === Math.round(first.points[activeIndex]?.x ?? -1))?.label ?? ""}</strong>
+              {data.lines.map((line) => (
+                <div key={line.name}><i style={{ background: line.colour }} /><span>{line.name}</span><b>{(line.points[activeIndex]?.v ?? 0).toLocaleString()}</b></div>
+              ))}
+            </ChartTooltipPosition>
+          )}
+        </div>
+      </div>
+      <div className="chart-axis chart-axis--scaled">{data.xlabels.map((x) => <span key={x.x}>{x.label}</span>)}</div>
+    </div>
+  );
+}
+
+function PreviewChart({ legend, distribution, chart = "trend", score, range = "30", liveChart }: { legend?: string[]; distribution?: number[]; chart?: DashboardPage["sections"][number]["chart"]; score?: DashboardPage["sections"][number]["score"]; range?: ChartRange; liveChart?: DashboardPage["sections"][number]["liveChart"] }) {
+  if (chart === "trend" && liveChart) return <LiveTrendChart data={liveChart} legend={legend} />;
   const gradientId = useId();
   const [activeSample, setActiveSample] = useState<{ range: ChartRange; index: number } | null>(null);
   const samples = chartSamples(range);
@@ -466,7 +513,7 @@ function HealthPreview({ rows, score }: { rows?: DashboardPage["sections"][numbe
   return <div className="health-preview"><div className={`health-score health-score--${score?.tone ?? "green"}`}><strong>{score?.value}</strong><span>{score?.label}</span></div><PreviewRows rows={rows} compact /></div>;
 }
 
-export function DashboardSection({ area, title, description, icon: Icon, kind, variant = "standard", chart, span, meta, legend, distribution, rows, columns, steps, stats, tabs, score }: DashboardPage["sections"][number]) {
+export function DashboardSection({ area, title, description, icon: Icon, kind, variant = "standard", chart, span, meta, legend, distribution, rows, columns, steps, stats, tabs, score, liveChart }: DashboardPage["sections"][number]) {
   const globalSearch = useContext(DashboardSearchContext);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All statuses");
@@ -482,7 +529,10 @@ export function DashboardSection({ area, title, description, icon: Icon, kind, v
   });
   const isSearchable = kind === "table" && (variant === "library" || variant === "audit");
   const previewRow = (row: DashboardRow, action = "Preview") => setSelected({ row, action });
-  const supportsTimeRange = kind === "chart" && chart !== "donut" && chart !== "reliability";
+  // The live trend series is a fixed 30-day window from the backend; the
+  // range picker has nothing to change once real data has replaced the
+  // illustrative sample curve, so it's hidden rather than shown inert.
+  const supportsTimeRange = kind === "chart" && chart !== "donut" && chart !== "reliability" && !liveChart;
   const context = meta ?? (kind === "chart" ? "Last 30 days" : kind === "table" ? "View all →" : kind === "flow" ? "How it works" : "LaunchVault.ca");
   const spanClass = span === "wide" ? "dashboard-panel--wide" : span ? `dashboard-panel--span-${span}` : "";
   return (
@@ -490,7 +540,7 @@ export function DashboardSection({ area, title, description, icon: Icon, kind, v
       <div className="panel-heading"><div><span className="panel-icon"><Icon size={18} /></span><h2>{title}</h2></div>{supportsTimeRange ? <ChartRangeSelect value={chartRange} onChange={setChartRange} label={title} /> : <span className="panel-meta">{context}</span>}</div>
       {isSearchable && <div className="dashboard-table-tools"><label className="dashboard-table-search"><Search size={14} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={variant === "audit" ? "Search actions, content, or users…" : "Search content…"} aria-label={`Search ${title}`} />{query && <button aria-label={`Clear ${title} search`} onClick={() => setQuery("")}><X size={12} /></button>}</label><label className="dashboard-table-filter"><span className="visually-hidden">Filter {title} by status</span><select value={status} onChange={(event) => setStatus(event.target.value)} aria-label={`Filter ${title} by status`}><option>All statuses</option>{Array.from(new Set(localRows.map((row) => row.status))).map((value) => <option key={value}>{value}</option>)}</select></label><span className="dashboard-table-count">{visibleRows.length} {visibleRows.length === 1 ? "item" : "items"}</span></div>}
       {tabs && <div className="panel-tabs" role="group" aria-label={`Filter ${title}`}>{tabs.map((tab) => <button className={activeTab === tab.label ? "active" : ""} aria-pressed={activeTab === tab.label} onClick={() => setActiveTab(tab.label)} key={tab.label}>{tab.label}<small>{localRows.filter((row) => matchesTab(row, tab.label)).length}</small></button>)}</div>}
-      {kind === "chart" && <><PreviewChart legend={legend} distribution={distribution} chart={chart} score={score} range={chartRange} /><p className="panel-description">{description}</p></>}
+      {kind === "chart" && <><PreviewChart legend={legend} distribution={distribution} chart={chart} score={score} range={chartRange} liveChart={liveChart} /><p className="panel-description">{description}</p></>}
       {kind === "flow" && <><div className="empty-flow">{steps?.map((step, index) => { const StepIcon = [Link2, FileText, Search, Upload][index % 4]; return <div key={step.label}><span className={`flow-step-icon flow-step-icon--${index}`}><StepIcon size={24} aria-hidden="true" /></span><strong>{step.label}</strong><small>{step.copy}</small></div>; })}</div><p className="flow-description">{description}</p></>}
       {kind === "table" && <><DataTable title={title} columns={columns} rows={visibleRows} ranked={variant === "ranked"} area={area} onPreview={previewRow} /><p className="panel-description">{description}</p></>}
       {kind === "feed" && <><PreviewRows rows={visibleRows} ranked={variant === "ranked"} onPreview={previewRow} />{visibleRows.length === 0 && <div className="feed-empty">No matching activity. Try another filter.</div>}<p className="panel-description">{description}</p></>}

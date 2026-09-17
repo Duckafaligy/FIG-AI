@@ -1,3 +1,4 @@
+import type { ApiChart } from "./api";
 import {
   Activity,
   Bell,
@@ -69,6 +70,13 @@ export type DashboardSection = {
   stats?: DashboardStat[];
   tabs?: { label: string; count?: number; active?: boolean }[];
   score?: { value: string; label: string; tone?: DashboardTone };
+  // Set only by applyOverlay() (lib/live.ts), never in the static design
+  // data below. Pre-computed pixel geometry from app/charts.py -- when
+  // present, PreviewChart draws this instead of its illustrative sample
+  // curve. Only wired for chart === "trend" so far (Overview, GEO, History,
+  // Notifications); "bars" (SEO's keyword-momentum chart) has no matching
+  // backend series yet.
+  liveChart?: ApiChart;
 };
 
 export type DashboardPage = {

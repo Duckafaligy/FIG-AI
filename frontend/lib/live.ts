@@ -23,6 +23,7 @@ import {
   api,
   delta,
   fmt,
+  type ApiChart,
   type ApiGeoPage,
   type ApiHistoryPage,
   type ApiNotificationsPage,
@@ -42,6 +43,9 @@ export type Overlay = {
   stats: Record<string, DashboardStat[]>;
   scores: Record<string, { value: string; label: string; tone?: DashboardTone }>;
   tabs: Record<string, { label: string; count?: number; active?: boolean }[]>;
+  /** Pre-computed pixel geometry from app/charts.py, keyed by area. Only the
+   * "trend"-chart sections have a matching backend series so far. */
+  charts: Record<string, ApiChart>;
   /** The project the data belongs to, for the page description. */
   projectName: string;
 };
@@ -53,7 +57,7 @@ export type OverlayResult =
 /* ------------------------------------------------------------- helpers */
 
 function blank(projectName = ""): Overlay {
-  return { metrics: {}, rows: {}, stats: {}, scores: {}, tabs: {}, projectName };
+  return { metrics: {}, rows: {}, stats: {}, scores: {}, tabs: {}, charts: {}, projectName };
 }
 
 function tone(v: number | null | undefined): DashboardTone | undefined {
@@ -71,6 +75,13 @@ function rows(o: Overlay, area: string, list: DashboardRow[]): void {
   if (list.length) o.rows[area] = list;
 }
 
+function chart(o: Overlay, area: string, c: ApiChart): void {
+  // charts.py returns an empty `lines` list rather than a plausible-looking
+  // invented curve when there's no data -- keep that honesty here instead
+  // of drawing an empty axis.
+  if (c.lines.length) o.charts[area] = c;
+}
+
 function stats(o: Overlay, area: string, list: DashboardStat[]): void {
   if (list.length) o.stats[area] = list;
 }
@@ -80,6 +91,7 @@ function stats(o: Overlay, area: string, list: DashboardStat[]): void {
 function fromOverview(d: ApiOverviewPage): Overlay {
   const o = blank(d.project?.name ?? "");
   const k = d.kpis;
+  chart(o, "overview-trends", d.trend);
 
   metric(o, "Total Published Blogs", String(k.published), "", "in this project");
   metric(o, "Posts in Queue", String(k.queue), "", "queued, writing, review");
@@ -217,6 +229,7 @@ function fromSeo(d: ApiSeoPage): Overlay {
 function fromGeo(d: ApiGeoPage): Overlay {
   const o = blank(d.project?.name ?? "");
   const k = d.kpis;
+  chart(o, "geo-visibility", d.platforms);
 
   metric(o, "AI Queries Tracked", fmt(k.queries), "",
     k.queries === null ? "needs the model crawl" : "from last month");
@@ -271,6 +284,7 @@ function fromGeo(d: ApiGeoPage): Overlay {
 function fromNotifications(d: ApiNotificationsPage): Overlay {
   const o = blank(d.project?.name ?? "");
   const k = d.kpis;
+  chart(o, "notifications-trend", d.over_time);
 
   metric(o, "Unread Alerts", String(k.unread), "", "needing a person");
   metric(o, "Approval Needed", String(k.approvals), "", "changes waiting");
@@ -335,6 +349,7 @@ function fromNotifications(d: ApiNotificationsPage): Overlay {
 function fromHistory(d: ApiHistoryPage): Overlay {
   const o = blank(d.project?.name ?? "");
   const k = d.kpis;
+  chart(o, "history-trend", d.trend);
 
   metric(o, "Total Actions This Month", fmt(k.total), "", "all activity types");
   metric(o, "Posts Published", String(k.published), "", "this month");
@@ -438,6 +453,7 @@ export function applyOverlay(page: DashboardPage, overlay: Overlay | null): Dash
         stats: overlay.stats[area] ?? s.stats,
         score: overlay.scores[area] ?? s.score,
         tabs: overlay.tabs[area] ?? s.tabs,
+        liveChart: overlay.charts[area],
       };
     }),
   };
