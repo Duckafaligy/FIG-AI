@@ -354,8 +354,16 @@ placeholders** — only email/password goes through Supabase for now.
    that quote figures in prose; and where a page's body lives outside
    `<section>` landmarks (launchvault.ca's legal pages), most of its copy is
    not attributed to any section at all.
-3. **Shareable/white-label report output** — a public per-scan URL and a
-   branded PDF. This is the growth mechanic, not just a feature.
+3. **Shareable report output — half done (2026-09-17).** The public
+   per-scan URL exists: `frontend/app/report/[scanId]/page.tsx` renders
+   `GET /scan/{scan_id}` (`app/public.py`, already public/unauthenticated —
+   it just had no page), with real Open Graph metadata for when the link
+   gets shared. That's the free-tier half; account-owned site scans (`/v1`)
+   have no share mechanism yet and shouldn't get one silently — that needs
+   an explicit opt-in (a `Site`-level flag) before a paying customer's scan
+   is publicly reachable, deliberately not built without that consent step.
+   **A branded PDF is still not built** — needs a PDF-rendering dependency
+   (e.g. WeasyPrint) not yet in `requirements.txt`.
 3b. **CMS write adapters** — WordPress first, still not built. The secret
    store this needed now exists (`app/secrets_store.py`, below), so this is
    down to per-platform adapter code + OAuth app registration, not a missing
