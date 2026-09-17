@@ -416,10 +416,25 @@ placeholders** — only email/password goes through Supabase for now.
    path does. This was the actual blocker behind everything else wired this
    session: without it, a real signed-in user had no way to get a real site
    into their own account through the UI at all. Verified against a real
-   account end to end — see that commit. Left static on purpose: the trend
-   chart and content calendar, both bespoke components with their own
-   internal sample-data generators, not part of the dashboard's
-   row/stat-overlay shape.
+   account end to end — see that commit. Left static on purpose:
+   `/projects`' own `WorkspaceTrendChart` and the content calendar, both
+   bespoke components with their own internal sample-data generators, not
+   part of the dashboard's row/stat-overlay shape.
+5c. **Trend-chart geometry — wired 2026-09-17, but only visible on the demo
+   account today.** Overview/GEO/Notifications/History's line charts now
+   draw `app/charts.py`'s real SVG path geometry
+   (`components/dashboard-shell.tsx:LiveTrendChart`) instead of
+   `PreviewChart`'s illustrative per-point math, via a new `liveChart` field
+   threaded through `lib/live.ts`'s overlay. The catch: every one of those
+   series in `app/pages.py` is gated by `fill` (demo-account-only) — a real
+   signed-up user's trend/platforms/over_time is always empty right now,
+   because there's no real day-by-day time-series source wired up (`app/ga.py`
+   pulls a current-vs-prior-30-day snapshot, not a daily series). The
+   plumbing is done end to end; what's missing is a real source that
+   produces daily numbers for a real site. `/projects`' own trend chart and
+   SEO's "Keyword Ranking Momentum" bars remain unwired — the former is a
+   different component entirely, the latter has no matching `ApiChart`
+   field on the backend yet.
 6. **Stripe end to end** — the code is there; it has never run against a live
    key.
 7. **Pin crawler connections to the validated address** — closes the DNS
