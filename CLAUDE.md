@@ -297,8 +297,13 @@ with frontend work in flight):
   keys, integrations, and the checklist from `app/roadmap.py`).
 - `app/publishing.py` — mechanical findings become queued changes. Nothing is
   written without approval and every change keeps a before-state so it can be
-  reverted. Judgement calls stay advice. No CMS adapter is written yet, so
-  `publish()` refuses out loud rather than pretending.
+  reverted. Judgement calls stay advice. `app/wordpress.py` is the one CMS
+  adapter written so far; `publish()` still refuses out loud for every
+  other platform rather than pretending.
+- `app/wordpress.py` — the WordPress adapter: Application Passwords, title
+  and post-content heading fixes are real, everything else (meta
+  description, canonical, lang, schema, alt text) refuses out loud rather
+  than guess at a plugin's private field.
 - `app/secrets_store.py` — Fernet encryption (key: `FIG_SECRET_KEY`) around
   whatever `Integration.credential_ref` points at (table: `Secret` in
   `app/models.py`). Not a real vault — one symmetric key, good enough to stop
@@ -387,11 +392,23 @@ placeholders** — only email/password goes through Supabase for now.
    all before this, serving any scan by id regardless of who owned it.
    **A branded PDF is still not built** — needs a PDF-rendering dependency
    (e.g. WeasyPrint) not yet in `requirements.txt`.
-3b. **CMS write adapters** — WordPress first, still not built. The secret
-   store this needed now exists (`app/secrets_store.py`, below), so this is
-   down to per-platform adapter code + OAuth app registration, not a missing
-   architecture piece. `publish()` in `app/publishing.py` still refuses out
-   loud for every platform.
+3b. **CMS write adapters — WordPress done (2026-09-17), everything else
+   still refuses.** `app/wordpress.py` uses Application Passwords (core
+   since WP 5.6, no OAuth needed); `app/publishing.py:connect()` makes a
+   real test call and stores the credential via `app/secrets_store.py`;
+   `publish()` dispatches to it. Scoped to what WordPress core's REST API
+   actually exposes on any install — title and post-content heading
+   structure are real; meta description, canonical, lang, schema, and
+   `heading_skips` refuse out loud, honestly, because those are
+   theme/SEO-plugin output with no stable REST field to target; `missing_alt`
+   refuses too (needs a real image description nothing here invents, and no
+   per-image id is tracked yet). No real WordPress instance could be stood
+   up locally to test against (this machine's Docker has a broken data-root
+   config, unrelated to this work) — verified instead with 9 fake-network
+   tests plus a request/response-shape check against a real live WordPress
+   install (wordpress.org's own) and a full round trip through the actual
+   running backend against that same real site. Every other platform
+   (Shopify, Webflow, ...) still refuses unconditionally, same as before.
 4. **Finish Google Analytics OAuth — one manual step left.** `app/oauth.py`
    (start/callback), `app/secrets_store.py` (`FIG_SECRET_KEY` is generated
    and set locally), `app/ga.py` (reads the stored token, refreshes it,
