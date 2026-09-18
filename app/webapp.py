@@ -416,8 +416,10 @@ def connect(request: Request, payload: dict = Body(...),
     """Record a CMS connection.
 
     Only a reference and a last-four hint are stored, never the credential —
-    see `publishing.connect`. Until a real secret store is wired up the
-    integration stays unconnected and publishing refuses.
+    see `publishing.connect`. Always 200: a rejected credential is not an
+    HTTP error, it's `connected: false` with `error` saying why (wrong
+    password, adapter not built yet, ...), so the frontend can show the
+    real reason instead of a generic failure.
     """
     account = _account(request, session)
     p = payload or {}
@@ -426,7 +428,8 @@ def connect(request: Request, payload: dict = Body(...),
         p.get("endpoint", ""), p.get("credential", ""))
     return {"id": integration.id, "platform": integration.platform,
             "connected": integration.is_connected(),
-            "hint": integration.credential_hint}
+            "hint": integration.credential_hint,
+            "error": integration.last_error}
 
 
 @router.post("/integrations/{integration_id}/disconnect")

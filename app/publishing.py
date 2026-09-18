@@ -25,7 +25,9 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import wordpress
 from app.models import Account, Change, Finding, Integration, Site
+from app.secrets_store import SecretsNotConfigured, read_secret, store_secret
 
 log = logging.getLogger("fig.publishing")
 
@@ -160,9 +162,10 @@ def reject(session: Session, account: Account, change_id: str) -> Change:
 def publish(session: Session, account: Account, change_id: str) -> dict:
     """Write one approved change to the live site.
 
-    The CMS adapters are not built. Rather than silently succeeding, this
-    records the attempt against the change and says exactly what is missing,
-    so the console is honest about what it can and cannot do today.
+    Only the WordPress adapter exists so far (app/wordpress.py). Every other
+    platform, and every WordPress finding its REST API doesn't actually
+    expose, records the attempt against the change and says exactly what is
+    missing rather than silently succeeding.
     """
     change = _owned(session, account, change_id)
     if change.state != "approved":
@@ -177,12 +180,42 @@ def publish(session: Session, account: Account, change_id: str) -> dict:
         session.commit()
         return {"ok": False, "reason": change.error}
 
-    change.state = "failed"
-    change.error = (f"The {integ.platform} adapter is not implemented yet. The change, "
-                    "its approval and its before-state are all recorded, so it will "
-                    "publish as soon as the adapter lands.")
+    if integ.platform != wordpress.PLATFORM:
+        change.state = "failed"
+        change.error = (f"The {integ.platform} adapter is not implemented yet. The change, "
+                        "its approval and its before-state are all recorded, so it will "
+                        "publish as soon as the adapter lands.")
+        session.commit()
+        return {"ok": False, "reason": change.error}
+
+    finding = session.get(Finding, change.finding_id) if change.finding_id else None
+    check = finding.check if finding else ""
+    try:
+        creds = read_secret(session, integ.credential_ref)
+    except (SecretsNotConfigured, KeyError) as exc:
+        change.state = "failed"
+        change.error = f"couldn't read the stored WordPress credential: {exc}"
+        session.commit()
+        return {"ok": False, "reason": change.error}
+
+    ok, message, applied = wordpress.apply_change(
+        integ.endpoint or "", creds.get("username", ""), creds.get("application_password", ""),
+        check=check, page_url=change.page_url or "", after=change.after)
+
+    if ok:
+        change.state = "published"
+        change.published_at = _now()
+        change.error = None
+        if applied is not None:
+            change.after = applied
+        integ.last_publish_at = _now()
+        integ.last_error = None
+    else:
+        change.state = "failed"
+        change.error = message
+        integ.last_error = message
     session.commit()
-    return {"ok": False, "reason": change.error}
+    return {"ok": ok, "reason": None if ok else message}
 
 
 def revert(session: Session, account: Account, change_id: str) -> dict:
@@ -212,10 +245,18 @@ def connect(session: Session, account: Account, site_id: str, platform: str,
             endpoint: str, credential: str) -> Integration:
     """Record a CMS connection.
 
-    The credential itself is not stored: only a reference for the secret store
-    and a hint so a person can tell which key is which. Until a secret store
-    is wired up the reference is a placeholder, which is why `is_connected`
-    also requires `connected_at`.
+    The credential itself is never stored: `app/secrets_store.py` encrypts
+    it and this row keeps only the reference and a last-four hint. A
+    connection is not live (`is_connected()`) until a real test call against
+    the platform has succeeded -- `connected_at` stays unset until then, so
+    a wrong password shows as "not connected," not as a silent failure
+    waiting to happen at publish time.
+
+    WordPress is the only platform wired up so far: `credential` is
+    "username:application-password" (the format wp-admin's own Application
+    Passwords screen hands out has no colons inside the password itself, so
+    this is unambiguous). Every other platform is recorded as pending, same
+    as before this existed.
     """
     from fastapi import HTTPException
     site = session.get(Site, site_id)
@@ -230,15 +271,39 @@ def connect(session: Session, account: Account, site_id: str, platform: str,
         session.add(integ)
 
     integ.endpoint = endpoint.strip() or None
-    if credential:
-        tail = credential.strip()[-4:]
-        integ.credential_ref = f"pending:{site_id}:{platform}"
-        integ.credential_hint = f"{platform[:2]}_...{tail}"
-        # Deliberately not set: a connection is not live until the secret is
-        # actually held somewhere and a test call has succeeded.
-        integ.connected_at = None
-        integ.last_error = ("Stored as pending. A secret store and a test call are "
-                            "needed before FIG will write to this site.")
+
+    if not credential:
+        session.commit()
+        return integ
+
+    if platform == wordpress.PLATFORM:
+        username, _, app_password = credential.partition(":")
+        ok, detail = wordpress.test_connection(integ.endpoint or "", username, app_password)
+        integ.credential_hint = f"wp_...{app_password.strip()[-4:]}" if app_password else None
+        if not ok:
+            integ.connected_at = None
+            integ.last_error = detail
+            integ.credential_ref = None
+            session.commit()
+            return integ
+        try:
+            integ.credential_ref = store_secret(
+                session, {"username": username, "application_password": app_password})
+        except SecretsNotConfigured as exc:
+            integ.connected_at = None
+            integ.last_error = str(exc)
+            session.commit()
+            return integ
+        integ.connected_at = _now()
+        integ.last_error = None
+        session.commit()
+        return integ
+
+    tail = credential.strip()[-4:]
+    integ.credential_ref = f"pending:{site_id}:{platform}"
+    integ.credential_hint = f"{platform[:2]}_...{tail}"
+    integ.connected_at = None
+    integ.last_error = f"the {platform} adapter is not built yet"
     session.commit()
     return integ
 

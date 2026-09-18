@@ -6,7 +6,13 @@ Covers the validation system (the syntax half, and the DNS half through an
 injected resolver), the crawler's network rules against a fake network
 (redirect hops re-validated, robots.txt honoured on every hop, bodies capped,
 a whole crawl end to end), the grouping that decides what the AI step is
-sent, and the AI step's usage accounting against a fake client.
+sent, the AI step's usage accounting against a fake client, and the
+WordPress adapter (app/wordpress.py) against a fake WordPress REST API --
+the same fake-network pattern as the crawler tests, for the same reason:
+this environment's Docker couldn't run a real WordPress instance to test
+against (a broken data-root config, not a code issue), so the adapter's
+actual HTTP request/response handling is exercised here instead of trusted
+on read-through.
 """
 from __future__ import annotations
 
@@ -19,7 +25,7 @@ from contextlib import contextmanager
 
 import requests as real_requests
 
-from app import ai_explain, scraper, validation
+from app import ai_explain, scraper, validation, wordpress
 from app.pipeline import explanation_payload, group_flags
 from app.rules.checks import Flag
 from app.validation import ValidationError, check_url, normalise_target, validate_target
@@ -389,6 +395,162 @@ def test_empty_blocks_are_not_sections_and_question_headings_count_as_a_faq():
     signal = scraper.parse_html("https://s.com/", home)
     assert signal.has_faq_block
     assert "no_answerable_questions" not in {f.check for f in run_all_checks(signal)}
+
+
+# --- the WordPress adapter, against a fake WordPress REST API ------------
+
+
+class FakeWPResponse:
+    def __init__(self, status: int = 200, body=None, text: str = ""):
+        self.status_code = status
+        self._body = body
+        self.text = text or (json.dumps(body) if body is not None else "")
+
+    def json(self):
+        if self._body is None:
+            raise ValueError("no json body")
+        return self._body
+
+
+class FakeWordPress:
+    """Canned responses keyed by (method, path); records every call made so
+    a test can assert a refusal never touched the network at all."""
+
+    def __init__(self):
+        self.calls: list[tuple[str, str, dict | None]] = []
+        self.reject_auth = False
+        self.me = {"name": "Jamie Editor", "capabilities": {"edit_posts": True}}
+        self.posts_by_slug: dict[str, dict] = {}
+        self.updates: dict[int, dict] = {}
+
+    def _path(self, url: str) -> str:
+        return url.split("/wp-json/", 1)[-1]
+
+    def get(self, url, params=None, headers=None, timeout=None):
+        self.calls.append(("GET", self._path(url), params))
+        if self.reject_auth:
+            return FakeWPResponse(401, text="unauthorized")
+        path = self._path(url)
+        if path == "wp/v2/users/me":
+            return FakeWPResponse(200, self.me)
+        if path == "wp/v2/posts":
+            slug = (params or {}).get("slug")
+            post = self.posts_by_slug.get(slug)
+            return FakeWPResponse(200, [post] if post else [])
+        if path == "wp/v2/pages":
+            return FakeWPResponse(200, [])
+        return FakeWPResponse(404, text="not found")
+
+    def post(self, url, json=None, headers=None, timeout=None):
+        self.calls.append(("POST", self._path(url), json))
+        if self.reject_auth:
+            return FakeWPResponse(401, text="unauthorized")
+        post_id = int(self._path(url).rsplit("/", 1)[-1])
+        self.updates[post_id] = json
+        return FakeWPResponse(200, {"id": post_id, **(json or {})})
+
+
+@contextmanager
+def fake_wordpress():
+    wp = FakeWordPress()
+    saved = wordpress.httpx
+    wordpress.httpx = types.SimpleNamespace(get=wp.get, post=wp.post, HTTPError=real_requests.RequestException)
+    try:
+        yield wp
+    finally:
+        wordpress.httpx = saved
+
+
+def test_wordpress_connection_check_is_a_real_call_not_a_format_check():
+    with fake_wordpress() as wp:
+        ok, detail = wordpress.test_connection("https://shop.example.com", "jamie", "abcd 1234")
+        assert ok and "Jamie Editor" in detail, detail
+        assert wp.calls == [("GET", "wp/v2/users/me", None)]
+
+    with fake_wordpress() as wp:
+        wp.reject_auth = True
+        ok, detail = wordpress.test_connection("https://shop.example.com", "jamie", "wrong")
+        assert not ok and "rejected" in detail, detail
+
+
+def test_wordpress_title_fix_writes_the_drafted_title():
+    with fake_wordpress() as wp:
+        wp.posts_by_slug["old-title"] = {"id": 42, "content": {"raw": "<p>hi</p>"}}
+        ok, message, applied = wordpress.apply_change(
+            "https://shop.example.com", "jamie", "abcd1234",
+            check="title_length", page_url="https://shop.example.com/blog/old-title",
+            after="A properly short title")
+        assert ok, message
+        assert applied == "A properly short title"
+        assert wp.updates[42] == {"title": "A properly short title"}
+
+
+def test_wordpress_title_fix_refuses_without_drafted_text():
+    with fake_wordpress() as wp:
+        wp.posts_by_slug["old-title"] = {"id": 42, "content": {"raw": "<p>hi</p>"}}
+        ok, message, applied = wordpress.apply_change(
+            "https://shop.example.com", "jamie", "abcd1234",
+            check="missing_title", page_url="https://shop.example.com/old-title", after=None)
+        assert not ok and applied is None
+        assert "42" not in " ".join(str(c) for c in wp.calls if c[0] == "POST"), \
+            "should never have tried to write without a drafted title"
+
+
+def test_wordpress_promotes_the_first_h2_to_h1():
+    html, changed = wordpress._promote_first_heading(
+        "<p>intro</p><h2 class=\"a\">Section</h2><p>more</p>", from_level=2, to_level=1)
+    assert changed
+    assert html == "<p>intro</p><h1 class=\"a\">Section</h1><p>more</p>"
+
+    html, changed = wordpress._promote_first_heading("<p>no headings here</p>", from_level=2, to_level=1)
+    assert not changed and html == "<p>no headings here</p>"
+
+
+def test_wordpress_demotes_every_h1_after_the_first():
+    html, changed = wordpress._demote_extra_h1s(
+        "<h1>Real title</h1><p>x</p><h1 id=\"b\">Duplicate</h1><p>y</p><h1>Another</h1>")
+    assert changed
+    assert html.count("<h1") == 1 and html.count("<h2") == 2
+    assert "<h1>Real title</h1>" in html
+    assert "<h2 id=\"b\">Duplicate</h2>" in html
+
+
+def test_wordpress_heading_fix_round_trips_through_the_fake_api():
+    with fake_wordpress() as wp:
+        wp.posts_by_slug["guide"] = {"id": 7, "content": {"raw": "<h2>Only heading</h2>"}}
+        ok, message, applied = wordpress.apply_change(
+            "https://shop.example.com", "jamie", "abcd1234",
+            check="missing_h1", page_url="https://shop.example.com/guide", after=None)
+        assert ok, message
+        assert applied == "<h1>Only heading</h1>"
+        assert wp.updates[7] == {"content": "<h1>Only heading</h1>"}
+
+
+def test_wordpress_refuses_finding_types_its_rest_api_cannot_reach():
+    with fake_wordpress() as wp:
+        for check in wordpress.NOT_EXPOSED_BY_CORE:
+            ok, message, applied = wordpress.apply_change(
+                "https://shop.example.com", "jamie", "abcd1234",
+                check=check, page_url="https://shop.example.com/any-page", after="ignored")
+            assert not ok and applied is None, (check, message)
+        assert wp.calls == [], f"a refusal should never touch the network: {wp.calls}"
+
+
+def test_wordpress_refuses_alt_text_with_nothing_drafted():
+    with fake_wordpress() as wp:
+        wp.posts_by_slug["guide"] = {"id": 7, "content": {"raw": "<img>"}}
+        ok, message, applied = wordpress.apply_change(
+            "https://shop.example.com", "jamie", "abcd1234",
+            check="missing_alt", page_url="https://shop.example.com/guide", after=None)
+        assert not ok and applied is None
+
+
+def test_wordpress_refuses_when_no_matching_post_is_found():
+    with fake_wordpress() as wp:
+        ok, message, applied = wordpress.apply_change(
+            "https://shop.example.com", "jamie", "abcd1234",
+            check="missing_title", page_url="https://shop.example.com/nowhere", after="New title")
+        assert not ok and "couldn't find" in message
 
 
 TESTS = [fn for name, fn in list(globals().items()) if name.startswith("test_") and callable(fn)]

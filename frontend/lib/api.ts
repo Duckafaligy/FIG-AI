@@ -414,6 +414,9 @@ export const actions = {
   auditProject: (id: string) => apiSend<{ ok: true; scan_id: string }>(`/api/projects/${id}/audit`, "POST"),
   shareProject: (id: string, isPublic: boolean) =>
     apiSend<{ ok: true; public: boolean; report_url: string | null }>(`/api/projects/${id}/share`, "POST", { public: isPublic }),
+  connectIntegration: (projectId: string, platform: string, endpoint: string, credential: string) =>
+    apiSend<{ id: string; platform: string; connected: boolean; hint: string | null; error: string | null }>(
+      "/api/integrations", "POST", { project_id: projectId, platform, endpoint, credential }),
   auditAll: () => apiSend<{ ok: true; queued: number }>("/api/audit-all", "POST"),
   proposeBriefs: () => apiSend<{ ok: true; briefs: number }>("/api/content/propose", "POST"),
   moveContent: (id: string, to: string) => apiSend<unknown>(`/api/content/${id}/move`, "POST", { to }),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ComponentType, type KeyboardEvent } from "react";
+import { useEffect, useState, type ComponentType, type FormEvent, type KeyboardEvent } from "react";
 import {
   BadgeCheck,
   BarChart3,
@@ -49,6 +49,7 @@ const services: Service[] = [
   { name: "Anthropic", detail: "Content assistance", permission: "Read / write", status: "Ready to configure", tone: "purple", icon: BrainCircuit },
   { name: "Stripe", detail: "Plans and billing", permission: "Billing", status: "Backend pending", tone: "amber", icon: CreditCard },
   { name: "Shopify", detail: "Publishing destination", permission: "Not connected", status: "Optional", tone: "green", icon: ShoppingBag },
+  { name: "WordPress", detail: "Publishing destination", permission: "Read / write", status: "Optional", tone: "blue", icon: Globe2 },
   { name: "Google Analytics", detail: "Traffic and conversions", permission: "Read", status: "Optional", tone: "amber", icon: BarChart3 },
   { name: "Search Console", detail: "Queries and indexing", permission: "Read", status: "Optional", tone: "blue", icon: Search },
   { name: "Webhooks", detail: "Workspace events", permission: "Send / receive", status: "Backend pending", tone: "purple", icon: Webhook }
@@ -118,6 +119,32 @@ export default function SettingsPage() {
     });
   };
   const liveApi = (name: string) => live?.apis.find((a) => a.name === name);
+
+  const [wpFormOpen, setWpFormOpen] = useState(false);
+  const [wpBusy, setWpBusy] = useState(false);
+  const [wpError, setWpError] = useState("");
+  const submitWordPress = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!liveProjectId) return;
+    const form = new FormData(event.currentTarget);
+    const siteUrl = String(form.get("site-url") ?? "").trim();
+    const username = String(form.get("username") ?? "").trim();
+    const appPassword = String(form.get("app-password") ?? "").trim();
+    setWpBusy(true);
+    setWpError("");
+    const result = await actions.connectIntegration(liveProjectId, "wordpress", siteUrl, `${username}:${appPassword}`);
+    setWpBusy(false);
+    if (!result.ok) {
+      setWpError(result.error);
+      return;
+    }
+    if (!result.data.connected) {
+      setWpError(result.data.error ?? "couldn't connect");
+      return;
+    }
+    setWpFormOpen(false);
+    await loadSettings();
+  };
   const usageRows = live
     ? live.usage.map((u) => ({
         label: u.label,
@@ -149,7 +176,7 @@ export default function SettingsPage() {
       <aside className="settings-tab-sidebar" aria-label="Settings sections">
         <div className="settings-sidebar-workspace"><span className="settings-workspace-mark">{live ? live.initials : "LV"}</span><div><strong>{live ? live.profile.name : "LaunchVault.ca"}</strong><small>{live ? "Connected workspace" : "Frontend preview"}</small></div><ChevronRight size={15} /></div>
         <nav role="tablist" aria-label="Workspace settings">
-          {tabs.map((tab, index) => { const TabIcon = tab.icon; const selected = tab.id === activeTab; return <button type="button" key={tab.id} id={tabId(tab.id)} role="tab" aria-controls={panelId(tab.id)} aria-selected={selected} tabIndex={selected ? 0 : -1} className={selected ? "is-active" : ""} onClick={() => setActiveTab(tab.id)} onKeyDown={(event) => handleTabKeyDown(event, index)}><TabIcon size={17} /><span>{tab.label}</span>{tab.id === "integrations" && <small>8</small>}</button>; })}
+          {tabs.map((tab, index) => { const TabIcon = tab.icon; const selected = tab.id === activeTab; return <button type="button" key={tab.id} id={tabId(tab.id)} role="tab" aria-controls={panelId(tab.id)} aria-selected={selected} tabIndex={selected ? 0 : -1} className={selected ? "is-active" : ""} onClick={() => setActiveTab(tab.id)} onKeyDown={(event) => handleTabKeyDown(event, index)}><TabIcon size={17} /><span>{tab.label}</span>{tab.id === "integrations" && <small>{services.length}</small>}</button>; })}
         </nav>
         <div className="settings-sidebar-note"><CircleDashed size={15} /><span><strong>Local preview</strong>No credentials or settings are stored from this page.</span></div>
       </aside>
@@ -189,9 +216,10 @@ export default function SettingsPage() {
 
         {activeTab === "team" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>People & roles</h3><p>{live ? "Everyone signed in to this workspace." : "Sample workspace members with the permissions their roles would carry."}</p></div><PreviewInfo className="button button--small" label="Invite member" message="Team invitations aren't wired up yet. No invitation has been sent." /></div><div className="settings-member-table" role="table" aria-label="Workspace team members"><div className="settings-member-head" role="row"><span>Person</span><span>Role</span><span>Permissions</span><span>Status</span><span>Last active</span><span /></div>{(live ? live.seats.map((s) => [s.initials, s.name, s.role, s.perms, "Active", s.active] as const) : members).map(([initials, name, role, permissions, status, activeAt]) => <div className="settings-member-row" role="row" key={name}><span className="settings-person"><i>{initials}</i><strong>{name}</strong></span><span><b className="settings-role-chip">{role}</b></span><span>{permissions}</span><span><b className="settings-status settings-status--green">{status}</b></span><span>{activeAt}</span><span><PreviewInfo className="settings-row-action" label="Manage" message={`Role changes and access removal for ${name} aren't wired up yet.`} /></span></div>)}</div></section><section className="settings-surface settings-team-note"><Users size={19} /><div><strong>Roles are previewed, not enforced</strong><p>Role changes and invitations aren't wired up yet. {live ? "Names and emails above are real." : "These names and roles are local demo content only."}</p></div></section></div>}
 
-        {activeTab === "integrations" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Connection preparation</h3><p>{live ? "Real connection state, read from this workspace's integrations." : "Services FIG is designed to work with. Statuses are not credential checks."}</p></div><PreviewInfo className="button button--small" label="Connect service" message="Most services here don't have a working connect flow yet — Google Analytics does." /></div><div className="settings-integration-list">{services.map((service) => {
+        {activeTab === "integrations" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Connection preparation</h3><p>{live ? "Real connection state, read from this workspace's integrations." : "Services FIG is designed to work with. Statuses are not credential checks."}</p></div><PreviewInfo className="button button--small" label="Connect service" message="Most services here don't have a working connect flow yet — Google Analytics and WordPress do." /></div><div className="settings-integration-list">{services.map((service) => {
                 const ServiceIcon = service.icon;
                 const isGoogleAnalytics = service.name === "Google Analytics";
+                const isWordPress = service.name === "WordPress";
                 const remote = liveApi(service.name);
                 const statusText = remote ? remote.state : service.status;
                 const tone = remote ? (remote.ok ? "green" : service.tone) : service.tone;
@@ -203,12 +231,30 @@ export default function SettingsPage() {
                     <b className={`settings-status settings-status--${tone}`}><CircleDashed size={11} />{statusText}</b>
                     {isGoogleAnalytics && liveProjectId ? (
                       <a className="settings-row-action button button--small" href={apiUrl(`/oauth/google/start?site_id=${liveProjectId}`)}>{remote?.ok ? "Reconnect" : "Connect"}</a>
+                    ) : isWordPress && liveProjectId ? (
+                      <button type="button" className="settings-row-action button button--small" onClick={() => setWpFormOpen((open) => !open)}>{remote?.ok ? "Reconnect" : "Connect"}</button>
                     ) : (
                       <PreviewInfo className="settings-row-action" label="Setup" message={`${service.name} doesn't have a working connect flow from this page yet.`} />
                     )}
                   </article>
                 );
-              })}</div></section><section className="settings-surface settings-integration-note"><LockKeyhole size={19} /><div><strong>Credentials belong in the backend</strong><p>When integrations are connected, encrypted configuration and verification happen server-side — never in this frontend page.</p></div></section></div>}
+              })}</div>
+              {wpFormOpen && liveProjectId && (
+                <form onSubmit={submitWordPress} className="settings-workspace-profile" style={{ flexDirection: "column", alignItems: "stretch", gap: 12, marginTop: 4 }}>
+                  <div className="auth-fields" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <label className="auth-field" htmlFor="wp-site-url"><span>Site URL</span><input id="wp-site-url" name="site-url" required placeholder="https://yoursite.com" /></label>
+                    <label className="auth-field" htmlFor="wp-username"><span>Username</span><input id="wp-username" name="username" required placeholder="your WordPress username" /></label>
+                    <label className="auth-field" htmlFor="wp-app-password"><span>Application password</span><input id="wp-app-password" name="app-password" required placeholder="xxxx xxxx xxxx xxxx xxxx xxxx" /></label>
+                  </div>
+                  <p style={{ fontSize: 12.5, opacity: 0.7, margin: 0 }}>Generate one under your WordPress admin: Users &rarr; Profile &rarr; Application Passwords. This makes a real test call to your site before saving anything.</p>
+                  {wpError && <p className="form-message" role="alert">{wpError}</p>}
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button className="button button--small" type="submit" disabled={wpBusy}>{wpBusy ? "Connecting…" : "Connect WordPress"}</button>
+                    <button className="secondary-button" type="button" onClick={() => setWpFormOpen(false)} disabled={wpBusy}>Cancel</button>
+                  </div>
+                </form>
+              )}
+              </section><section className="settings-surface settings-integration-note"><LockKeyhole size={19} /><div><strong>Credentials belong in the backend</strong><p>When integrations are connected, encrypted configuration and verification happen server-side — never in this frontend page.</p></div></section></div>}
 
         {activeTab === "billing" && <div className="settings-tab-stack"><section className="settings-surface settings-billing-feature"><div><span className="settings-kicker">{live ? "Billing" : "Billing preview"}</span><h3>{live ? `${live.plan.name} plan for ${live.profile.name}` : "Pro plan for LaunchVault.ca"}</h3><p>{live ? `Billed ${live.plan.unit}. Monthly total: ${live.plan.monthly}.` : "Use the workspace freely as a visual prototype. Stripe billing, metering, and plan enforcement are not connected yet."}</p><PreviewInfo className="settings-link-button" label="View billing details" message="The Stripe customer portal isn't linked from this page yet — see app/billing.py." /></div><div><strong>{live ? live.plan.price : "$79"}</strong><span>/ {live ? live.plan.unit : "month"}</span><small>{live ? live.plan.state : "Illustrative plan price"}</small></div></section><section className="settings-surface"><div className="settings-surface-heading"><div><h3>{live ? "Usage" : "Monthly usage"}</h3><p>{live ? "Real counts for this workspace." : "Representative demo values, not live account metering."}</p></div>{!live && <span className="settings-demo-chip"><span />Illustrative</span>}</div><UsageCards rows={usageRows} /></section><section className="settings-surface settings-plan-includes"><h3>{live ? "Included in this plan" : "Included in the preview plan"}</h3><div>{(live ? live.plan.features : ["Up to 10 team members", "Five connected projects", "AI writing workflows", "Advanced analytics views", "Priority support"]).map((item) => <span key={item}><Check size={15} />{item}</span>)}</div></section></div>}
 
