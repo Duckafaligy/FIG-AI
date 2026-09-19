@@ -328,6 +328,12 @@ with frontend work in flight):
   numbers for the overview's `ga` panel, current vs. prior 30 days in one
   request. No connected integration means `None`, same as before this
   existed — `app/pages.py` never guesses a number.
+- `app/search_console.py` — same shape as `app/ga.py`, sharing the same
+  Google OAuth client (`app/oauth.py` requests both scopes on one consent
+  screen). Discovers the matching verified Search Console property and
+  returns real daily clicks/impressions plus top queries — the first real
+  day-by-day time series in the product, which is what makes Overview's
+  trend chart real for a connected account rather than demo-only.
 - `app/content.py` — the content queue behind `/app/seo`. Findings that need a
   *page* rather than a field edit (an unanswered question, a thin page, copy
   with no figures, a site with no structured data) become briefs, which move
@@ -409,18 +415,26 @@ placeholders** — only email/password goes through Supabase for now.
    install (wordpress.org's own) and a full round trip through the actual
    running backend against that same real site. Every other platform
    (Shopify, Webflow, ...) still refuses unconditionally, same as before.
-4. **Finish Google Analytics OAuth — one manual step left.** `app/oauth.py`
-   (start/callback), `app/secrets_store.py` (`FIG_SECRET_KEY` is generated
-   and set locally), `app/ga.py` (reads the stored token, refreshes it,
-   auto-discovers the GA4 property, pulls real metrics into `pages.py`'s
-   `ga` panel), and the Settings page's real "Connect" button are all done.
-   The only missing piece is `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` — a
-   Google Cloud Console OAuth 2.0 Client (Web application, redirect URI
-   `http://localhost:8000/oauth/google/callback`, consent screen can stay in
-   "Testing" mode) that only a human with a Google account can create.
+4. **Google Analytics OAuth — done (2026-09-17), real credentials
+   configured.** `app/oauth.py`, `app/secrets_store.py`, `app/ga.py` (reads
+   the stored token, refreshes it, auto-discovers the GA4 property, pulls
+   real metrics into `pages.py`'s `ga` panel), and Settings' real "Connect"
+   button are all live against a real `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`.
    `app/ga.py`'s property auto-discovery picks the first GA4 property the
    connected account can see — fine for one property, needs a real picker
    before an account with several is more than a coin flip.
+4b. **Google Search Console — done (2026-09-19), reused the same OAuth
+   client, no new setup needed.** `app/search_console.py` (same shape as
+   `app/ga.py`) pulls real daily traffic/impressions and top queries into
+   `pages.py:overview()` — the first real daily time-series source in the
+   product, which is what actually makes the trend-chart wiring from
+   2026-09-17 show something real for an actual signed-up user instead of
+   only the demo account. `app/oauth.py`'s single consent screen now
+   requests both Google scopes together and connects whichever the account
+   grants. Still open: the estate-level `/projects` page's traffic/
+   impressions stay demo-only — summing Search Console across every site on
+   that page on every load needs batching/caching first, not a straight
+   per-site call.
 5. **Call `POST /scan` from the frontend** — the free, anonymous read is
    mounted, validated and rate-limited; nothing on the public marketing site
    calls it yet. Not the same gap as the one just closed below — this is the
@@ -438,21 +452,20 @@ placeholders** — only email/password goes through Supabase for now.
    `/projects`' own `WorkspaceTrendChart` and the content calendar, both
    bespoke components with their own internal sample-data generators, not
    part of the dashboard's row/stat-overlay shape.
-5c. **Trend-chart geometry — wired 2026-09-17, but only visible on the demo
-   account today.** Overview/GEO/Notifications/History's line charts now
-   draw `app/charts.py`'s real SVG path geometry
+5c. **Trend-chart geometry — wired 2026-09-17, real for Overview since
+   2026-09-19.** Overview/GEO/Notifications/History's line charts draw
+   `app/charts.py`'s real SVG path geometry
    (`components/dashboard-shell.tsx:LiveTrendChart`) instead of
-   `PreviewChart`'s illustrative per-point math, via a new `liveChart` field
-   threaded through `lib/live.ts`'s overlay. The catch: every one of those
-   series in `app/pages.py` is gated by `fill` (demo-account-only) — a real
-   signed-up user's trend/platforms/over_time is always empty right now,
-   because there's no real day-by-day time-series source wired up (`app/ga.py`
-   pulls a current-vs-prior-30-day snapshot, not a daily series). The
-   plumbing is done end to end; what's missing is a real source that
-   produces daily numbers for a real site. `/projects`' own trend chart and
-   SEO's "Keyword Ranking Momentum" bars remain unwired — the former is a
-   different component entirely, the latter has no matching `ApiChart`
-   field on the backend yet.
+   `PreviewChart`'s illustrative per-point math, via a `liveChart` field
+   threaded through `lib/live.ts`'s overlay. Overview's "Organic Traffic" /
+   "Impressions" series now draws from real Search Console daily data
+   (`app/search_console.py`) for any real account that's connected it — the
+   first check this genuinely closed, not just plumbed. GEO's `platforms`
+   and Notifications' `over_time` are still `fill`-gated (demo-account-only)
+   — no real per-platform AI-visibility or notification-volume time series
+   exists yet. `/projects`' own trend chart and SEO's "Keyword Ranking
+   Momentum" bars remain unwired — the former is a different component
+   entirely, the latter has no matching `ApiChart` field on the backend yet.
 6. **Stripe — tested against real test-mode keys 2026-09-17, one real bug
    found and fixed.** `stripe.Webhook.construct_event()` returns a typed
    Stripe object, not a dict; every `.get()` call in `webhook()` crashed on
