@@ -56,7 +56,12 @@ const VERDICT_COPY: Record<string, { label: string; description: string }> = {
 };
 
 async function fetchScan(scanId: string): Promise<ScanResult | null> {
-  const base = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
+  // Server-side fetch, same as lib/api.ts's SERVER_BASE: goes straight to the
+  // backend rather than through the client-facing proxy, since this never
+  // runs in a browser and isn't subject to any cookie/CORS rules. Needs
+  // FIG_BACKEND_URL now that NEXT_PUBLIC_API_URL is left empty in production
+  // (see next.config.mjs and lib/api.ts for why).
+  const base = (process.env.FIG_BACKEND_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
   try {
     const res = await fetch(`${base}/scan/${scanId}`, { cache: "no-store" });
     if (!res.ok) return null;

@@ -6,10 +6,17 @@
  *
  *   - In a Server Component there is no ambient browser cookie jar, so the
  *     incoming request's cookies are read with `await cookies()` (async in
- *     Next 16) and forwarded as a header.
- *   - In the browser, `credentials: "include"` is enough. Backend and frontend
- *     are same-site in local dev (both localhost, different ports), so the
- *     cookie's SameSite=Lax still permits it.
+ *     Next 16) and forwarded as a header. This ONLY works if that cookie
+ *     belongs to this app's own domain -- browsers never attach a cookie to
+ *     a request aimed at a different domain than the one that issued it, no
+ *     matter what SameSite says. Locally that's true by accident (frontend
+ *     and backend are both "localhost", just different ports, which counts
+ *     as same-site). Deployed for real, frontend and backend live on two
+ *     genuinely different domains, so this only stays true if the browser
+ *     never talks to the backend's domain directly -- see SERVER_BASE below.
+ *   - In the browser, `credentials: "include"` plus SameSite=None on the
+ *     cookie (set by the backend once it's on a real https:// URL) is
+ *     enough on its own -- that part doesn't need the proxy.
  *
  * Nothing here throws on a failed request. Every call returns a result object,
  * because the frontend ships with a static preview and should fall back to it
@@ -27,14 +34,31 @@
 export const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "1";
 const DEMO_BLOCKED: ApiErr = { ok: false, status: 0, error: "demo mode: no backend calls are made" };
 
-const BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
+// The browser's own base. Empty by default (relative paths), so every
+// browser request stays on this app's own origin and next.config.mjs's
+// rewrite proxies it to the real backend server-side -- required so the
+// session cookie the backend sets ends up belonging to THIS domain (see the
+// docstring above). Local dev sets NEXT_PUBLIC_API_URL explicitly, which
+// opts back into calling the backend directly -- fine there, since
+// localhost:3001/localhost:8000 are already same-site.
+const CLIENT_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
+
+// Server Components call the backend directly -- a plain server-to-server
+// request, never subject to a browser's SameSite/CORS rules, so it doesn't
+// need the proxy. FIG_BACKEND_URL is server-only (no NEXT_PUBLIC_ prefix)
+// and is also what the rewrite above proxies to, so the two stay in sync.
+const SERVER_BASE = (process.env.FIG_BACKEND_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
 
 export type ApiOk<T> = { ok: true; data: T };
 export type ApiErr = { ok: false; status: number; error: string };
 export type ApiResult<T> = ApiOk<T> | ApiErr;
 
 export function apiUrl(path: string): string {
-  return `${BASE}${path.startsWith("/") ? path : `/${path}`}`;
+  return `${CLIENT_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+function serverUrl(path: string): string {
+  return `${SERVER_BASE}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
 function failed(status: number, error: string): ApiErr {
@@ -82,13 +106,13 @@ export async function apiServer<T>(path: string): Promise<ApiResult<T>> {
     .join("; ");
 
   try {
-    const res = await fetch(apiUrl(path), {
+    const res = await fetch(serverUrl(path), {
       cache: "no-store",
       headers: cookieHeader ? { cookie: cookieHeader } : undefined,
     });
     return unwrap<T>(res);
   } catch (err) {
-    return failed(0, `the API is not reachable at ${BASE} (${String(err)})`);
+    return failed(0, `the API is not reachable at ${SERVER_BASE} (${String(err)})`);
   }
 }
 
@@ -106,7 +130,7 @@ export async function apiClient<T>(path: string, init?: RequestInit): Promise<Ap
     });
     return unwrap<T>(res);
   } catch (err) {
-    return failed(0, `the API is not reachable at ${BASE} (${String(err)})`);
+    return failed(0, `the API is not reachable at ${CLIENT_BASE || "(same origin, proxied)"} (${String(err)})`);
   }
 }
 
