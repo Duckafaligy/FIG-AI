@@ -14,7 +14,18 @@
  * Nothing here throws on a failed request. Every call returns a result object,
  * because the frontend ships with a static preview and should fall back to it
  * rather than error out when the backend is not running.
+ *
+ * NEXT_PUBLIC_DEMO_MODE=1 makes that fallback a guarantee instead of an
+ * accident of network conditions: apiServer/apiClient short-circuit before
+ * ever touching the network, so a demo deployment can never show real data
+ * regardless of what NEXT_PUBLIC_API_URL happens to be set to (or reach).
+ * Meant for a separate Vercel project pointed at this same frontend
+ * directory -- one codebase, a demo URL that's structurally incapable of
+ * connecting to anything, and a live URL that's unaffected by this at all.
  */
+
+export const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "1";
+const DEMO_BLOCKED: ApiErr = { ok: false, status: 0, error: "demo mode: no backend calls are made" };
 
 const BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
 
@@ -57,6 +68,7 @@ async function unwrap<T>(res: Response): Promise<ApiResult<T>> {
  * saying so keeps it true if a `use cache` boundary is added above.
  */
 export async function apiServer<T>(path: string): Promise<ApiResult<T>> {
+  if (DEMO_MODE) return DEMO_BLOCKED as ApiResult<T>;
   // Deliberately not wrapped in try/catch: calling `cookies()` is what tells
   // Next this route reads the request and can't be prerendered. Swallowing
   // that here silently made every page using apiServer eligible for static
@@ -82,6 +94,7 @@ export async function apiServer<T>(path: string): Promise<ApiResult<T>> {
 
 /** Fetch from the browser. */
 export async function apiClient<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
+  if (DEMO_MODE) return DEMO_BLOCKED as ApiResult<T>;
   try {
     const res = await fetch(apiUrl(path), {
       ...init,
