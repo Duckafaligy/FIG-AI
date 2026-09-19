@@ -466,23 +466,32 @@ placeholders** — only email/password goes through Supabase for now.
    exists yet. `/projects`' own trend chart and SEO's "Keyword Ranking
    Momentum" bars remain unwired — the former is a different component
    entirely, the latter has no matching `ApiChart` field on the backend yet.
-6. **Stripe — tested against real test-mode keys 2026-09-17, one real bug
-   found and fixed.** `stripe.Webhook.construct_event()` returns a typed
+6. **Stripe — done end to end (2026-09-19), including real buttons in the
+   product.** Tested against real test-mode keys 2026-09-17, one real bug
+   found and fixed then: `stripe.Webhook.construct_event()` returns a typed
    Stripe object, not a dict; every `.get()` call in `webhook()` crashed on
    every real event with `'get' is a dict method, but a Subscription is not
-   a dict` — fixed with `.to_dict()`. Quote, checkout, portal, and
-   `sync_quantity` were all verified against a real Stripe customer and a
-   real active test subscription (`pm_card_visa`), confirmed by retrieving
-   the subscription back from Stripe after a sync, not just trusting the
-   local response. Webhook handling was verified with locally-signed test
-   events (Stripe's own documented method) for `checkout.session.completed`
-   and `customer.subscription.deleted`, plus bad-signature rejection.
-   **Still open:** nothing in the frontend calls `/v1/billing/checkout` or
-   `/portal` yet (Settings' billing tab is still the static preview from
-   before this session), and real webhook *delivery* has never been tested
-   — that needs a registered endpoint in the Stripe dashboard pointing at a
-   real public URL, which doesn't exist yet, to get a real
-   `STRIPE_WEBHOOK_SECRET`.
+   a dict` — fixed with `.to_dict()`. Two more real bugs found and fixed
+   2026-09-19, before any UI was wired: the Stripe product's name/description
+   were stale and garbled (fixed via the Stripe API to describe what the
+   subscription actually is), and `checkout()`/`portal()` sent Stripe's
+   redirect at `config.PUBLIC_URL` — the JSON-only backend's own URL, not
+   the Next.js frontend where `/app/settings` lives — so completing checkout
+   would have landed on a 404. `app/billing.py`'s logic is now
+   `start_checkout()`/`start_portal()`, plain functions both `/v1` (partner)
+   and the new `/api/billing/checkout` + `/api/billing/portal` (workspace,
+   session-cookie auth) call, so partners and our own frontend share one
+   implementation. Settings' billing buttons are real: checkout when
+   unsubscribed, the real Stripe customer portal (invoices included, no
+   custom invoice UI needed) when subscribed — decided by a real
+   `plan.subscribed` flag (`account.stripe_subscription_id` exists), not
+   guessed from trial state. Verified against a real (temporary, since
+   deleted) account and a real test subscription — checkout's `success_url`
+   confirmed pointing at `localhost:3001` after the fix, portal confirmed
+   returning a real URL once subscribed. **Still open:** real webhook
+   *delivery* has never been tested — that needs a registered endpoint in
+   the Stripe dashboard pointing at a real public URL, which doesn't exist
+   yet, to get a real `STRIPE_WEBHOOK_SECRET`.
 7. **Pin crawler connections to the validated address** — closes the DNS
    rebinding gap described in `app/validation.py`.
 
