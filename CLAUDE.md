@@ -264,6 +264,12 @@ with frontend work in flight):
   cookie from a Server Component; `apiClient`/`apiSend` use
   `credentials: "include"` from the browser. Nothing throws: every call
   returns a result object so the UI can fall back to its static preview.
+  `NEXT_PUBLIC_DEMO_MODE=1` (2026-09-19) makes that fallback a guarantee: both
+  functions short-circuit before touching the network at all, so a
+  deployment with this set can never show real data no matter what
+  `NEXT_PUBLIC_API_URL` points at. Meant for a second Vercel project on this
+  same `frontend/` directory — a demo URL alongside the real one, one
+  codebase, not a second `frontend-generic/`-style copy.
 - `frontend/lib/live.ts` — `fetchOverlay()` on the server produces a **plain
   JSON overlay** of values keyed by the `area` names the design already sets;
   `applyOverlay()` on the client merges it into the statically imported page.
