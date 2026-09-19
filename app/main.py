@@ -92,13 +92,21 @@ if config.WORKSPACE_API_ENABLED:
 # Installed even when disconnected: `require_account` reads request.session,
 # and Starlette raises rather than returning nothing when the middleware is
 # absent. The cookie is signed and HttpOnly, and holds only our own User id.
+# same_site="lax" is fine for local dev (localhost:3001 -> localhost:8000
+# counts as same-site regardless of port) but silently breaks the moment the
+# frontend and backend are on two real, different domains -- a Lax cookie is
+# stored from a cross-site fetch response but never sent back on the next
+# cross-site fetch, which looks exactly like "login succeeds, then nothing
+# stays signed in." "none" is required for that case, and browsers only
+# honor SameSite=None on a Secure cookie, so it's paired with https_only.
+_https = config.PUBLIC_URL.startswith("https://")
 app.add_middleware(
     SessionMiddleware,
     secret_key=config.SESSION_SECRET,
     session_cookie="fig_session",
     max_age=config.SESSION_MAX_AGE,
-    same_site="lax",
-    https_only=config.PUBLIC_URL.startswith("https://"),
+    same_site="none" if _https else "lax",
+    https_only=_https,
 )
 
 app.include_router(api_router)
