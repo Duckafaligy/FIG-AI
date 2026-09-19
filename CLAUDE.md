@@ -267,9 +267,17 @@ with frontend work in flight):
   `NEXT_PUBLIC_DEMO_MODE=1` (2026-09-19) makes that fallback a guarantee: both
   functions short-circuit before touching the network at all, so a
   deployment with this set can never show real data no matter what
-  `NEXT_PUBLIC_API_URL` points at. Meant for a second Vercel project on this
-  same `frontend/` directory — a demo URL alongside the real one, one
-  codebase, not a second `frontend-generic/`-style copy.
+  `NEXT_PUBLIC_API_URL` points at. `auth-form.tsx` has the same check before
+  it calls Supabase directly (that call bypasses `lib/api.ts` entirely, so it
+  needed its own gate). Live at a second, real Vercel project on this same
+  `frontend/` directory — one codebase, not a second `frontend-generic/`-style
+  copy: `fig-demo` (`https://fig-demo-ecru.vercel.app`), no Supabase env vars
+  set at all, alongside the real `fig-ai` (`https://fig-ai-seven.vercel.app`).
+  Deploying it surfaced a real bug: `lib/supabase.ts`'s `createClient()`
+  validates its URL argument eagerly and throws at construction, not lazily —
+  an empty `NEXT_PUBLIC_SUPABASE_URL` crashed the build on every page
+  importing `AuthForm`. Fixed with a placeholder URL/key fallback;
+  `supabaseConfigured` (unchanged) is still what gates real use.
 - `frontend/lib/live.ts` — `fetchOverlay()` on the server produces a **plain
   JSON overlay** of values keyed by the `area` names the design already sets;
   `applyOverlay()` on the client merges it into the statically imported page.
