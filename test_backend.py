@@ -25,7 +25,7 @@ from contextlib import contextmanager
 
 import requests as real_requests
 
-from app import ai_explain, scraper, validation, wordpress
+from app import ai_explain, scraper, search_console, validation, wordpress
 from app.pipeline import explanation_payload, group_flags
 from app.rules.checks import Flag
 from app.validation import ValidationError, check_url, normalise_target, validate_target
@@ -551,6 +551,46 @@ def test_wordpress_refuses_when_no_matching_post_is_found():
             "https://shop.example.com", "jamie", "abcd1234",
             check="missing_title", page_url="https://shop.example.com/nowhere", after="New title")
         assert not ok and "couldn't find" in message
+
+
+# --- Search Console's pure response-shaping and site-matching ------------
+
+
+def test_search_console_shapes_daily_rows_sorted_by_date():
+    rows = [
+        {"keys": ["2026-09-03"], "clicks": 12.0, "impressions": 340.0},
+        {"keys": ["2026-09-01"], "clicks": 8.0, "impressions": 210.0},
+        {"keys": ["2026-09-02"], "clicks": 0, "impressions": 90.0},
+    ]
+    daily = search_console._shape_daily(rows)
+    assert [d["date"] for d in daily] == ["2026-09-01", "2026-09-02", "2026-09-03"]
+    assert daily[0] == {"date": "2026-09-01", "clicks": 8, "impressions": 210}
+
+
+def test_search_console_shapes_queries_sorted_by_clicks_descending():
+    rows = [
+        {"keys": ["small brand"], "clicks": 3.0, "impressions": 40.0, "position": 8.2},
+        {"keys": ["big keyword"], "clicks": 55.0, "impressions": 900.0, "position": 3.14159},
+        {"keys": ["zero clicks"], "clicks": 0, "impressions": 12.0, "position": 40.0},
+    ]
+    queries = search_console._shape_queries(rows)
+    assert [q["query"] for q in queries] == ["big keyword", "small brand", "zero clicks"]
+    assert queries[0]["position"] == 3.1, "position rounds to one decimal"
+
+
+def test_search_console_picks_the_matching_verified_property():
+    urls = ["https://otherbrand.com/", "sc-domain:launchvault.ca", "https://third.com/"]
+    assert search_console._pick_site_url(urls, "launchvault.ca") == "sc-domain:launchvault.ca"
+    assert search_console._pick_site_url(urls, "www.launchvault.ca") == "sc-domain:launchvault.ca"
+
+    urls2 = ["https://launchvault.ca/", "https://other.com/"]
+    assert search_console._pick_site_url(urls2, "launchvault.ca") == "https://launchvault.ca/"
+
+    # No exact match: falls back to the first verified property (no picker UI yet).
+    urls3 = ["https://first-seen.com/", "https://second.com/"]
+    assert search_console._pick_site_url(urls3, "launchvault.ca") == "https://first-seen.com/"
+
+    assert search_console._pick_site_url([], "launchvault.ca") is None
 
 
 TESTS = [fn for name, fn in list(globals().items()) if name.startswith("test_") and callable(fn)]

@@ -7,21 +7,26 @@ FIG_WORKSPACE_API. Session-cookie auth (`current_account`, the same resolver
 `app/webapp.py` uses, FIG_DEV_NO_AUTH fallback included) decides who is
 connecting.
 
-Only Google (Analytics, read-only) is wired up. Every CMS platform in
-CLAUDE.md's roadmap follows this same three-step shape once it has a
-client id/secret, except WordPress, which uses Application Passwords instead
-of OAuth and needs no /start or /callback at all:
+Only Google is wired up, and one consent screen now covers two platforms
+under it: Analytics (read-only) and Search Console (read-only) share the
+same OAuth client -- GOOGLE_SCOPE requests both scopes together, and
+google_callback connects whichever the user's account actually grants,
+as two independent Integration rows (each can be reconnected or fail
+separately later; see app/ga.py and app/search_console.py). Every other
+CMS platform in CLAUDE.md's roadmap follows this same three-step shape
+once it has a client id/secret, except WordPress, which uses Application
+Passwords instead of OAuth and needs no /start or /callback at all:
 
     1. /start   -- build the platform's authorize URL, redirect the browser.
     2. /callback -- verify `state`, exchange `code` for a token server-side
        (never in browser JS), store it via app.secrets_store, upsert
        Integration, send the browser back to the frontend.
 
-The access/refresh tokens this writes are for GA4 read access only --
-nothing here can write to a site. A write-capable adapter (Shopify, WordPress,
-...) follows the same pattern but its Integration row also needs `scopes`
-set deliberately, per the "nothing is written without approval" rule in
-app/publishing.py.
+The access/refresh tokens this writes are read-only for both Google
+platforms -- nothing here can write to a site. A write-capable adapter
+(Shopify, WordPress, ...) follows the same pattern but its Integration row
+also needs `scopes` set deliberately, per the "nothing is written without
+approval" rule in app/publishing.py.
 """
 from __future__ import annotations
 
@@ -47,8 +52,14 @@ router = APIRouter(prefix="/oauth", tags=["oauth"])
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
-GOOGLE_SCOPE = "https://www.googleapis.com/auth/analytics.readonly"
+# One consent screen, both scopes: Search Console reuses this same OAuth
+# client rather than needing its own registration (see CLAUDE.md) -- Google
+# accepts a space-separated scope list and grants whichever of these the
+# account has access to. A refusal on one property doesn't block the other.
+GOOGLE_SCOPE = ("https://www.googleapis.com/auth/analytics.readonly "
+                "https://www.googleapis.com/auth/webmasters.readonly")
 PLATFORM = "google_analytics"
+PLATFORM_GSC = "google_search_console"
 
 # How long a user has to complete the Google login screen before the state
 # token is treated as expired rather than replayed.
@@ -82,7 +93,11 @@ def google_start(request: Request, site_id: str = Query(...),
                   session: Session = Depends(get_session)):
     """Redirects the browser to Google's consent screen. The site has to
     belong to whoever is signed in -- this is what stops one user connecting
-    analytics onto a site they don't own."""
+    analytics onto a site they don't own.
+
+    One consent screen covers both Google platforms: GOOGLE_SCOPE requests
+    Analytics and Search Console together, and google_callback below
+    connects whichever of the two Google actually granted."""
     if not config.GOOGLE_OAUTH_ENABLED:
         raise HTTPException(503, "Google OAuth is not configured on this server "
                                  "(set GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET)")
@@ -146,27 +161,47 @@ def google_callback(request: Request, code: str = Query(default=""),
         # -- Google only hands back a refresh token on the first consent.
         log.warning("google token exchange for site %s returned no refresh_token", site.id)
 
-    try:
-        ref = store_secret(session, {
-            "access_token": tokens.get("access_token", ""),
-            "refresh_token": tokens.get("refresh_token", ""),
-            "expires_at": time.time() + tokens.get("expires_in", 0),
-            "scope": tokens.get("scope", GOOGLE_SCOPE),
-        })
-    except SecretsNotConfigured as exc:
-        log.error("cannot store google tokens for site %s: %s", site.id, exc)
-        return _return(integration=PLATFORM, error="secrets_not_configured")
+    granted = tokens.get("scope", "")
+    # A dict per platform actually granted -- a token dict per Integration,
+    # duplicated rather than shared, so each can refresh independently later
+    # without one platform's refresh racing the other's stored copy.
+    to_connect: list[tuple[str, str]] = []
+    if "analytics.readonly" in granted:
+        to_connect.append((PLATFORM, "analytics_read"))
+    if "webmasters.readonly" in granted:
+        to_connect.append((PLATFORM_GSC, "search_console_read"))
+    if not to_connect:
+        # Google always echoes back what it actually granted; an empty
+        # match here means the consent screen showed neither scope, most
+        # often because the underlying API isn't enabled for the project.
+        log.warning("google token exchange for site %s granted no scope FIG asked for: %r",
+                   site.id, granted)
+        return _return(integration=PLATFORM, error="no_scope_granted")
 
-    integ = session.scalars(select(Integration).where(
-        Integration.site_id == site.id, Integration.platform == PLATFORM)).first()
-    if integ is None:
-        integ = Integration(site_id=site.id, platform=PLATFORM)
-        session.add(integ)
-    integ.credential_ref = ref
-    integ.credential_hint = "connected"
-    integ.scopes = ["analytics_read"]
-    integ.connected_at = _now()
-    integ.last_error = None
+    connected_platforms = []
+    for platform, scope_label in to_connect:
+        try:
+            ref = store_secret(session, {
+                "access_token": tokens.get("access_token", ""),
+                "refresh_token": tokens.get("refresh_token", ""),
+                "expires_at": time.time() + tokens.get("expires_in", 0),
+                "scope": granted,
+            })
+        except SecretsNotConfigured as exc:
+            log.error("cannot store google tokens for site %s: %s", site.id, exc)
+            return _return(integration=PLATFORM, error="secrets_not_configured")
+
+        integ = session.scalars(select(Integration).where(
+            Integration.site_id == site.id, Integration.platform == platform)).first()
+        if integ is None:
+            integ = Integration(site_id=site.id, platform=platform)
+            session.add(integ)
+        integ.credential_ref = ref
+        integ.credential_hint = "connected"
+        integ.scopes = [scope_label]
+        integ.connected_at = _now()
+        integ.last_error = None
+        connected_platforms.append(platform)
+
     session.commit()
-
-    return _return(integration=PLATFORM, connected="1")
+    return _return(integration=",".join(connected_platforms), connected="1")

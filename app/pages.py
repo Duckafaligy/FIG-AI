@@ -30,7 +30,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import charts, config, demo, ga
+from app import charts, config, demo, ga, search_console
 from app.models import (Account, ApiKey, Change, ContentPost, Finding,
                         Integration, Job, Page, Scan, Site, User)
 
@@ -469,23 +469,32 @@ def overview(session: Session, account: Account, site: Site | None) -> dict:
 
     fill = demo.is_demo(account)
     days = 30
-    labels = demo.day_labels(days) if fill else []
+    gsc = search_console.fetch_search_data(session, site, days) if not fill else None
+    if fill:
+        labels = demo.day_labels(days)
+    elif gsc:
+        labels = [d["date"] for d in gsc["daily"]]
+    else:
+        labels = []
+    real_traffic = sum(d["clicks"] for d in gsc["daily"]) if gsc else None
 
     ctx.update({
         "demo": fill,
         "kpis": {
             "published": posts("published"),
             "queue": posts("queued") + posts("in_progress") + posts("review"),
-            "traffic": demo.site_traffic(site.id) if fill else None,
+            "traffic": demo.site_traffic(site.id) if fill else real_traffic,
             "impact": latest.score if latest else None,
             "sync": "Healthy" if latest else "Never run",
             "ai": demo.pct(f"ai:{site.id}", 48, 72) if fill else None,
         },
         "trend": charts.series(labels, [
             {"name": "Organic Traffic", "colour": charts.BLUE,
-             "values": demo.curve(f"t:{site.id}", days, 2_600) if fill else []},
+             "values": demo.curve(f"t:{site.id}", days, 2_600) if fill
+                       else ([d["clicks"] for d in gsc["daily"]] if gsc else [])},
             {"name": "Impressions", "colour": charts.VIOLET,
-             "values": demo.curve(f"i:{site.id}", days, 3_600) if fill else []},
+             "values": demo.curve(f"i:{site.id}", days, 3_600) if fill
+                       else ([d["impressions"] for d in gsc["daily"]] if gsc else [])},
             {"name": "Impact Score (x10)", "colour": charts.GREEN,
              "values": demo.curve(f"s:{site.id}", days, 620, growth=.3) if fill else []},
         ]),
@@ -517,8 +526,11 @@ def overview(session: Session, account: Account, site: Site | None) -> dict:
             [{"name": f["label"], "value": f["n"], "colour": f["colour"]}
              for f in funnel], size=132, stroke=19, label="Total"),
         "activity": _site_activity(session, site),
-        "keywords": ([{"kw": k, "pos": p, "traffic": t}
-                      for k, p, t in demo.TOP_QUERIES] if fill else []),
+        "keywords": (
+            [{"kw": k, "pos": p, "traffic": t} for k, p, t in demo.TOP_QUERIES] if fill
+            else ([{"kw": q["query"], "pos": q["position"], "traffic": q["clicks"]}
+                   for q in gsc["queries"]] if gsc else [])
+        ),
         "opportunities": _content_gaps(session, site, latest),
         "library": _library(session, site),
         "health": [
@@ -1257,7 +1269,7 @@ def _api_rows(session: Session, integrations: list[Integration]) -> list[dict]:
         row("WordPress", "globe", "s", "wordpress", "Site", "Read / Write"),
         row("Webflow", "layers", "b", "webflow", "Site", "Read / Write"),
         row("Google Analytics", "chart", "a", "google_analytics", "Property", "Read"),
-        row("Google Search Console", "search", "b", "gsc", "Domain", "Read"),
+        row("Google Search Console", "search", "b", search_console.PLATFORM, "Domain", "Read"),
         row("Anthropic", "spark", "v", "anthropic", "Claude API",
             "Read / Write", "ANTHROPIC_API_KEY"),
         row("Stripe", "card", "p", "stripe", "Billing", "Read / Write",
