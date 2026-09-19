@@ -51,7 +51,7 @@ const services: Service[] = [
   { name: "Shopify", detail: "Publishing destination", permission: "Not connected", status: "Optional", tone: "green", icon: ShoppingBag },
   { name: "WordPress", detail: "Publishing destination", permission: "Read / write", status: "Optional", tone: "blue", icon: Globe2 },
   { name: "Google Analytics", detail: "Traffic and conversions", permission: "Read", status: "Optional", tone: "amber", icon: BarChart3 },
-  { name: "Search Console", detail: "Queries and indexing", permission: "Read", status: "Optional", tone: "blue", icon: Search },
+  { name: "Google Search Console", detail: "Queries and indexing", permission: "Read", status: "Optional", tone: "blue", icon: Search },
   { name: "Webhooks", detail: "Workspace events", permission: "Send / receive", status: "Backend pending", tone: "purple", icon: Webhook }
 ];
 
@@ -247,9 +247,10 @@ export default function SettingsPage() {
 
         {activeTab === "team" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>People & roles</h3><p>{live ? "Everyone signed in to this workspace." : "Sample workspace members with the permissions their roles would carry."}</p></div><PreviewInfo className="button button--small" label="Invite member" message="Team invitations aren't wired up yet. No invitation has been sent." /></div><div className="settings-member-table" role="table" aria-label="Workspace team members"><div className="settings-member-head" role="row"><span>Person</span><span>Role</span><span>Permissions</span><span>Status</span><span>Last active</span><span /></div>{(live ? live.seats.map((s) => [s.initials, s.name, s.role, s.perms, "Active", s.active] as const) : members).map(([initials, name, role, permissions, status, activeAt]) => <div className="settings-member-row" role="row" key={name}><span className="settings-person"><i>{initials}</i><strong>{name}</strong></span><span><b className="settings-role-chip">{role}</b></span><span>{permissions}</span><span><b className="settings-status settings-status--green">{status}</b></span><span>{activeAt}</span><span><PreviewInfo className="settings-row-action" label="Manage" message={`Role changes and access removal for ${name} aren't wired up yet.`} /></span></div>)}</div></section><section className="settings-surface settings-team-note"><Users size={19} /><div><strong>Roles are previewed, not enforced</strong><p>Role changes and invitations aren't wired up yet. {live ? "Names and emails above are real." : "These names and roles are local demo content only."}</p></div></section></div>}
 
-        {activeTab === "integrations" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Connection preparation</h3><p>{live ? "Real connection state, read from this workspace's integrations." : "Services FIG is designed to work with. Statuses are not credential checks."}</p></div><PreviewInfo className="button button--small" label="Connect service" message="Most services here don't have a working connect flow yet — Google Analytics and WordPress do." /></div><div className="settings-integration-list">{services.map((service) => {
+        {activeTab === "integrations" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Connection preparation</h3><p>{live ? "Real connection state, read from this workspace's integrations." : "Services FIG is designed to work with. Statuses are not credential checks."}</p></div><PreviewInfo className="button button--small" label="Connect service" message="Most services here don't have a working connect flow yet — Google Analytics, Google Search Console, and WordPress do." /></div><div className="settings-integration-list">{services.map((service) => {
                 const ServiceIcon = service.icon;
                 const isGoogleAnalytics = service.name === "Google Analytics";
+                const isGoogleSearchConsole = service.name === "Google Search Console";
                 const isWordPress = service.name === "WordPress";
                 const remote = liveApi(service.name);
                 const statusText = remote ? remote.state : service.status;
@@ -260,7 +261,7 @@ export default function SettingsPage() {
                     <div><strong>{service.name}</strong><small>{service.detail}</small></div>
                     <span className="settings-service-permission">{remote?.perms ?? service.permission}</span>
                     <b className={`settings-status settings-status--${tone}`}><CircleDashed size={11} />{statusText}</b>
-                    {isGoogleAnalytics && liveProjectId ? (
+                    {(isGoogleAnalytics || isGoogleSearchConsole) && liveProjectId ? (
                       <a className="settings-row-action button button--small" href={apiUrl(`/oauth/google/start?site_id=${liveProjectId}`)}>{remote?.ok ? "Reconnect" : "Connect"}</a>
                     ) : isWordPress && liveProjectId ? (
                       <button type="button" className="settings-row-action button button--small" onClick={() => setWpFormOpen((open) => !open)}>{remote?.ok ? "Reconnect" : "Connect"}</button>
