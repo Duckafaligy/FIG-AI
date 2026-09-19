@@ -78,10 +78,11 @@ def ensure_customer(session: Session, account: Account) -> str:
     return customer["id"]
 
 
-@router.post("/checkout")
-def checkout(account: Account = Depends(require_account),
-             session: Session = Depends(get_session)):
-    """A subscription whose quantity is the number of active sites."""
+def start_checkout(session: Session, account: Account) -> dict:
+    """A subscription whose quantity is the number of active sites. Plain
+    function so both /v1 (partner, API-key auth) and /api (our own
+    frontend, session-cookie auth) can call the same implementation rather
+    than drifting into two."""
     stripe = _stripe()
     if not config.STRIPE_PRICE_ID:
         raise HTTPException(503, "set STRIPE_PRICE_ID to the per-site recurring price")
@@ -93,26 +94,42 @@ def checkout(account: Account = Depends(require_account),
     trial_left = account.trial_days_left()
     sub_data = {"trial_period_days": trial_left} if trial_left else {}
 
+    # FRONTEND_URL, not PUBLIC_URL: Settings lives on the Next.js app, not
+    # this JSON-only backend. Sending Stripe's redirect at the backend's own
+    # URL would land the browser on a 404 (or the frontend's, if they ever
+    # share a domain, dev.by-default assumption) instead of the actual
+    # billing tab -- found while wiring these buttons up, never exercised
+    # before since nothing called checkout() until now.
     s = stripe.checkout.Session.create(
         mode="subscription",
         customer=customer_id,
         line_items=[{"price": config.STRIPE_PRICE_ID, "quantity": qty}],
         subscription_data=sub_data or None,
-        success_url=f"{config.PUBLIC_URL}/app/settings?tab=billing&checkout=done",
-        cancel_url=f"{config.PUBLIC_URL}/app/settings?tab=billing&checkout=cancelled",
+        success_url=f"{config.FRONTEND_URL}/app/settings?tab=billing&checkout=done",
+        cancel_url=f"{config.FRONTEND_URL}/app/settings?tab=billing&checkout=cancelled",
         metadata={"fig_account_id": account.id},
     )
     return {"url": s["url"], "quantity": qty, "trial_days": trial_left}
 
 
-@router.post("/portal")
-def portal(account: Account = Depends(require_account),
-           session: Session = Depends(get_session)):
+def start_portal(session: Session, account: Account) -> dict:
     stripe = _stripe()
     customer_id = ensure_customer(session, account)
     s = stripe.billing_portal.Session.create(
-        customer=customer_id, return_url=f"{config.PUBLIC_URL}/app/settings?tab=billing")
+        customer=customer_id, return_url=f"{config.FRONTEND_URL}/app/settings?tab=billing")
     return {"url": s["url"]}
+
+
+@router.post("/checkout")
+def checkout(account: Account = Depends(require_account),
+             session: Session = Depends(get_session)):
+    return start_checkout(session, account)
+
+
+@router.post("/portal")
+def portal(account: Account = Depends(require_account),
+           session: Session = Depends(get_session)):
+    return start_portal(session, account)
 
 
 def sync_quantity(session: Session, account: Account) -> dict:

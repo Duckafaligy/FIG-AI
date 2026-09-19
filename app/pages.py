@@ -1185,6 +1185,10 @@ def settings(session: Session, account: Account) -> dict:
             "features": ["Unlimited audits", "SEO + GEO reports",
                          "Publish queue with approval", "REST API and keys",
                          "Per-site billing, no seats"],
+            # Whether there's a real Stripe subscription to manage, or none
+            # yet to start -- decides whether a billing button should open
+            # checkout or the customer portal.
+            "subscribed": bool(account.stripe_subscription_id),
         },
         "usage": [
             {"label": "Published Posts", "used": published, "cap": 500},

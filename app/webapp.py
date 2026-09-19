@@ -24,7 +24,7 @@ from typing import Any
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
-from app import config, content, pages, publishing
+from app import billing, config, content, pages, publishing
 from app.auth import current_account, end_session, session_user, start_session
 from app.db import get_session
 from app.jobs import enqueue_estate, enqueue_scan, queue_depth
@@ -438,3 +438,22 @@ def disconnect(integration_id: str, request: Request,
     account = _account(request, session)
     publishing.disconnect(session, account, integration_id)
     return {"ok": True}
+
+
+# --- billing --------------------------------------------------------------
+# Thin wrappers around app/billing.py's plain functions -- the actual Stripe
+# calls live there once, shared with the /v1 partner route. This is what
+# lets the Settings billing tab's buttons call something real instead of a
+# PreviewInfo popup.
+
+
+@router.post("/billing/checkout")
+def billing_checkout(request: Request, session: Session = Depends(get_session)):
+    account = _account(request, session)
+    return billing.start_checkout(session, account)
+
+
+@router.post("/billing/portal")
+def billing_portal(request: Request, session: Session = Depends(get_session)):
+    account = _account(request, session)
+    return billing.start_portal(session, account)

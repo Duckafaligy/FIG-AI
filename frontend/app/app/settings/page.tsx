@@ -145,6 +145,31 @@ export default function SettingsPage() {
     setWpFormOpen(false);
     await loadSettings();
   };
+
+  const [billingBusy, setBillingBusy] = useState<"checkout" | "portal" | null>(null);
+  const [billingError, setBillingError] = useState("");
+  const goToCheckout = async () => {
+    setBillingBusy("checkout");
+    setBillingError("");
+    const result = await actions.startCheckout();
+    if (!result.ok) {
+      setBillingError(result.error);
+      setBillingBusy(null);
+      return;
+    }
+    window.location.href = result.data.url;
+  };
+  const goToPortal = async () => {
+    setBillingBusy("portal");
+    setBillingError("");
+    const result = await actions.startPortal();
+    if (!result.ok) {
+      setBillingError(result.error);
+      setBillingBusy(null);
+      return;
+    }
+    window.location.href = result.data.url;
+  };
   const usageRows = live
     ? live.usage.map((u) => ({
         label: u.label,
@@ -186,7 +211,13 @@ export default function SettingsPage() {
 
         {activeTab === "workspace" && <div className="settings-tab-stack">
           <section className="settings-surface settings-workspace-surface"><div className="settings-surface-heading"><div><h3>Workspace profile</h3><p>{live ? "The account behind this workspace." : "The core details shown throughout this frontend preview."}</p></div><PreviewInfo className="settings-link-button" label="Edit profile" message="Workspace editing isn't wired up yet. No change is sent to Supabase or any connected service." /></div><div className="settings-workspace-profile"><span className="settings-profile-logo">{live ? live.initials : "LV"}</span><div><strong>{live ? live.profile.name : "LaunchVault.ca"}</strong>{!live && <p>Plain-English AI lessons, prompts, courses, and practical workflows.</p>}<span><BadgeCheck size={13} />{live ? (live.profile.kind === "Direct" ? "Direct workspace" : live.profile.kind) : "Preview workspace"}</span></div></div><div className="settings-fact-grid"><article><span>Workspace ID</span><strong>{live ? live.profile.slug : "lv_workspace_01"}</strong></article><article><span>Owner</span><strong>{live ? (live.seats[0]?.email ?? "—") : "Jordan Davis"}</strong></article><article><span>Industry</span><strong>{live ? "—" : "Education & technology"}</strong></article><article><span>Timezone</span><strong>{live ? "—" : "Eastern Time"}</strong></article><article><span>Website</span><strong>{live ? (live.project?.hostname ?? "—") : "launchvault.ca"}</strong></article><article><span>Created</span><strong>{live ? live.profile.created : "Sep 13, 2026"}</strong></article></div></section>
-          <div className="settings-two-column"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Workspace at a glance</h3><p>{live ? "Real counters for this workspace." : "Sample counters for this one project."}</p></div></div><div className="settings-glance-grid"><article><Users size={18} /><strong>{live ? live.counts.members : 5}</strong><span>Team members</span></article><article><Link2 size={18} /><strong>{live ? live.counts.services : 8}</strong><span>Services connected</span></article><article><FileText size={18} /><strong>{live ? live.counts.projects : 1500}</strong><span>{live ? "Projects" : "Library items"}</span></article><article><BrainCircuit size={18} /><strong>{live ? live.counts.published : 50}</strong><span>{live ? "Published posts" : "Topics"}</span></article></div></section><section className="settings-surface settings-plan-surface"><div className="settings-surface-heading"><div><h3>Current plan</h3><p>{live ? (live.plan.state === "Trial" ? `${live.plan.days} day${live.plan.days === 1 ? "" : "s"} left in trial.` : "Billed per site.") : "Billing is not connected."}</p></div><PreviewInfo className="settings-link-button" label="Manage billing" message="Stripe checkout and the customer portal aren't wired up from this page yet." /></div><strong className="settings-plan-name">{live ? live.plan.name : "Pro"} <span>{live ? live.plan.state.toLowerCase() : "preview"}</span></strong><div className="settings-plan-price">{live ? live.plan.price : "$79"} <small>/ {live ? live.plan.unit : "month"}</small></div><p>{live ? "Real trial/plan state for this account." : "Team workflow, writing tools, and analytics shown as a product preview."}</p></section></div>
+          <div className="settings-two-column"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Workspace at a glance</h3><p>{live ? "Real counters for this workspace." : "Sample counters for this one project."}</p></div></div><div className="settings-glance-grid"><article><Users size={18} /><strong>{live ? live.counts.members : 5}</strong><span>Team members</span></article><article><Link2 size={18} /><strong>{live ? live.counts.services : 8}</strong><span>Services connected</span></article><article><FileText size={18} /><strong>{live ? live.counts.projects : 1500}</strong><span>{live ? "Projects" : "Library items"}</span></article><article><BrainCircuit size={18} /><strong>{live ? live.counts.published : 50}</strong><span>{live ? "Published posts" : "Topics"}</span></article></div></section><section className="settings-surface settings-plan-surface"><div className="settings-surface-heading"><div><h3>Current plan</h3><p>{live ? (live.plan.state === "Trial" ? `${live.plan.days} day${live.plan.days === 1 ? "" : "s"} left in trial.` : "Billed per site.") : "Billing is not connected."}</p></div>{live ? (
+              <button type="button" className="settings-link-button" onClick={live.plan.subscribed ? goToPortal : goToCheckout} disabled={billingBusy !== null}>
+                {billingBusy ? "Redirecting…" : live.plan.subscribed ? "Manage billing" : "Subscribe"}
+              </button>
+            ) : (
+              <PreviewInfo className="settings-link-button" label="Manage billing" message="Stripe checkout and the customer portal aren't wired up from this page yet." />
+            )}</div><strong className="settings-plan-name">{live ? live.plan.name : "Pro"} <span>{live ? live.plan.state.toLowerCase() : "preview"}</span></strong><div className="settings-plan-price">{live ? live.plan.price : "$79"} <small>/ {live ? live.plan.unit : "month"}</small></div><p>{live ? "Real trial/plan state for this account." : "Team workflow, writing tools, and analytics shown as a product preview."}</p>{billingError && <p className="form-message" role="alert">{billingError}</p>}</section></div>
 
           <section className="settings-surface">
             <div className="settings-surface-heading">
@@ -256,7 +287,13 @@ export default function SettingsPage() {
               )}
               </section><section className="settings-surface settings-integration-note"><LockKeyhole size={19} /><div><strong>Credentials belong in the backend</strong><p>When integrations are connected, encrypted configuration and verification happen server-side — never in this frontend page.</p></div></section></div>}
 
-        {activeTab === "billing" && <div className="settings-tab-stack"><section className="settings-surface settings-billing-feature"><div><span className="settings-kicker">{live ? "Billing" : "Billing preview"}</span><h3>{live ? `${live.plan.name} plan for ${live.profile.name}` : "Pro plan for LaunchVault.ca"}</h3><p>{live ? `Billed ${live.plan.unit}. Monthly total: ${live.plan.monthly}.` : "Use the workspace freely as a visual prototype. Stripe billing, metering, and plan enforcement are not connected yet."}</p><PreviewInfo className="settings-link-button" label="View billing details" message="The Stripe customer portal isn't linked from this page yet — see app/billing.py." /></div><div><strong>{live ? live.plan.price : "$79"}</strong><span>/ {live ? live.plan.unit : "month"}</span><small>{live ? live.plan.state : "Illustrative plan price"}</small></div></section><section className="settings-surface"><div className="settings-surface-heading"><div><h3>{live ? "Usage" : "Monthly usage"}</h3><p>{live ? "Real counts for this workspace." : "Representative demo values, not live account metering."}</p></div>{!live && <span className="settings-demo-chip"><span />Illustrative</span>}</div><UsageCards rows={usageRows} /></section><section className="settings-surface settings-plan-includes"><h3>{live ? "Included in this plan" : "Included in the preview plan"}</h3><div>{(live ? live.plan.features : ["Up to 10 team members", "Five connected projects", "AI writing workflows", "Advanced analytics views", "Priority support"]).map((item) => <span key={item}><Check size={15} />{item}</span>)}</div></section></div>}
+        {activeTab === "billing" && <div className="settings-tab-stack"><section className="settings-surface settings-billing-feature"><div><span className="settings-kicker">{live ? "Billing" : "Billing preview"}</span><h3>{live ? `${live.plan.name} plan for ${live.profile.name}` : "Pro plan for LaunchVault.ca"}</h3><p>{live ? `Billed ${live.plan.unit}. Monthly total: ${live.plan.monthly}.` : "Use the workspace freely as a visual prototype. Stripe billing, metering, and plan enforcement are not connected yet."}</p>{live ? (
+          <button type="button" className="settings-link-button" onClick={live.plan.subscribed ? goToPortal : goToCheckout} disabled={billingBusy !== null}>
+            {billingBusy ? "Redirecting…" : live.plan.subscribed ? "View billing details & invoices" : "Subscribe"}
+          </button>
+        ) : (
+          <PreviewInfo className="settings-link-button" label="View billing details" message="The Stripe customer portal isn't linked from this page yet — see app/billing.py." />
+        )}{billingError && <p className="form-message" role="alert">{billingError}</p>}</div><div><strong>{live ? live.plan.price : "$79"}</strong><span>/ {live ? live.plan.unit : "month"}</span><small>{live ? live.plan.state : "Illustrative plan price"}</small></div></section><section className="settings-surface"><div className="settings-surface-heading"><div><h3>{live ? "Usage" : "Monthly usage"}</h3><p>{live ? "Real counts for this workspace." : "Representative demo values, not live account metering."}</p></div>{!live && <span className="settings-demo-chip"><span />Illustrative</span>}</div><UsageCards rows={usageRows} /></section><section className="settings-surface settings-plan-includes"><h3>{live ? "Included in this plan" : "Included in the preview plan"}</h3><div>{(live ? live.plan.features : ["Up to 10 team members", "Five connected projects", "AI writing workflows", "Advanced analytics views", "Priority support"]).map((item) => <span key={item}><Check size={15} />{item}</span>)}</div></section></div>}
 
         {activeTab === "security" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Sign-in & access</h3><p>Security controls are shown as local settings for the eventual workspace backend.</p></div><span className="settings-demo-chip"><span />No auth provider connected</span></div><div className="settings-toggle-list"><LocalToggle label="Two-factor authentication" description="Require an additional verification step for workspace sign-in." checked={settings.twoFactor} onChange={() => flip("twoFactor")} /><LocalToggle label="Session notifications" description="Show a local alert when a new browser session begins." checked={settings.browser} onChange={() => flip("browser")} /></div></section><div className="settings-two-column"><section className="settings-surface"><h3>Access options</h3><div className="settings-option-cards"><article><KeyRound size={18} /><div><strong>Single sign-on</strong><span>Enterprise setup option</span></div><b>Not configured</b></article><article><Users size={18} /><div><strong>Active sessions</strong><span>One illustrative local session</span></div><b>Preview</b></article></div></section><section className="settings-surface settings-security-tip"><ShieldCheck size={20} /><div><h3>Keep keys out of the UI</h3><p>Use secure server-side environment configuration for Supabase, OpenAI, Anthropic, Stripe, and CMS credentials.</p></div></section></div></div>}
 

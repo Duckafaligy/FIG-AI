@@ -370,7 +370,7 @@ export type ApiSettingsPage = ApiChrome & {
   profile: { name: string; slug: string; kind: string; created: string; email: string; white_label: boolean };
   counts: { members: number; services: number; projects: number; published: number };
   seats: { name: string; email: string; role: string; perms: string; active: string; initials: string }[];
-  plan: { name: string; price: string; unit: string; state: string; days: number; monthly: string; features: string[] };
+  plan: { name: string; price: string; unit: string; state: string; days: number; monthly: string; features: string[]; subscribed: boolean };
   usage: { label: string; used: Nullable<number>; cap: Nullable<number> }[];
   apis: { name: string; account: string; state: string; ok: boolean; perms: string; since: string }[];
   keys: { label: string; prefix: string; created: string; used: string }[];
@@ -417,6 +417,8 @@ export const actions = {
   connectIntegration: (projectId: string, platform: string, endpoint: string, credential: string) =>
     apiSend<{ id: string; platform: string; connected: boolean; hint: string | null; error: string | null }>(
       "/api/integrations", "POST", { project_id: projectId, platform, endpoint, credential }),
+  startCheckout: () => apiSend<{ url: string; quantity: number; trial_days: number }>("/api/billing/checkout", "POST"),
+  startPortal: () => apiSend<{ url: string }>("/api/billing/portal", "POST"),
   auditAll: () => apiSend<{ ok: true; queued: number }>("/api/audit-all", "POST"),
   proposeBriefs: () => apiSend<{ ok: true; briefs: number }>("/api/content/propose", "POST"),
   moveContent: (id: string, to: string) => apiSend<unknown>(`/api/content/${id}/move`, "POST", { to }),
