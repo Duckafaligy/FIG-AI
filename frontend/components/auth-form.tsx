@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { siShopify } from "simple-icons/icons";
-import { actions } from "@/lib/api";
+import { actions, DEMO_MODE } from "@/lib/api";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { PreviewInfo } from "./preview-info";
 
@@ -23,6 +23,10 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (DEMO_MODE) {
+      setMessage("This is a demo deployment — sign-in is disabled here so it can never touch a real account.");
+      return;
+    }
     if (!supabaseConfigured) {
       setMessage("Authentication isn't configured on this deployment (missing Supabase env vars).");
       return;
