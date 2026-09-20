@@ -25,6 +25,12 @@ const nextConfig = {
     if (!backend) return [];
     return [
       { source: "/api/:path*", destination: `${backend}/api/:path*` },
+      // apiUrl() (lib/api.ts) is relative in production, and it's used for
+      // both fetches AND the OAuth "Connect" <a href>, e.g. Settings'
+      // Google Analytics/Search Console buttons. Without this, that link
+      // resolves to this app's own domain instead of the backend's --
+      // there's no /oauth route here at all, so it 404s.
+      { source: "/oauth/:path*", destination: `${backend}/oauth/:path*` },
     ];
   },
 };
