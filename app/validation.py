@@ -25,21 +25,25 @@ the API returns alongside a human message:
 Step 1 touches no network and step 2 takes an injectable resolver, so the
 whole module is testable offline (see test_backend.py).
 
-Residual risk, stated plainly: `requests` resolves the hostname again when it
-connects, so an answer that changes between our check and that connection
-(DNS rebinding with a near-zero TTL) is not closed by this module on its own.
-Closing it fully means pinning each connection to the address we checked --
-the next step if FIG ever runs beside a sensitive internal network.
+DNS rebinding is closed too, not just documented: `check_url` returns the
+exact addresses it just validated, and `pinned()` (below) forces the
+connection `requests` is about to make to use one of them, instead of
+letting `requests` resolve the hostname again at connect time. Without this,
+an answer that changes between our check and that connection (DNS rebinding
+with a near-zero TTL) would bypass every check above -- the check would pass
+against a public address while the actual connection went wherever the
+second, attacker-controlled answer pointed.
 """
 from __future__ import annotations
 
+import contextlib
 import ipaddress
 import re
 import socket
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, Iterator
 from urllib.parse import urlsplit
 
 
@@ -246,9 +250,13 @@ def validate_target(value: object, resolver: Resolver | None = None) -> tuple[Ta
     return target, _checked(target.hostname, resolver)
 
 
-def check_url(url: str, resolver: Resolver | None = None) -> str:
+def check_url(url: str, resolver: Resolver | None = None) -> Resolution:
     """Step 3: the gate in front of every single HTTP request the crawler
-    makes. Returns the hostname it checked."""
+    makes. Returns the hostname and addresses it just validated, so the
+    caller can pin the actual connection to one of them with `pinned()`
+    below -- returning just the hostname (as this used to) would let the
+    caller re-resolve at connect time, reopening the rebinding gap this
+    whole module exists to close."""
     parts = urlsplit(url)
     if (parts.scheme or "").lower() not in ("http", "https"):
         raise ValidationError("bad_scheme", f"Refusing to fetch {url}: only http and https are allowed.")
@@ -259,5 +267,50 @@ def check_url(url: str, resolver: Resolver | None = None) -> str:
     if port not in _DEFAULT_PORTS:
         raise ValidationError("has_port", f"Refusing to fetch {url}: non-standard port {port}.")
     target = normalise_target(parts.hostname or "")
-    _checked(target.hostname, resolver)
-    return target.hostname
+    return _checked(target.hostname, resolver)
+
+
+# --- pinning: make the connection use the address we just checked --------
+#
+# socket.getaddrinfo is what `requests` (via urllib3) calls to resolve a
+# hostname right before connecting. Patched once, process-wide, but scoped
+# per call via a thread-local map so concurrent scans of different hosts (see
+# app/jobs.py's worker threads) never see each other's pin -- a lookup for
+# any hostname not currently pinned on this thread falls straight through to
+# the real resolver, unchanged.
+
+_real_getaddrinfo = socket.getaddrinfo
+_pin_local = threading.local()
+
+
+def _pinned_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):  # noqa: A002
+    pins = getattr(_pin_local, "map", None)
+    address = pins.get(host) if pins else None
+    if address is None:
+        return _real_getaddrinfo(host, port, family, type, proto, flags)
+    is_v6 = ":" in address
+    sockaddr = (address, port, 0, 0) if is_v6 else (address, port)
+    fam = socket.AF_INET6 if is_v6 else socket.AF_INET
+    return [(fam, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", sockaddr)]
+
+
+socket.getaddrinfo = _pinned_getaddrinfo
+
+
+@contextlib.contextmanager
+def pinned(hostname: str, address: str) -> Iterator[None]:
+    """Force any connection to `hostname` made on this thread, for the
+    duration of this block, to use `address` instead of resolving again."""
+    pins = getattr(_pin_local, "map", None)
+    if pins is None:
+        pins = {}
+        _pin_local.map = pins
+    previous = pins.get(hostname)
+    pins[hostname] = address
+    try:
+        yield
+    finally:
+        if previous is None:
+            pins.pop(hostname, None)
+        else:
+            pins[hostname] = previous

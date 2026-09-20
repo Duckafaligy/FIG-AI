@@ -36,7 +36,7 @@ from bs4 import BeautifulSoup
 from app import config
 from app.config import CRAWL_DELAY, MAX_PAGES_PER_SCAN, REQUEST_TIMEOUT, USER_AGENT
 from app.robots import Robots
-from app.validation import ValidationError, check_url
+from app.validation import ValidationError, check_url, pinned
 
 HEX_COLOR_PATTERN = re.compile(r"#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})\b")
 ICON_TOKEN_PATTERN = re.compile(r"(?:icon|lucide|feather|heroicon)[-_]?([a-z0-9-]+)", re.IGNORECASE)
@@ -220,7 +220,7 @@ def _http_get(url: str, *, robots: bool, max_bytes: int | None = None) -> FetchR
 
     for _ in range(config.MAX_REDIRECTS + 1):
         try:
-            check_url(current)
+            resolution = check_url(current)
         except ValidationError as exc:
             raise ScrapeError(f"blocked {current}: {exc.message}", code=exc.code) from None
         if robots and not robots_allowed(current):
@@ -228,8 +228,13 @@ def _http_get(url: str, *, robots: bool, max_bytes: int | None = None) -> FetchR
 
         _be_polite(current)
         try:
-            resp = requests.get(current, headers=_HEADERS, timeout=REQUEST_TIMEOUT,
-                                allow_redirects=False, stream=True)
+            # Pinned to the address check_url just validated -- otherwise
+            # `requests` would resolve the hostname again right here, and an
+            # answer that changed between the check above and this connect
+            # (DNS rebinding) would bypass every check this module does.
+            with pinned(resolution.hostname, resolution.addresses[0]):
+                resp = requests.get(current, headers=_HEADERS, timeout=REQUEST_TIMEOUT,
+                                    allow_redirects=False, stream=True)
         except requests.RequestException as exc:
             raise ScrapeError(f"could not fetch {current}: {exc}", code="network") from None
 

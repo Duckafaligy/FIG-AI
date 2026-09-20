@@ -1563,3 +1563,446 @@ Disallow: /api/
 2026-09-17 17:11:30,383 INFO fig.jobs: worker w2 up
 2026-09-17 17:11:30,383 INFO fig: FIG API up - db postgres, ai_explain claude-haiku-4-5, workspace API off (disconnected from the frontend), watches off
 ```
+
+---
+
+## Test #6 — launchvault.ca
+
+**PASS** · 54/54 checks passed · 2026-09-19 22:47 (UTC-0400) · 427.3 s total · `python scripts/test_run.py launchvault.ca`
+
+| | |
+|---|---|
+| Target | `launchvault.ca` → `launchvault.ca` (104.21.14.101, 172.67.158.159, 2606:4700:3031::6815:e65, 2606:4700:3032::ac43:9e9f) |
+| Scan | `done` · 1 pages read, 199 skipped · 417.0 s from queue to done |
+| Score | **92 / 100 — clean** · Craft 80 · Structure 100 · Search 94 · Answers 100 |
+| Findings | 4 findings across 4 distinct problems · 4 of 4 explained by Claude |
+| AI step | `claude-haiku-4-5` (served as `claude-haiku-4-5-20251001`) · 1 calls · 933 in / 372 out tokens · **$0.0028** |
+| Backend | `http://127.0.0.1:50859` · Postgres (aws-1-us-east-2.pooler.supabase.com) · workspace API off · up in 3.1 s |
+
+### 1. Environment
+
+- **Database:** Postgres (aws-1-us-east-2.pooler.supabase.com) — `FIG_DB_STRICT=1`, so an unreachable database fails the run instead of falling back to SQLite. Schema check (`init_db`) took 828 ms.
+- **AI:** key present, model `claude-haiku-4-5`, priced at $1.00 in / $5.00 out per million tokens.
+- **Crawler:** user agent `FIGBot/0.2 (+https://fig.tools/bot; site self-check and structure scanner)`, 0.8 s between requests to a host, up to 40 pages, 5,120.0 KB per response, 5 redirects.
+- **Server:** `python -m uvicorn app.main:app --host 127.0.0.1 --port 50859 --log-level info` with `FIG_WORKSPACE_API=0`, Python 3.12.10.
+
+### 2. Routes
+
+| # | Step | Request | Expected | Got | Time | | Note |
+|---|---|---|---|---|---|---|---|
+| 1 | service | `GET /` | 200 | 200 | 0 ms | ✅ | — |
+| 2 | service | `GET /health` | 200 | 200 | 62 ms | ✅ | — |
+| 3 | frontend disconnected | `GET /api/me` | 404 | 404 | 16 ms | ✅ | workspace API not mounted |
+| 4 | frontend disconnected | `GET /api/projects` | 404 | 404 | 0 ms | ✅ | workspace API not mounted |
+| 5 | frontend disconnected | `OPTIONS /v1/sites` | 400/405 | 405 | 0 ms | ✅ | CORS preflight from the Next.js dev origin |
+| 6 | auth | `GET /v1/account` | 401 | 401 | 0 ms | ✅ | no key |
+| 7 | auth | `GET /v1/account` | 401 | 401 | 172 ms | ✅ | wrong key |
+| 8 | auth | `GET /v1/account` | 200 | 200 | 203 ms | ✅ | key minted for this run |
+| 9 | validation | `POST /v1/sites` | 422 | 422 | 187 ms | ✅ | loopback address |
+| 10 | validation | `POST /v1/sites` | 422 | 422 | 172 ms | ✅ | cloud metadata endpoint |
+| 11 | validation | `POST /v1/sites` | 422 | 422 | 172 ms | ✅ | private address on a non-standard port |
+| 12 | validation | `POST /v1/sites` | 422 | 422 | 187 ms | ✅ | 127.0.0.1 written as a number |
+| 13 | validation | `POST /v1/sites` | 422 | 422 | 157 ms | ✅ | reserved name |
+| 14 | validation | `POST /v1/sites` | 422 | 422 | 187 ms | ✅ | internal-only suffix |
+| 15 | validation | `POST /v1/sites` | 422 | 422 | 281 ms | ✅ | real public DNS name that resolves to 127.0.0.1 |
+| 16 | validation | `POST /v1/sites` | 422 | 422 | 266 ms | ✅ | domain that does not exist |
+| 17 | validation | `POST /v1/sites` | 422 | 422 | 188 ms | ✅ | non-web scheme |
+| 18 | validation | `POST /v1/sites` | 422 | 422 | 156 ms | ✅ | not a hostname at all |
+| 19 | validation | `POST /v1/sites` | 422 | 422 | 172 ms | ✅ | empty input |
+| 20 | validation | `POST /scan` | 422 | 422 | 0 ms | ✅ | the free public read goes through the same gate |
+| 21 | provision | `POST /v1/sites` | 201 | 201 | 297 ms | ✅ | as typed |
+| 22 | provision | `POST /v1/sites` | 201 | 201 | 187 ms | ✅ | same site given as a full URL |
+| 23 | provision | `GET /v1/sites/cd9c6b21-07b0-4345-b04e-ae4ba4379ecd` | 200 | 200 | 203 ms | ✅ | — |
+| 24 | ownership | `POST /v1/sites/cd9c6b21-07b0-4345-b04e-ae4ba4379ecd/verification` | 200 | 200 | 219 ms | ✅ | issue a DNS TXT token |
+| 25 | ownership | `POST /v1/sites/cd9c6b21-07b0-4345-b04e-ae4ba4379ecd/verification/confirm` | 200 | 200 | 203 ms | ✅ | look the record up |
+| 26 | scan | `POST /v1/sites/cd9c6b21-07b0-4345-b04e-ae4ba4379ecd/scans` | 202 | 202 | 234 ms | ✅ | queued for a worker |
+| 27 | scan | `GET /v1/scans/92efe69d-0b8b-408f-81ae-fde67c8346f6?findings=false` | 200 | 200 | 216 ms | ✅ | polled 243x every 1.5s until done (ms is the average) |
+| 28 | results | `GET /v1/scans/92efe69d-0b8b-408f-81ae-fde67c8346f6` | 200 | 200 | 250 ms | ✅ | scores and findings |
+| 29 | results | `GET /v1/scans/92efe69d-0b8b-408f-81ae-fde67c8346f6/pages` | 200 | 200 | 235 ms | ✅ | pages read |
+| 30 | results | `GET /v1/scans/92efe69d-0b8b-408f-81ae-fde67c8346f6/trace` | 200 | 200 | 187 ms | ✅ | stage-by-stage trace |
+| 31 | results | `GET /v1/report` | 200 | 200 | 219 ms | ✅ | partner estate roll-up |
+| 32 | results | `GET /v1/scans/not-a-real-scan` | 404 | 404 | 203 ms | ✅ | unknown scan id |
+
+### 3. Validation system
+
+**Accepted:** `launchvault.ca` → `launchvault.ca` (nothing to change). Resolved to 104.21.14.101, 172.67.158.159, 2606:4700:3031::6815:e65, 2606:4700:3032::ac43:9e9f — every address public, so the crawl was allowed. The same site given as `https://launchvault.ca/pricing?utm_source=fig-test` normalised to the same hostname and returned the existing site.
+
+**Ownership:** DNS TXT verification was issued and checked — verified: `False`. Ownership is only required to schedule monitoring; a one-off scan of any public site is allowed without it.
+
+**Rejected** (each is a `POST /v1/sites`, answered before anything is fetched):
+
+| Input | What it is | HTTP | Code | Expected | | Message |
+|---|---|---|---|---|---|---|
+| `127.0.0.1` | loopback address | 422 | `ip_literal` | `ip_literal` | ✅ | 127.0.0.1 is an IP address. FIG reads sites by domain name; give the site's hostname instead. |
+| `169.254.169.254` | cloud metadata endpoint | 422 | `ip_literal` | `ip_literal` | ✅ | 169.254.169.254 is an IP address. FIG reads sites by domain name; give the site's hostname instead. |
+| `http://10.0.0.1:8080/admin` | private address on a non-standard port | 422 | `has_port` | `has_port` | ✅ | Port 8080 is not supported. Give the site's hostname; sites are read over the standard ports. |
+| `2130706433` | 127.0.0.1 written as a number | 422 | `bad_hostname` | `bad_hostname` | ✅ | '2130706433' does not look like a public domain name. |
+| `localhost` | reserved name | 422 | `reserved_name` | `reserved_name` | ✅ | localhost is under the reserved name 'localhost', which never points at a public website. |
+| `printer.internal` | internal-only suffix | 422 | `reserved_name` | `reserved_name` | ✅ | printer.internal is under the reserved name 'internal', which never points at a public website. |
+| `127.0.0.1.nip.io` | real public DNS name that resolves to 127.0.0.1 | 422 | `non_public_address` | `non_public_address` | ✅ | 127.0.0.1.nip.io resolves to 127.0.0.1, which is not on the public internet. FIG only reads public sites. |
+| `fig-nx-a23cfa3d7b.com` | domain that does not exist | 422 | `dns_failed` | `dns_failed` | ✅ | fig-nx-a23cfa3d7b.com does not resolve ([Errno 11001] getaddrinfo failed). |
+| `ftp://launchvault.ca` | non-web scheme | 422 | `bad_scheme` | `bad_scheme` | ✅ | Only http and https sites can be read, not ftp://. |
+| `not a hostname` | not a hostname at all | 422 | `bad_hostname` | `bad_hostname` | ✅ | 'not a hostname' contains spaces, so it is not a hostname or URL. |
+| `(empty)` | empty input | 422 | `empty` | `empty` | ✅ | No hostname or URL was given. |
+
+### 4. Pipeline
+
+Trace total: 415.5 s inside the worker.
+
+| Stage | Status | Time | What happened |
+|---|---|---|---|
+| `validate` | ok | 50 ms | launchvault.ca → launchvault.ca → 104.21.14.101, 172.67.158.159, 2606:4700:3031::6815:e65, 2606:4700:3032::ac43:9e9f (all public) |
+| `resolve_base` | ok | 2.5 s | http://launchvault.ca — tried: https://launchvault.ca/ http_status; http://launchvault.ca/ ok 200 |
+| `robots` | ok | 767 ms | parsed (HTTP 200) · 16 rules apply to FIGBot · 1 sitemap(s) declared |
+| `discover` | ok | 1.9 s | 2 sitemap file(s) read · 500 URLs listed · 500 on this site |
+| `fetch` | ok | 398.5 s | 1 read · skipped: http_status 197, robots 2 · no more pages to read |
+| `rules` | ok | 8 ms | 4 flags from 4 distinct checks (craft 3, search 1) |
+| `explain` | ok | 12.1 s | 4/4 distinct findings explained in 1 calls · 933 in / 372 out tokens · $0.0028 |
+| `score` | ok | 0 ms | overall 92 (clean) · {'craft': 80, 'structure': 100, 'search': 94, 'answers': 100} |
+| `persist` | ok | 402 ms | 1 pages and 4 findings saved, 4 with Claude-written text |
+
+#### robots.txt
+
+`http://launchvault.ca/robots.txt` → HTTP 200, outcome **parsed**, read in 767 ms.
+
+Rules that apply to FIGBot (enforced before every request, including redirect hops):
+
+```text
+Allow: /
+Allow: /features
+Allow: /pricing
+Allow: /about
+Allow: /privacy
+Allow: /terms
+Allow: /cookies
+Allow: /refund-policy
+Allow: /acceptable-use
+Allow: /dpa
+Disallow: /dashboard
+Disallow: /onboarding
+Disallow: /login
+Disallow: /signup
+Disallow: /checkout
+Disallow: /api/
+```
+
+- Declared sitemap: `https://launchvault.ca/sitemap.xml`
+
+**Independent robots check:** of 1 pages read, 0 are disallowed by robots.txt.
+
+#### Discovery
+
+| Sitemap | Outcome | HTTP | URLs | Child sitemaps | Time |
+|---|---|---|---|---|---|
+| `https://launchvault.ca/sitemap.xml` | http_status | 403 | — | — | 853 ms |
+| `http://launchvault.ca/sitemap.xml` | ok | 200 | 1069 | 0 | 987 ms |
+
+#### Pages
+
+1 read, 199 skipped; stopped because: no more pages to read.
+
+| # | Path | Outcome | HTTP | Size | Time | Note |
+|---|---|---|---|---|---|---|
+| 1 | `/` | ✅ read | 200 | 149.8 KB | 1.6 s | “LaunchVault — Learn AI in Plain English. No Jargon, No Rush.” · 1682 words · sections: hero, content, features, content, features, content, pricing, content, content, faq, content, cta |
+| 2 | `/` | ⏭ http_status | — | — | — | https://launchvault.ca/ returned HTTP 403 |
+| 3 | `/learn-ai` | ⏭ http_status | — | — | — | https://launchvault.ca/learn-ai returned HTTP 403 |
+| 4 | `/how-to-learn-ai` | ⏭ http_status | — | — | — | https://launchvault.ca/how-to-learn-ai returned HTTP 403 |
+| 5 | `/features` | ⏭ http_status | — | — | — | https://launchvault.ca/features returned HTTP 403 |
+| 6 | `/how-it-works` | ⏭ http_status | — | — | — | https://launchvault.ca/how-it-works returned HTTP 403 |
+| 7 | `/pricing` | ⏭ http_status | — | — | — | https://launchvault.ca/pricing returned HTTP 403 |
+| 8 | `/library` | ⏭ http_status | — | — | — | https://launchvault.ca/library returned HTTP 403 |
+| 9 | `/glossary` | ⏭ http_status | — | — | — | https://launchvault.ca/glossary returned HTTP 403 |
+| 10 | `/blog` | ⏭ http_status | — | — | — | https://launchvault.ca/blog returned HTTP 403 |
+| 11 | `/about` | ⏭ http_status | — | — | — | https://launchvault.ca/about returned HTTP 403 |
+| 12 | `/contact` | ⏭ http_status | — | — | — | https://launchvault.ca/contact returned HTTP 403 |
+| 13 | `/signup` | ⏭ robots | — | — | — | robots.txt disallows https://launchvault.ca/signup |
+| 14 | `/login` | ⏭ robots | — | — | — | robots.txt disallows https://launchvault.ca/login |
+| 15 | `/privacy` | ⏭ http_status | — | — | — | https://launchvault.ca/privacy returned HTTP 403 |
+| 16 | `/terms` | ⏭ http_status | — | — | — | https://launchvault.ca/terms returned HTTP 403 |
+| 17 | `/cookies` | ⏭ http_status | — | — | — | https://launchvault.ca/cookies returned HTTP 403 |
+| 18 | `/refund-policy` | ⏭ http_status | — | — | — | https://launchvault.ca/refund-policy returned HTTP 403 |
+| 19 | `/acceptable-use` | ⏭ http_status | — | — | — | https://launchvault.ca/acceptable-use returned HTTP 403 |
+| 20 | `/dpa` | ⏭ http_status | — | — | — | https://launchvault.ca/dpa returned HTTP 403 |
+| 21 | `/domains/ai-prompting-mastery` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-prompting-mastery returned HTTP 403 |
+| 22 | `/domains/prompt-engineering-fundamentals` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/prompt-engineering-fundamentals returned HTTP 403 |
+| 23 | `/domains/advanced-prompt-engineering` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/advanced-prompt-engineering returned HTTP 403 |
+| 24 | `/domains/ai-for-business` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-for-business returned HTTP 403 |
+| 25 | `/domains/ai-business-models` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-business-models returned HTTP 403 |
+| 26 | `/domains/ai-monetization` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-monetization returned HTTP 403 |
+| 27 | `/domains/ai-automation-workflows` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-automation-workflows returned HTTP 403 |
+| 28 | `/domains/no-code-ai-automation` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/no-code-ai-automation returned HTTP 403 |
+| 29 | `/domains/ai-agents-blueprints` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-agents-blueprints returned HTTP 403 |
+| 30 | `/domains/multi-agent-systems` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/multi-agent-systems returned HTTP 403 |
+| 31 | `/domains/agent-memory-tool-use` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/agent-memory-tool-use returned HTTP 403 |
+| 32 | `/domains/machine-learning-basics` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/machine-learning-basics returned HTTP 403 |
+| 33 | `/domains/deep-learning-basics` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/deep-learning-basics returned HTTP 403 |
+| 34 | `/domains/data-literacy-for-ai` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/data-literacy-for-ai returned HTTP 403 |
+| 35 | `/domains/ai-coding-development` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-coding-development returned HTTP 403 |
+| 36 | `/domains/ai-app-building` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-app-building returned HTTP 403 |
+| 37 | `/domains/ai-saas-building` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-saas-building returned HTTP 403 |
+| 38 | `/domains/ai-productivity` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-productivity returned HTTP 403 |
+| 39 | `/domains/ai-content-creation` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-content-creation returned HTTP 403 |
+| 40 | `/domains/ai-copywriting` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-copywriting returned HTTP 403 |
+| 41 | `/domains/ai-marketing` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-marketing returned HTTP 403 |
+| 42 | `/domains/ai-sales` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-sales returned HTTP 403 |
+| 43 | `/domains/ai-customer-support` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-customer-support returned HTTP 403 |
+| 44 | `/domains/ai-research` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-research returned HTTP 403 |
+| 45 | `/domains/ai-for-students` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-for-students returned HTTP 403 |
+| 46 | `/domains/ai-for-creators` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-for-creators returned HTTP 403 |
+| 47 | `/domains/ai-for-agencies` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-for-agencies returned HTTP 403 |
+| 48 | `/domains/ai-for-freelancers` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-for-freelancers returned HTTP 403 |
+| 49 | `/domains/ai-for-founders` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-for-founders returned HTTP 403 |
+| 50 | `/domains/ai-for-ecommerce` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-for-ecommerce returned HTTP 403 |
+| 51 | `/domains/ai-for-local-businesses` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-for-local-businesses returned HTTP 403 |
+| 52 | `/domains/ai-for-finance-operations` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-for-finance-operations returned HTTP 403 |
+| 53 | `/domains/ai-for-hr-recruiting` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-for-hr-recruiting returned HTTP 403 |
+| 54 | `/domains/ai-for-education` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-for-education returned HTTP 403 |
+| 55 | `/domains/ai-for-healthcare-concepts` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-for-healthcare-concepts returned HTTP 403 |
+| 56 | `/domains/ai-ethics-safety` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-ethics-safety returned HTTP 403 |
+| 57 | `/domains/ai-privacy-security` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-privacy-security returned HTTP 403 |
+| 58 | `/domains/ai-tool-reviews` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-tool-reviews returned HTTP 403 |
+| 59 | `/domains/ai-tool-workflows` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-tool-workflows returned HTTP 403 |
+| 60 | `/domains/ai-news-daily-insights` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-news-daily-insights returned HTTP 403 |
+| 61 | `/domains/ai-strategy` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-strategy returned HTTP 403 |
+| 62 | `/domains/ai-product-management` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-product-management returned HTTP 403 |
+| 63 | `/domains/ai-ux-interface-design` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-ux-interface-design returned HTTP 403 |
+| 64 | `/domains/ai-image-generation` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-image-generation returned HTTP 403 |
+| 65 | `/domains/ai-video-generation` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-video-generation returned HTTP 403 |
+| 66 | `/domains/ai-voice-audio` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-voice-audio returned HTTP 403 |
+| 67 | `/domains/ai-search-rag` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-search-rag returned HTTP 403 |
+| 68 | `/domains/ai-data-analysis` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-data-analysis returned HTTP 403 |
+| 69 | `/domains/ai-workflow-optimization` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-workflow-optimization returned HTTP 403 |
+| 70 | `/domains/ai-future-trends` | ⏭ http_status | — | — | — | https://launchvault.ca/domains/ai-future-trends returned HTTP 403 |
+| 71 | `/library/deep-learning-architecture-optimization` | ⏭ http_status | — | — | — | https://launchvault.ca/library/deep-learning-architecture-optimization returned HTTP 403 |
+| 72 | `/library/ai-tool-implementation-guide` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-tool-implementation-guide returned HTTP 403 |
+| 73 | `/library/ecommerce-product-bundle-recommendation-engine` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ecommerce-product-bundle-recommendation-engine returned HTTP 403 |
+| 74 | `/library/ai-content-repurposing-strategy-enhancer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-content-repurposing-strategy-enhancer returned HTTP 403 |
+| 75 | `/library/local-business-ai-loyalty-program-enhancer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/local-business-ai-loyalty-program-enhancer returned HTTP 403 |
+| 76 | `/library/optimized-feedback-loop-ai-saas` | ⏭ http_status | — | — | — | https://launchvault.ca/library/optimized-feedback-loop-ai-saas returned HTTP 403 |
+| 77 | `/library/user-centric-onboarding-experience-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/user-centric-onboarding-experience-generator returned HTTP 403 |
+| 78 | `/library/scalability-solutions-for-ai-saas-platforms` | ⏭ http_status | — | — | — | https://launchvault.ca/library/scalability-solutions-for-ai-saas-platforms returned HTTP 403 |
+| 79 | `/library/automated-workflow-streamliner` | ⏭ http_status | — | — | — | https://launchvault.ca/library/automated-workflow-streamliner returned HTTP 403 |
+| 80 | `/library/dynamic-ai-productivity-enhancer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/dynamic-ai-productivity-enhancer returned HTTP 403 |
+| 81 | `/library/ai-customer-support-ticket-responder` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-customer-support-ticket-responder returned HTTP 403 |
+| 82 | `/library/ml-model-interpretation-enhancer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ml-model-interpretation-enhancer returned HTTP 403 |
+| 83 | `/library/ai-app-demonstration-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-app-demonstration-generator returned HTTP 403 |
+| 84 | `/library/ai-tool-evaluation-matrix` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-tool-evaluation-matrix returned HTTP 403 |
+| 85 | `/library/ml-hyperparameter-tuning-guide` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ml-hyperparameter-tuning-guide returned HTTP 403 |
+| 86 | `/library/multi-agent-conflict-resolution` | ⏭ http_status | — | — | — | https://launchvault.ca/library/multi-agent-conflict-resolution returned HTTP 403 |
+| 87 | `/library/advanced-ai-research-methodology-optimizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/advanced-ai-research-methodology-optimizer returned HTTP 403 |
+| 88 | `/library/ai-research-data-validation-enhancer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-research-data-validation-enhancer returned HTTP 403 |
+| 89 | `/library/ai-debugging-efficiency-optimizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-debugging-efficiency-optimizer returned HTTP 403 |
+| 90 | `/library/ecommerce-product-recommendation-engine` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ecommerce-product-recommendation-engine returned HTTP 403 |
+| 91 | `/library/ethical-ai-framework-creator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ethical-ai-framework-creator returned HTTP 403 |
+| 92 | `/library/ai-ethics-checklist-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-ethics-checklist-generator returned HTTP 403 |
+| 93 | `/library/ai-strategy-maximizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-strategy-maximizer returned HTTP 403 |
+| 94 | `/library/ai-driven-educational-content-creator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-driven-educational-content-creator returned HTTP 403 |
+| 95 | `/library/ai-app-user-onboarding-guide-creator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-app-user-onboarding-guide-creator returned HTTP 403 |
+| 96 | `/library/ai-driven-content-personalizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-driven-content-personalizer returned HTTP 403 |
+| 97 | `/library/ai-agent-development-roadmap` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-agent-development-roadmap returned HTTP 403 |
+| 98 | `/library/ai-powered-feedback-system-for-student-progress` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-powered-feedback-system-for-student-progress returned HTTP 403 |
+| 99 | `/library/ai-prompting-mastery-career-path` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-prompting-mastery-career-path returned HTTP 403 |
+| 100 | `/library/ai-visionary-roadmap` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-visionary-roadmap returned HTTP 403 |
+| 101 | `/library/ai-audience-segment-analyzer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-audience-segment-analyzer returned HTTP 403 |
+| 102 | `/library/ai-agent-feedback-loop-builder` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-agent-feedback-loop-builder returned HTTP 403 |
+| 103 | `/library/multi-agent-personalization-strategy-2` | ⏭ http_status | — | — | — | https://launchvault.ca/library/multi-agent-personalization-strategy-2 returned HTTP 403 |
+| 104 | `/library/data-driven-study-guide-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/data-driven-study-guide-generator returned HTTP 403 |
+| 105 | `/library/ai-powered-research-paper-outline-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-powered-research-paper-outline-generator returned HTTP 403 |
+| 106 | `/library/ai-hr-recruiting-optimized-job-posting` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-hr-recruiting-optimized-job-posting returned HTTP 403 |
+| 107 | `/library/ai-literature-review-optimizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-literature-review-optimizer returned HTTP 403 |
+| 108 | `/library/ai-research-idea-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-research-idea-generator returned HTTP 403 |
+| 109 | `/library/ai-driven-product-roadmap-prioritization-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-driven-product-roadmap-prioritization-generator returned HTTP 403 |
+| 110 | `/library/ai-driven-interview-question-enhancer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-driven-interview-question-enhancer returned HTTP 403 |
+| 111 | `/library/automated-candidate-screening-optimizer-ai-tools` | ⏭ http_status | — | — | — | https://launchvault.ca/library/automated-candidate-screening-optimizer-ai-tools returned HTTP 403 |
+| 112 | `/library/user-intent-extraction-enhancer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/user-intent-extraction-enhancer returned HTTP 403 |
+| 113 | `/library/ai-search-response-refinement` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-search-response-refinement returned HTTP 403 |
+| 114 | `/library/hyperlocal-social-media-content-calendar` | ⏭ http_status | — | — | — | https://launchvault.ca/library/hyperlocal-social-media-content-calendar returned HTTP 403 |
+| 115 | `/library/advanced-strategy-ai-prompt-optimization` | ⏭ http_status | — | — | — | https://launchvault.ca/library/advanced-strategy-ai-prompt-optimization returned HTTP 403 |
+| 116 | `/library/ai-bias-detection-toolkit` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-bias-detection-toolkit returned HTTP 403 |
+| 117 | `/library/ethical-ai-practices-evaluator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ethical-ai-practices-evaluator returned HTTP 403 |
+| 118 | `/library/ai-optimized-content-curation` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-optimized-content-curation returned HTTP 403 |
+| 119 | `/library/hyper-specific-ai-agent-setup-plan` | ⏭ http_status | — | — | — | https://launchvault.ca/library/hyper-specific-ai-agent-setup-plan returned HTTP 403 |
+| 120 | `/library/ai-adoption-roadmap-accelerator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-adoption-roadmap-accelerator returned HTTP 403 |
+| 121 | `/library/ai-product-dev-roadmap-optimizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-product-dev-roadmap-optimizer returned HTTP 403 |
+| 122 | `/library/automated-sales-pipeline-builder` | ⏭ http_status | — | — | — | https://launchvault.ca/library/automated-sales-pipeline-builder returned HTTP 403 |
+| 123 | `/library/intelligent-email-campaign-designer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/intelligent-email-campaign-designer returned HTTP 403 |
+| 124 | `/library/ai-product-strategy-sprint-facilitator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-product-strategy-sprint-facilitator returned HTTP 403 |
+| 125 | `/library/ai-roadmap-execution-plan-creator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-roadmap-execution-plan-creator returned HTTP 403 |
+| 126 | `/library/ai-product-market-fit-optimization` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-product-market-fit-optimization returned HTTP 403 |
+| 127 | `/library/ai-product-feedback-loop-enhancement` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-product-feedback-loop-enhancement returned HTTP 403 |
+| 128 | `/library/comprehensive-ai-tool-comparison-framework` | ⏭ http_status | — | — | — | https://launchvault.ca/library/comprehensive-ai-tool-comparison-framework returned HTTP 403 |
+| 129 | `/library/ai-tool-performance-optimizer-guide` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-tool-performance-optimizer-guide returned HTTP 403 |
+| 130 | `/library/ai-coding-optimizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-coding-optimizer returned HTTP 403 |
+| 131 | `/library/ai-driven-thought-leadership-content-brief` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-driven-thought-leadership-content-brief returned HTTP 403 |
+| 132 | `/library/ai-driven-content-personalization-strategy-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-driven-content-personalization-strategy-generator returned HTTP 403 |
+| 133 | `/library/agent-memory-optimization` | ⏭ http_status | — | — | — | https://launchvault.ca/library/agent-memory-optimization returned HTTP 403 |
+| 134 | `/library/memory-personalization-blueprint` | ⏭ http_status | — | — | — | https://launchvault.ca/library/memory-personalization-blueprint returned HTTP 403 |
+| 135 | `/library/ai-study-enhancer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-study-enhancer returned HTTP 403 |
+| 136 | `/library/ai-research-planner` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-research-planner returned HTTP 403 |
+| 137 | `/library/deep-learning-application-strategy` | ⏭ http_status | — | — | — | https://launchvault.ca/library/deep-learning-application-strategy returned HTTP 403 |
+| 138 | `/library/ml-model-evaluation-checklist` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ml-model-evaluation-checklist returned HTTP 403 |
+| 139 | `/library/data-preprocessing-strategy-builder` | ⏭ http_status | — | — | — | https://launchvault.ca/library/data-preprocessing-strategy-builder returned HTTP 403 |
+| 140 | `/library/ai-driven-student-project-optimizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-driven-student-project-optimizer returned HTTP 403 |
+| 141 | `/library/smart-study-plan-generator-using-ai-insights` | ⏭ http_status | — | — | — | https://launchvault.ca/library/smart-study-plan-generator-using-ai-insights returned HTTP 403 |
+| 142 | `/library/ai-client-acquisition-master-guide` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-client-acquisition-master-guide returned HTTP 403 |
+| 143 | `/library/ai-enhanced-campaign-optimizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-enhanced-campaign-optimizer returned HTTP 403 |
+| 144 | `/library/ai-saas-onboarding-sequence-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-saas-onboarding-sequence-generator returned HTTP 403 |
+| 145 | `/library/agent-memory-optimization-strategy` | ⏭ http_status | — | — | — | https://launchvault.ca/library/agent-memory-optimization-strategy returned HTTP 403 |
+| 146 | `/library/ai-powered-client-proposal-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-powered-client-proposal-generator returned HTTP 403 |
+| 147 | `/library/ai-driven-freelance-contract-enhancer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-driven-freelance-contract-enhancer returned HTTP 403 |
+| 148 | `/library/agent-based-workflow-optimizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/agent-based-workflow-optimizer returned HTTP 403 |
+| 149 | `/library/ai-driven-data-visualization-enhancer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-driven-data-visualization-enhancer returned HTTP 403 |
+| 150 | `/library/ai-driven-sentiment-analysis-enhancer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-driven-sentiment-analysis-enhancer returned HTTP 403 |
+| 151 | `/library/ai-tone-optimizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-tone-optimizer returned HTTP 403 |
+| 152 | `/library/emotional-engagement-copier` | ⏭ http_status | — | — | — | https://launchvault.ca/library/emotional-engagement-copier returned HTTP 403 |
+| 153 | `/library/clinical-trial-recruitment-script-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/clinical-trial-recruitment-script-generator returned HTTP 403 |
+| 154 | `/library/proactive-customer-experience-optimizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/proactive-customer-experience-optimizer returned HTTP 403 |
+| 155 | `/library/ai-brand-reputation-optimizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-brand-reputation-optimizer returned HTTP 403 |
+| 156 | `/library/ai-competitive-intelligence-enhancer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-competitive-intelligence-enhancer returned HTTP 403 |
+| 157 | `/library/ai-interview-question-optimizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-interview-question-optimizer returned HTTP 403 |
+| 158 | `/library/ai-marketing-campaign-roi-maximizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-marketing-campaign-roi-maximizer returned HTTP 403 |
+| 159 | `/library/no-code-ai-automation-for-business-owners` | ⏭ http_status | — | — | — | https://launchvault.ca/library/no-code-ai-automation-for-business-owners returned HTTP 403 |
+| 160 | `/library/ai-marketing-blueprint` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-marketing-blueprint returned HTTP 403 |
+| 161 | `/library/advanced-ai-prompting-techniques` | ⏭ http_status | — | — | — | https://launchvault.ca/library/advanced-ai-prompting-techniques returned HTTP 403 |
+| 162 | `/library/automated-customer-support-ticket-triage` | ⏭ http_status | — | — | — | https://launchvault.ca/library/automated-customer-support-ticket-triage returned HTTP 403 |
+| 163 | `/library/ai-tool-workflow-optimizer-msubtd6g-100` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-tool-workflow-optimizer-msubtd6g-100 returned HTTP 403 |
+| 164 | `/library/ai-driven-competitive-strategy-optimizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-driven-competitive-strategy-optimizer returned HTTP 403 |
+| 165 | `/library/ai-driven-sales-pitch-enhancer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-driven-sales-pitch-enhancer returned HTTP 403 |
+| 166 | `/library/ai-powered-in-app-messaging-sequence-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-powered-in-app-messaging-sequence-generator returned HTTP 403 |
+| 167 | `/library/ai-workflow-error-minimizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-workflow-error-minimizer returned HTTP 403 |
+| 168 | `/library/ai-ecommerce-optimization-strategy` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-ecommerce-optimization-strategy returned HTTP 403 |
+| 169 | `/library/ai-persuasive-storytelling-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-persuasive-storytelling-generator returned HTTP 403 |
+| 170 | `/library/multi-agent-complex-decision-making-1` | ⏭ http_status | — | — | — | https://launchvault.ca/library/multi-agent-complex-decision-making-1 returned HTTP 403 |
+| 171 | `/library/ai-driven-customer-support-response-optimizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-driven-customer-support-response-optimizer returned HTTP 403 |
+| 172 | `/library/proactive-customer-support-strategy-designer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/proactive-customer-support-strategy-designer returned HTTP 403 |
+| 173 | `/library/ai-saas-growth-strategy-planner` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-saas-growth-strategy-planner returned HTTP 403 |
+| 174 | `/library/advanced-query-optimizer-ai-search` | ⏭ http_status | — | — | — | https://launchvault.ca/library/advanced-query-optimizer-ai-search returned HTTP 403 |
+| 175 | `/library/contextual-data-filtering-precise-ai-search-results` | ⏭ http_status | — | — | — | https://launchvault.ca/library/contextual-data-filtering-precise-ai-search-results returned HTTP 403 |
+| 176 | `/library/deep-learning-experimentation-framework` | ⏭ http_status | — | — | — | https://launchvault.ca/library/deep-learning-experimentation-framework returned HTTP 403 |
+| 177 | `/library/automated-deep-learning-model-evaluator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/automated-deep-learning-model-evaluator returned HTTP 403 |
+| 178 | `/library/ai-ux-chatbot-conversation-flow` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-ux-chatbot-conversation-flow returned HTTP 403 |
+| 179 | `/library/ai-driven-content-seo-optimizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-driven-content-seo-optimizer returned HTTP 403 |
+| 180 | `/library/expert-code-review-feedback-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/expert-code-review-feedback-generator returned HTTP 403 |
+| 181 | `/library/comprehensive-ai-testing-suite-builder` | ⏭ http_status | — | — | — | https://launchvault.ca/library/comprehensive-ai-testing-suite-builder returned HTTP 403 |
+| 182 | `/library/customer-support-ticket-responder-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/customer-support-ticket-responder-generator returned HTTP 403 |
+| 183 | `/library/efficient-ai-automation-setup` | ⏭ http_status | — | — | — | https://launchvault.ca/library/efficient-ai-automation-setup returned HTTP 403 |
+| 184 | `/library/personalized-ai-content-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/personalized-ai-content-generator returned HTTP 403 |
+| 185 | `/library/ai-voice-audio-podcast-script-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-voice-audio-podcast-script-generator returned HTTP 403 |
+| 186 | `/library/comprehensive-ai-tool-evaluation-framework` | ⏭ http_status | — | — | — | https://launchvault.ca/library/comprehensive-ai-tool-evaluation-framework returned HTTP 403 |
+| 187 | `/library/ai-tool-performance-assessment-system-creation` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-tool-performance-assessment-system-creation returned HTTP 403 |
+| 188 | `/library/targeted-ai-marketing-campaign-creator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/targeted-ai-marketing-campaign-creator returned HTTP 403 |
+| 189 | `/library/ai-powered-customer-feedback-analyzer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-powered-customer-feedback-analyzer returned HTTP 403 |
+| 190 | `/library/ai-data-exposure-risk-assessment` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-data-exposure-risk-assessment returned HTTP 403 |
+| 191 | `/library/ai-productivity-enhancement-plan` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-productivity-enhancement-plan returned HTTP 403 |
+| 192 | `/library/ai-time-management-system-creator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-time-management-system-creator returned HTTP 403 |
+| 193 | `/library/ai-optimized-freelancer-client-intake-form-generator` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-optimized-freelancer-client-intake-form-generator returned HTTP 403 |
+| 194 | `/library/ai-powered-pricing-strategy-optimizer` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-powered-pricing-strategy-optimizer returned HTTP 403 |
+| 195 | `/library/ai-feature-prioritization-framework-product-managers` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-feature-prioritization-framework-product-managers returned HTTP 403 |
+| 196 | `/library/contextual-response-refinement-chatbots-vassistants` | ⏭ http_status | — | — | — | https://launchvault.ca/library/contextual-response-refinement-chatbots-vassistants returned HTTP 403 |
+| 197 | `/library/ai-saas-revenue-maximizer-blueprint` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-saas-revenue-maximizer-blueprint returned HTTP 403 |
+| 198 | `/library/advanced-prompt-sequencing` | ⏭ http_status | — | — | — | https://launchvault.ca/library/advanced-prompt-sequencing returned HTTP 403 |
+| 199 | `/library/contextual-response-tuning` | ⏭ http_status | — | — | — | https://launchvault.ca/library/contextual-response-tuning returned HTTP 403 |
+| 200 | `/library/ai-powered-voice-branding-guide` | ⏭ http_status | — | — | — | https://launchvault.ca/library/ai-powered-voice-branding-guide returned HTTP 403 |
+
+#### Rules
+
+4 flags over 1 pages. Deterministic — no model involved.
+
+| Check | Layer | Times flagged |
+|---|---|---|
+| `numbered_eyebrows` | craft | 1 |
+| `generic_copy` | craft | 1 |
+| `overused_icons` | craft | 1 |
+| `meta_description_length` | search | 1 |
+
+#### AI step (the only model call in the pipeline)
+
+- Sent **4 items** (one per distinct finding) instead of 4 — a check that fires on many pages is explained once.
+- Model `claude-haiku-4-5`, served as `claude-haiku-4-5-20251001`: 1 calls, 0 failed batches.
+- Tokens: 933 input, 372 output → **$0.0028**.
+- Explained 4, kept the rule's own text for 0.
+- Request ids: `req_011CfDwJWAMxhy2Yk1Y1Czsx`
+
+#### Scores
+
+| Layer | Score |
+|---|---|
+| Craft | 80 |
+| Structure | 100 |
+| Search | 94 |
+| Answers | 100 |
+| **Overall** | **92 — clean** |
+
+### 5. Findings
+
+#### Craft (80/100)
+
+- **`generic_copy`** · medium · 1× on 1 page (/) · _Claude-written_
+  - **Found (one example):** 1 instance(s) of generic marketing phrasing found in headings/copy
+  - **Why:** Generic phrases like 'personalized' and 'unlock' are overused marketing language. Specific language about what visitors actually get makes the value clearer.
+  - **Fix:** Replace 'unlock your personalized daily feed' with concrete details: e.g., 'track completed lessons and see your next topic based on your level'.
+- **`numbered_eyebrows`** · low · 1× on 1 page (/) · _Claude-written_
+  - **Found (one example):** Found 6 short numbered labels (4, 2, 3, 6, 5) — a common auto-generated 'step/feature' eyebrow pattern
+  - **Why:** Numbered labels without context read as placeholder structure. They don't communicate what each section offers, making the page feel incomplete or auto-assembled.
+  - **Fix:** Replace numbers (4, 2, 3, 6, 5, 1) with descriptive labels that match your actual content—e.g., 'Learn Fundamentals', 'Apply to Your Work', 'Save Your Progress'.
+- **`overused_icons`** · low · 1× on 1 page (/) · _Claude-written_
+  - **Found (one example):** 35 uses of icons commonly overused in generated UI (arrow-right, sparkles, shield-check, trending-up, zap, circle-check, rocket)
+  - **Why:** Heavy icon use without restraint (35 total, 16 arrow-rights alone) dilutes visual hierarchy and emphasizes decoration over content distinction.
+  - **Fix:** Audit icons by function: keep only those that clarify meaning or distinguish sections. Remove redundant arrow-rights; use them only for navigation calls-to-action.
+
+#### Search (94/100)
+
+- **`meta_description_length`** · low · 1× on 1 page (/) · _Claude-written_
+  - **Found (one example):** Meta description is 194 characters (long)
+  - **Why:** Meta descriptions over 160 characters truncate in search results, cutting off your value proposition and lowering click-through likelihood.
+  - **Fix:** Trim to 155–160 characters: 'Learn AI clearly with step-by-step guides, real prompts, and explainers for adults. 50 free topics—no jargon.'
+
+### 6. Database cross-check
+
+| | Database | API |
+|---|---|---|
+| Scan status | done | done |
+| Findings | 4 | 4 |
+| AI-written findings | 4 | 4 |
+| Pages | 1 | 1 |
+| Trace stored | True | True |
+| Queue job | done, attempt 1 | — |
+
+### 7. Checks
+
+- ✅ **preflight** — database is Postgres, not a SQLite fallback
+- ✅ **preflight** — Anthropic API key is set
+- ✅ **preflight** — ai_explain is enabled
+- ✅ **preflight** — scans.trace column exists
+- ✅ **preflight** — API key minted on account `test-runs`
+- ✅ **server** — backend answers /health
+- ✅ **routes** — root lists the workspace API as not mounted
+- ✅ **routes** — /health reports Postgres, ai_explain on, workspace API off
+- ✅ **routes** — no browser origin is allowed (no CORS headers returned)
+- ✅ **validation** — every unsafe target answered with the expected reason code
+- ✅ **provision** — `launchvault.ca` stored as `launchvault.ca`
+- ✅ **provision** — the URL form resolves to the same site (no duplicate)
+- ✅ **ownership** — unverified (no TXT record) -- and a one-off scan is still allowed
+- ✅ **scan** — scan finished as `done`
+- ✅ **results** — trace covers every pipeline stage
+- ✅ **results** — report lists this site
+- ✅ **results** — no page the scan read is disallowed by robots.txt (independent check)
+- ✅ **database** — findings in the database match the API
+- ✅ **database** — AI-written flags match the API
+- ✅ **database** — pages in the database match the API
+- ✅ **database** — trace stored on the scan row
+- ✅ **database** — queue job finished on its first attempt
+- Plus 32 route calls in section 2, 32 as expected.
+
+### 8. Issues observed
+
+- ℹ️ 2 page(s) skipped because the site's robots.txt disallows them — expected, and correct: /signup, /login
+- ⚠️ 197 page(s) skipped as `http_status` — /: https://launchvault.ca/ returned HTTP 403; /learn-ai: https://launchvault.ca/learn-ai returned HTTP 403; /how-to-learn-ai: https://launchvault.ca/how-to-learn-ai returned HTTP 403; /features: https://launchvault.ca/features returned HTTP 403; /how-it-works: https://launchvault.ca/how-it-works returned HTTP 403; /pricing: https://launchvault.ca/pricing returned HTTP 403; /library: https://launch
+
+### 9. Server log (application lines, redacted)
+
+```text
+2026-09-19 22:47:42,777 INFO fig.jobs: worker w1 up
+2026-09-19 22:47:42,778 INFO fig.jobs: worker w2 up
+2026-09-19 22:47:42,778 INFO fig: FIG API up - db postgres, ai_explain claude-haiku-4-5, workspace API off (disconnected from the frontend), watches off
+```

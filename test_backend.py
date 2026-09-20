@@ -112,11 +112,40 @@ def test_dns_half_refuses_anything_not_public():
 
 
 def test_every_request_url_goes_through_the_gate():
-    assert check_url("https://shop.testsite.com/a?b=c", fake_resolver) == "shop.testsite.com"
+    resolution = check_url("https://shop.testsite.com/a?b=c", fake_resolver)
+    assert resolution.hostname == "shop.testsite.com" and resolution.addresses == [PUBLIC]
     expect_code("ip_literal", check_url, "http://169.254.169.254/latest/meta-data/", fake_resolver)
     expect_code("bad_scheme", check_url, "file:///etc/passwd", fake_resolver)
     expect_code("has_port", check_url, "https://shop.testsite.com:6379/", fake_resolver)
     expect_code("non_public_address", check_url, "https://sneaky.testsite.com/", fake_resolver)
+
+
+def test_pinning_closes_the_rebinding_gap():
+    """The actual TOCTOU this whole module exists to close: an answer that
+    changes between the check and the connection. Proven here without any
+    real network access -- `pinned()` patches socket.getaddrinfo itself, so
+    calling it directly is enough to prove the connection would have used
+    the checked address, not a fresh (possibly rebound) lookup."""
+    import socket
+
+    # Unpinned: the real resolver would run. We don't call it (no network in
+    # this test file), we only prove nothing is pinned yet.
+    assert not getattr(validation._pin_local, "map", None)
+
+    with validation.pinned("rebind.testsite.com", PUBLIC):
+        infos = socket.getaddrinfo("rebind.testsite.com", 443)
+        assert infos == [(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", (PUBLIC, 443))]
+        # A different, unrelated hostname pinned on the same thread must not
+        # bleed into this one -- each pin is keyed by its own hostname.
+        with validation.pinned("other.testsite.com", "203.0.113.9"):
+            assert socket.getaddrinfo("rebind.testsite.com", 443)[0][4] == (PUBLIC, 443)
+            assert socket.getaddrinfo("other.testsite.com", 80)[0][4] == ("203.0.113.9", 80)
+        # Restored, not left dangling, once the inner block exits.
+        assert "other.testsite.com" not in validation._pin_local.map
+
+    # And once the outer block exits, nothing is pinned at all -- a lookup
+    # for a real hostname now falls through to the real resolver again.
+    assert "rebind.testsite.com" not in getattr(validation._pin_local, "map", {})
 
 
 # --- the crawler, against a fake network ---------------------------------
