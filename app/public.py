@@ -175,6 +175,55 @@ def start_public_read(body: ReadRequest, request: Request,
             "poll": f"/scan/{scan.id}", "cached": False}
 
 
+@router.get("/scan/library")
+def scan_library(session: Session = Depends(get_session), limit: int = 30):
+    """The browsable library: one row per site, its most recent read --
+    unlike /reads/recent, a site read fifty times shows up once, not fifty
+    times. Each entry links to its full report at GET /scan/{scan_id}.
+    Registered before /scan/{scan_id} on purpose: that path parameter would
+    otherwise greedily match "library" as a scan id and 404 first."""
+    latest = (
+        select(Scan.site_id, func.max(Scan.finished_at).label("finished_at"))
+        .where(Scan.trigger == "demo", Scan.status == "done")
+        .group_by(Scan.site_id)
+        .subquery()
+    )
+    rows = session.execute(
+        select(Scan, Site.hostname)
+        .join(latest, (Scan.site_id == latest.c.site_id)
+              & (Scan.finished_at == latest.c.finished_at))
+        .join(Site, Site.id == Scan.site_id)
+        .order_by(latest.c.finished_at.desc())
+        .limit(min(max(limit, 1), 60))
+    ).all()
+
+    out = []
+    for scan, hostname in rows:
+        shared = session.scalar(
+            select(func.count()).select_from(PublicRead)
+            .where(PublicRead.scan_id == scan.id, PublicRead.show_hostname.is_(True))
+        ) or 0
+        top = session.scalars(
+            select(PublicRead).where(PublicRead.scan_id == scan.id,
+                                     PublicRead.top_check.isnot(None))
+            .order_by(PublicRead.created_at.desc())
+        ).first()
+        out.append({
+            "scan_id": scan.id,
+            "site": hostname if shared > 0 else None,
+            "shared": shared > 0,
+            "pages": scan.pages_crawled,
+            "score": scan.score,
+            "verdict": verdict(scan.score) if scan.score is not None else None,
+            "top_check": top.top_check if top else None,
+            "top_layer": LAYER_LABEL.get(top.top_layer or "", top.top_layer) if top else None,
+            "at": scan.finished_at.isoformat() if scan.finished_at else None,
+        })
+
+    total_sites = session.scalar(select(func.count()).select_from(latest)) or 0
+    return {"library": out, "total_sites": total_sites}
+
+
 @router.get("/scan/{scan_id}")
 def public_read_result(scan_id: str, session: Session = Depends(get_session)):
     scan = session.get(Scan, scan_id)
@@ -257,50 +306,3 @@ def recent_reads(session: Session = Depends(get_session), limit: int = 24):
         "average_score": round(avg) if avg is not None else None,
         "most_common": [{"check": c, "count": n} for c, n in common],
     }
-
-
-@router.get("/scan/library")
-def scan_library(session: Session = Depends(get_session), limit: int = 30):
-    """The browsable library: one row per site, its most recent read --
-    unlike /reads/recent, a site read fifty times shows up once, not fifty
-    times. Each entry links to its full report at GET /scan/{scan_id}."""
-    latest = (
-        select(Scan.site_id, func.max(Scan.finished_at).label("finished_at"))
-        .where(Scan.trigger == "demo", Scan.status == "done")
-        .group_by(Scan.site_id)
-        .subquery()
-    )
-    rows = session.execute(
-        select(Scan, Site.hostname)
-        .join(latest, (Scan.site_id == latest.c.site_id)
-              & (Scan.finished_at == latest.c.finished_at))
-        .join(Site, Site.id == Scan.site_id)
-        .order_by(latest.c.finished_at.desc())
-        .limit(min(max(limit, 1), 60))
-    ).all()
-
-    out = []
-    for scan, hostname in rows:
-        shared = session.scalar(
-            select(func.count()).select_from(PublicRead)
-            .where(PublicRead.scan_id == scan.id, PublicRead.show_hostname.is_(True))
-        ) or 0
-        top = session.scalars(
-            select(PublicRead).where(PublicRead.scan_id == scan.id,
-                                     PublicRead.top_check.isnot(None))
-            .order_by(PublicRead.created_at.desc())
-        ).first()
-        out.append({
-            "scan_id": scan.id,
-            "site": hostname if shared > 0 else None,
-            "shared": shared > 0,
-            "pages": scan.pages_crawled,
-            "score": scan.score,
-            "verdict": verdict(scan.score) if scan.score is not None else None,
-            "top_check": top.top_check if top else None,
-            "top_layer": LAYER_LABEL.get(top.top_layer or "", top.top_layer) if top else None,
-            "at": scan.finished_at.isoformat() if scan.finished_at else None,
-        })
-
-    total_sites = session.scalar(select(func.count()).select_from(latest)) or 0
-    return {"library": out, "total_sites": total_sites}
