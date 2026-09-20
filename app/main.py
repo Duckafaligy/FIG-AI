@@ -131,6 +131,7 @@ def root():
 
 
 @app.get("/health")
+@app.head("/health")
 def health(session: Session = Depends(get_session)):
     return {
         "status": "ok",
