@@ -31,6 +31,13 @@ const nextConfig = {
       // resolves to this app's own domain instead of the backend's --
       // there's no /oauth route here at all, so it 404s.
       { source: "/oauth/:path*", destination: `${backend}/oauth/:path*` },
+      // The free, unauthenticated scan (POST /scan, GET /scan/{id}, GET
+      // /scan/library) doesn't need this for cookie reasons -- it carries no
+      // session at all -- but proxying it anyway keeps every backend call
+      // the browser makes on this same origin, consistently, rather than
+      // exposing the Render domain directly for just this one feature.
+      { source: "/scan", destination: `${backend}/scan` },
+      { source: "/scan/:path*", destination: `${backend}/scan/:path*` },
     ];
   },
 };

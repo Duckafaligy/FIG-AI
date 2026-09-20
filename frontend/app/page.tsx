@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { FreeScanForm } from "@/components/free-scan-form";
 import {
   ArrowRight,
   BarChart3,
@@ -169,6 +170,7 @@ export default function HomePage() {
               <span className="eyebrow"><Sparkles size={13} />SEO + GEO content operations</span>
               <h1>Launch SEO and GEO content that gets <span>your brand found</span></h1>
               <p>Plan, create, review, and publish—all in one place. Bring your team, content, and insights together to get found in search and AI answers.</p>
+              <FreeScanForm />
               <div className="home-hero-actions">
                 <Link className="button" href="/projects">Try the demo <ArrowRight size={17} /></Link>
                 <Link className="secondary-button" href="/signup">Start free</Link>

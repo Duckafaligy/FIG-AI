@@ -473,6 +473,38 @@ export const actions = {
     apiSend<unknown>(`/api/changes/${id}/${action}`, "POST"),
 };
 
+/** A one-way, per-browser id for the free scan's rate limit -- not identity,
+ * just lets the backend tell "this browser's 3rd scan today" from a fresh
+ * one. Regenerated if localStorage is unavailable (private browsing, etc.),
+ * which only means that visit gets its own bucket rather than persisting. */
+function freeScanDeviceId(): string {
+  try {
+    const key = "fig_free_scan_device";
+    const existing = localStorage.getItem(key);
+    if (existing) return existing;
+    const id = crypto.randomUUID();
+    localStorage.setItem(key, id);
+    return id;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
+
+export type PublicScanStart = { scan_id: string; hostname: string; status: string; poll: string; cached?: boolean };
+export type PublicScanStatus =
+  | { scan_id: string; hostname: string; status: "queued" | "running"; error?: null }
+  | { scan_id: string; hostname: string; status: "failed"; error: string | null }
+  | { scan_id: string; hostname: string; status: "done"; [key: string]: unknown };
+
+/** The free, unauthenticated scan -- app/public.py, no session cookie involved. */
+export const publicScan = {
+  start: (url: string, share = true) =>
+    apiSend<PublicScanStart>("/scan", "POST", { url, device_id: freeScanDeviceId(), share }),
+  status: (scanId: string) => apiClient<PublicScanStatus>(`/scan/${scanId}`),
+  library: (limit = 30) =>
+    apiClient<{ library: unknown[]; total_sites: number }>(`/scan/library?limit=${limit}`),
+};
+
 /** Format a nullable number the way the backend intends: null is unknown. */
 export function fmt(value: Nullable<number>, opts?: { suffix?: string; compact?: boolean }): string {
   if (value === null || value === undefined) return "—";

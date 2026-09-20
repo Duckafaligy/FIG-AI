@@ -55,6 +55,14 @@ body { color: var(--fig-navy); }
 .home-hero-copy > p { max-width: 500px; margin: 0; color: var(--fig-copy); font-size: 14px; line-height: 1.58; }
 .home-hero-actions { margin: 24px 0 22px; display: flex; gap: 12px; }
 .home-hero-actions > a { min-width: 132px; }
+.home-scan-form { margin: 4px 0 18px; }
+.home-scan-input { display: flex; gap: 8px; max-width: 420px; }
+.home-scan-input input { flex: 1; min-width: 0; height: 46px; padding: 0 16px; border: 1px solid var(--fig-line); border-radius: 9px; background: #fff; font-size: 14px; color: var(--ink); }
+.home-scan-input input:focus-visible { outline: 2px solid var(--fig-violet); outline-offset: 1px; }
+.home-scan-input .button { flex-shrink: 0; }
+.home-scan-spin { animation: home-scan-spin 1s linear infinite; }
+@keyframes home-scan-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .home-scan-spin { animation: none; } }
 .home-hero-proof { display: flex; align-items: center; gap: 13px; }
 .home-hero-proof p { max-width: 285px; margin: 0; color: #6d7899; font-size: 10px; line-height: 1.45; }
 .avatar-stack--photos { padding-left: 7px; }

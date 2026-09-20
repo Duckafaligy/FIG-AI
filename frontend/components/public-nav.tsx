@@ -18,6 +18,7 @@ export function PublicNav({ active }: { active?: "pricing" }) {
         </button>
         <div className={`public-nav-links ${active === "pricing" ? "public-nav-links--pricing" : ""} ${open ? "is-open" : ""}`}>
           <Link href="/projects" onClick={closeMenu}>Demo</Link>
+          <Link href="/library" onClick={closeMenu}>Library</Link>
           {active === "pricing" && <Link href="/pricing" className="is-active" onClick={closeMenu}>Pricing</Link>}
           <Link href="/signin" onClick={closeMenu}>Sign in</Link>
           <Link className="button button--small" href="/signup" onClick={closeMenu}>Sign up</Link>
