@@ -116,3 +116,19 @@ Two separate projects, same codebase (`frontend/`), same org (`ducakfaligy`):
 - Frontend actually talking to the backend (not just showing the static
   preview): visiting `/app` while signed out should redirect to `/signin`
   rather than silently show demo content.
+
+## Paper — design tool
+
+- **What for:** the whole frontend is being replicated into a Paper file
+  (`FIG AI Frontend UI`) so it can be restyled visually and ported back into
+  the Next.js files. Design tokens (colors, Inter, radii, spacing) were
+  seeded from `frontend/app/redesign.css`, the layer that actually renders.
+- **How it connects:** Paper Desktop must be open with the file loaded — that
+  starts a local MCP server at `http://127.0.0.1:29979/mcp`. In Claude Code,
+  `/mcp` -> `paper` -> Reconnect after it has dropped.
+- **Limits:** the free plan has a weekly MCP call limit (hit on
+  2026-09-20; resets after 5 days, or upgrade to Paper Pro). Building many
+  pages in parallel also got the Claude API rate-limited — go one page at a
+  time.
+- **Status:** Home and Pricing are built. Other artboards exist but are
+  mostly empty.

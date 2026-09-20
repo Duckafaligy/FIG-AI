@@ -127,8 +127,11 @@ a real competitor's site, Citalis, to understand its design).
 
 - **Backend:** FastAPI (Python)
 - **DB:** Postgres via Supabase
-- **Auth:** Supabase Auth (server-side token check built; not yet exercised
-  end to end with the frontend)
+- **Auth:** Supabase Auth — live end to end (email/password; Google/Shopify
+  "continue with" buttons are still placeholders). Supabase's own email
+  templates were replaced with branded HTML on 2026-09-19; its shared default
+  email sender is low-volume and returned "Error sending confirmation email"
+  under repeated test signups — a real SMTP provider is the fix at any volume.
 - **Scraping:** BeautifulSoup4 + requests (Playwright only if/when computed
   CSS values are needed — not needed for v1)
 - **AI:** Claude API (`anthropic` SDK), currently `claude-haiku-4-5-20251001`
@@ -137,8 +140,11 @@ a real competitor's site, Citalis, to understand its design).
   scale requires it
 - **Email:** Resend (not yet wired up — needed for verification instructions
   and Watch alerts)
-- **Payments:** Stripe (not yet wired up)
-- **Hosting:** Railway or Render (not yet deployed)
+- **Payments:** Stripe, test mode — checkout, portal and webhook are live
+  (see roadmap item 6). Live mode is a separate, deliberate step.
+- **Hosting:** Render (backend, free tier, `render.yaml`) + Vercel (frontend).
+  Railway and Fly.io no longer have free tiers. UptimeRobot pings `/health`
+  every 5 minutes so Render's free tier doesn't sleep. See `PLATFORMS.md`.
 - **Error tracking:** Sentry (not yet added)
 
 ## Current state — what's actually built and tested
@@ -157,8 +163,16 @@ again (unmounts `/api`, allows no browser origin); `/v1`, `/scan` and
   names like `localhost` or `*.internal`, http(s) only, standard ports), then
   DNS: every resolved address must be globally routable. `check_url` re-runs
   both on every request the crawler makes, including each redirect hop and
-  each sitemap. Stable error codes, returned by the API. The residual risk
-  (DNS rebinding between check and connect) is written up in its docstring.
+  each sitemap. Stable error codes, returned by the API. DNS rebinding is
+  closed (2026-09-19): `check_url` returns the addresses it just validated and
+  `pinned()` forces the connection to use one, via a thread-local
+  `socket.getaddrinfo` patch scoped per hostname so concurrent scans of
+  different hosts never see each other's pin. `app/scraper.py` pins every
+  request. `app/verification.py`'s ownership meta-tag check had a related,
+  worse gap found alongside it — zero real-time revalidation (it trusted
+  whatever the hostname was when the Site was created) and unrestricted
+  redirect-following — now closed the same way, with a bounded, re-validated
+  redirect loop.
 - `app/robots.py` — robots.txt read the RFC 9309 way: groups by user-agent
   lines only, longest match wins, `*` and `$` wildcards. **Do not switch back to
   `urllib.robotparser`:** it drops every rule after a blank line and applies
@@ -212,7 +226,22 @@ again (unmounts `/api`, allows no browser origin); `/v1`, `/scan` and
   it, so a user or partner UI can see what a scan actually looks for.
 - `app/public.py` — `/scan`, the free read: validated, capped per browser, per
   network and globally per day. `X-Forwarded-For` is only trusted when
-  `FIG_TRUST_PROXY=1`.
+  `FIG_TRUST_PROXY=1`. **The per-domain cache is real now (2026-09-20).**
+  It was documented and even implemented (`pipeline.is_cached`) but never
+  called by anything, so every free read re-crawled the site. `start_public_read`
+  now reuses the latest completed scan of that site (returns `cached: true`)
+  and copies `score`/`pages`/`top_check` onto the new `PublicRead` row, because
+  `pipeline._record_public` only runs once, when a scan actually finishes.
+  `GET /scan/library` is the browsable public library: one row per site, its
+  most recent read (`/reads/recent` is the raw per-visit log, where a popular
+  cached site repeats). **Register it before `/scan/{scan_id}`** — the path
+  parameter route greedily matches "library" and 404s otherwise (this shipped
+  broken once). Domains are shown **by default** (2026-09-20 decision): `/scan`
+  only ever reads a site's own already-public homepage, never a student's
+  private project (that path is account-owned and opt-in via
+  `Site.reports_public`), so this is not the leaderboard/shaming case the ONE
+  rule forbids. A read can still opt out with `share: false`. Rows recorded
+  before this change keep the old anonymous default.
 - `app/auth.py` — `fig_live_*` keys, SHA-256 stored, plaintext shown once.
 - `app/billing.py` — Stripe: graduated per-site tiers, checkout, portal,
   webhook, and `sync_quantity` so provisioning changes the invoice without a
@@ -518,11 +547,19 @@ placeholders** — only email/password goes through Supabase for now.
    for verification (a privacy policy, terms, possibly a demo video, a
    review that takes days to weeks) is the real fix for both of these, and
    is worth doing before this reaches anyone outside a small testing group.
-5. **Call `POST /scan` from the frontend** — the free, anonymous read is
-   mounted, validated and rate-limited; nothing on the public marketing site
-   calls it yet. Not the same gap as the one just closed below — this is the
-   unauthenticated homepage entry point ("paste your URL, no signup"), not
-   the authenticated dashboard's own project-adding flow.
+5. **`POST /scan` from the frontend — done (2026-09-20).** The homepage hero
+   has a real "paste your URL" form (`components/free-scan-form.tsx`, a small
+   client island so the page itself stays statically prerendered). It posts to
+   `/scan`, polls `/scan/{id}` until done or failed, then navigates to
+   `/report/{id}` so the report always opens finished instead of on its
+   "still scanning, refresh" state. `/library` (server-rendered, reads
+   `/scan/library`) is linked from the nav. `next.config.mjs` proxies `/scan`
+   and `/scan/*` like `/api` and `/oauth` — same "add every path the browser
+   hits" lesson. **Still open:** the library currently shows one stale row,
+   `127.0.0.1:8123`, from before URL validation existed. It is old test data
+   in the production database, not a live hole (today's validation rejects
+   it), but it sits on a public page. Deleting it is a production-data
+   decision left to the owner.
 5b. **`/projects` → real data — done (2026-09-17).** Was 100% static, one
    hardcoded demo card, an "Add project" dialog that only explained why it
    couldn't add one. Now fetches `api.projects()` (the shape `app/pages.py`
@@ -582,8 +619,22 @@ placeholders** — only email/password goes through Supabase for now.
    (`t=<ts>,v1=<hmac-sha256>`), got a real `200 {"received": true}` back —
    proves `stripe.Webhook.construct_event()` and the `.to_dict()` fix both
    still work against the live deployment, not simulated.
-7. **Pin crawler connections to the validated address** — closes the DNS
-   rebinding gap described in `app/validation.py`.
+7. **Pin crawler connections to the validated address — done (2026-09-19).**
+   See `app/validation.py` above. Verified three ways: a fake-network test
+   proving the pin overrides resolution and never bleeds across
+   threads/hostnames (`test_pinning_closes_the_rebinding_gap`), a full real
+   end-to-end crawl of launchvault.ca (54/54, `Test Runs.md`), and a fresh
+   real crawl of neverssl.com against the deployed backend. **Process note:**
+   this fix was verified locally and then sat uncommitted — the deployed
+   backend was running the old code until it was noticed. A green local test
+   is not the same as deployed; confirm what is actually live.
+
+**Design tool:** the UI is being replicated into Paper (`FIG AI Frontend UI`,
+`PLATFORMS.md`) so it can be restyled visually and ported back to the Next.js
+files. Home and Pricing are built; the rest of the pages are not. Paper's free
+plan has a weekly MCP call limit, and running many workers in parallel got the
+Claude API throttled — build one page at a time. Paper exports exact values
+with `get_jsx`/`get_computed_styles`; never read sizes off a screenshot.
 
 ## Funding path (for context, not urgent)
 
