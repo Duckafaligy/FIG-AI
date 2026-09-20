@@ -315,11 +315,16 @@ class User(Base):
 
 
 class PublicRead(Base):
-    """One free read from the marketing site, and its row in the public feed.
+    """One free read from the marketing site, and its row in the public
+    library (app/public.py's /scan/library, deduplicated by site) and the
+    raw recent-reads feed (/reads/recent, one row per visit).
 
-    Anonymous unless `show_hostname` is set by the person who ran it. The
-    project rule is explicit that there is no public leaderboard naming real
-    sites, so a domain someone else pointed this at never appears here.
+    Named by default (2026-09-20) -- `show_hostname` -- since `/scan` only
+    ever reads a public site's own already-public homepage, never a
+    student's own private in-progress project (that path is account-owned,
+    gated behind `Site.reports_public`, opt-in, off by default). Set to
+    false by whoever ran a specific read to keep that one out of the
+    library.
 
     device_hash and ip_hash are one-way and exist only to cap the free read.
     Neither the raw cookie nor the IP is stored.
@@ -331,7 +336,7 @@ class PublicRead(Base):
     scan_id = Column(String, ForeignKey("scans.id"), nullable=False, index=True)
 
     hostname = Column(String, nullable=False)
-    show_hostname = Column(Boolean, nullable=False, default=False)
+    show_hostname = Column(Boolean, nullable=False, default=True)
 
     score = Column(Integer, nullable=True)
     pages = Column(Integer, nullable=True)

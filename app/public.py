@@ -1,16 +1,21 @@
-"""The public half: the free read, and the feed of recent reads.
+"""The public half: the free read, and the public library of past reads.
 
 Two constraints shape this file.
 
 **Cost.** A public read crawls somebody's real site and calls Claude. Both
 cost money and neither should be loopable, so reads are capped per device and
-per IP before any work is queued.
+per IP before any work is queued, and a domain already read recently is
+served from that read rather than re-crawled (`app.pipeline.is_cached`) --
+if fifty people read the same site, it is scraped once.
 
-**The rule in CLAUDE.md.** No public leaderboard naming real sites. The feed
-is therefore anonymous by default — a score, a page count, which pattern came
-up, how long ago — and the domain appears only when the person who ran the
-read ticks the box to share it. Nobody else's site gets named because a
-stranger pointed this at it.
+**The rule in CLAUDE.md.** No leaderboard *ranking or shaming* sites against
+each other. A straightforward library naming the domain each read was of is
+a different thing (2026-09-20 decision) -- `/scan` only ever reads a public
+marketing site's own already-public homepage, never a student's own private
+in-progress project (that's the account-owned path, gated behind
+`Site.reports_public`, opt-in, off by default). The library therefore shows
+the domain by default; a read can still be kept out of it by setting
+`share: false`, for whoever specifically doesn't want their read listed.
 """
 from __future__ import annotations
 
@@ -28,6 +33,7 @@ from app.auth import demo_account
 from app.db import get_session
 from app.jobs import enqueue_scan
 from app.models import Account, Finding, PublicRead, Scan, Site
+from app.pipeline import is_cached
 from app.rules.scoring import LAYER_LABEL, verdict
 
 router = APIRouter(tags=["public"])
@@ -92,9 +98,9 @@ class ReadRequest(BaseModel):
     url: str
     device_id: str | None = None
     share: bool = Field(
-        default=False,
-        description="Show this domain publicly in the recent-reads feed. "
-                    "Off by default: nobody else's site gets named here.",
+        default=True,
+        description="Show this domain by name in the public library. On by "
+                    "default -- set to false to keep this one read out of it.",
     )
 
 
@@ -125,6 +131,40 @@ def start_public_read(body: ReadRequest, request: Request,
         session.add(site)
         session.flush()
 
+    # Every Site under the public account exists only because someone ran a
+    # free read of that hostname, so any Scan against it is already a demo
+    # read -- reusing the latest one here can never surface a real
+    # customer's private scan.
+    if is_cached(site):
+        cached = session.scalars(
+            select(Scan).where(Scan.site_id == site.id, Scan.trigger == "demo",
+                               Scan.status == "done")
+            .order_by(Scan.finished_at.desc())
+        ).first()
+        if cached is not None:
+            # score/pages/top_check are normally filled in once, by
+            # pipeline._record_public, right when a scan finishes -- which
+            # never runs again for a cache hit. Copy them from the read that
+            # originally recorded this scan instead of leaving them null
+            # (null would silently drop this row out of the library, since
+            # both feeds below filter on score IS NOT NULL).
+            prior = session.scalars(
+                select(PublicRead).where(PublicRead.scan_id == cached.id,
+                                         PublicRead.score.isnot(None))
+                .order_by(PublicRead.created_at.desc())
+            ).first()
+            session.add(PublicRead(
+                scan_id=cached.id, hostname=host, show_hostname=bool(body.share),
+                device_hash=dev, ip_hash=ip,
+                score=prior.score if prior else cached.score,
+                pages=prior.pages if prior else cached.pages_crawled,
+                top_check=prior.top_check if prior else None,
+                top_layer=prior.top_layer if prior else None,
+            ))
+            session.commit()
+            return {"scan_id": cached.id, "hostname": host, "status": "done",
+                    "poll": f"/scan/{cached.id}", "cached": True}
+
     scan = enqueue_scan(session, site.id, trigger="demo",
                         max_pages=config.PUBLIC_SCAN_MAX_PAGES)
     session.add(PublicRead(scan_id=scan.id, hostname=host,
@@ -132,7 +172,7 @@ def start_public_read(body: ReadRequest, request: Request,
                            device_hash=dev, ip_hash=ip))
     session.commit()
     return {"scan_id": scan.id, "hostname": host, "status": "queued",
-            "poll": f"/scan/{scan.id}"}
+            "poll": f"/scan/{scan.id}", "cached": False}
 
 
 @router.get("/scan/{scan_id}")
@@ -175,8 +215,10 @@ def public_read_result(scan_id: str, session: Session = Depends(get_session)):
 
 @router.get("/reads/recent")
 def recent_reads(session: Session = Depends(get_session), limit: int = 24):
-    """Anonymous by default. A domain appears only where the person who ran
-    the read chose to share it."""
+    """The raw visit log -- one row per read, so a popular cached site can
+    appear here many times over. Named by default (see PublicRead's
+    docstring); `/scan/library` below is the deduplicated, one-row-per-site
+    view meant for actual browsing."""
     rows = session.scalars(
         select(PublicRead)
         .where(PublicRead.score.isnot(None))
@@ -215,3 +257,50 @@ def recent_reads(session: Session = Depends(get_session), limit: int = 24):
         "average_score": round(avg) if avg is not None else None,
         "most_common": [{"check": c, "count": n} for c, n in common],
     }
+
+
+@router.get("/scan/library")
+def scan_library(session: Session = Depends(get_session), limit: int = 30):
+    """The browsable library: one row per site, its most recent read --
+    unlike /reads/recent, a site read fifty times shows up once, not fifty
+    times. Each entry links to its full report at GET /scan/{scan_id}."""
+    latest = (
+        select(Scan.site_id, func.max(Scan.finished_at).label("finished_at"))
+        .where(Scan.trigger == "demo", Scan.status == "done")
+        .group_by(Scan.site_id)
+        .subquery()
+    )
+    rows = session.execute(
+        select(Scan, Site.hostname)
+        .join(latest, (Scan.site_id == latest.c.site_id)
+              & (Scan.finished_at == latest.c.finished_at))
+        .join(Site, Site.id == Scan.site_id)
+        .order_by(latest.c.finished_at.desc())
+        .limit(min(max(limit, 1), 60))
+    ).all()
+
+    out = []
+    for scan, hostname in rows:
+        shared = session.scalar(
+            select(func.count()).select_from(PublicRead)
+            .where(PublicRead.scan_id == scan.id, PublicRead.show_hostname.is_(True))
+        ) or 0
+        top = session.scalars(
+            select(PublicRead).where(PublicRead.scan_id == scan.id,
+                                     PublicRead.top_check.isnot(None))
+            .order_by(PublicRead.created_at.desc())
+        ).first()
+        out.append({
+            "scan_id": scan.id,
+            "site": hostname if shared > 0 else None,
+            "shared": shared > 0,
+            "pages": scan.pages_crawled,
+            "score": scan.score,
+            "verdict": verdict(scan.score) if scan.score is not None else None,
+            "top_check": top.top_check if top else None,
+            "top_layer": LAYER_LABEL.get(top.top_layer or "", top.top_layer) if top else None,
+            "at": scan.finished_at.isoformat() if scan.finished_at else None,
+        })
+
+    total_sites = session.scalar(select(func.count()).select_from(latest)) or 0
+    return {"library": out, "total_sites": total_sites}
