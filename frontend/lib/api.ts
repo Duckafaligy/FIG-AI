@@ -422,7 +422,15 @@ export type ApiSettingsPage = ApiChrome & {
 
 export const api = {
   me: () => apiServer<ApiMe>("/api/me"),
-  projects: () => apiServer<ApiProjectsPage>("/api/projects"),
+  // projects() and settings() are called from Client Components
+  // (app/projects/page.tsx, app/app/settings/page.tsx -- both "use client",
+  // fetching in a useEffect), never from a Server Component. apiServer
+  // needs next/headers, which does not exist in the browser -- calling it
+  // from client-side code throws, so `live` state on both pages was never
+  // actually populated. apiClient is the correct fetch for these two; every
+  // other entry below runs inside a real Server Component and keeps
+  // apiServer.
+  projects: () => apiClient<ApiProjectsPage>("/api/projects"),
   overview: (project = "") =>
     apiServer<ApiOverviewPage>(`/api/overview${project ? `?project=${encodeURIComponent(project)}` : ""}`),
   seo: (project = "", tab = "queue") =>
@@ -433,7 +441,7 @@ export const api = {
     apiServer<ApiGeoPage>(`/api/geo${project ? `?project=${encodeURIComponent(project)}` : ""}`),
   notifications: () => apiServer<ApiNotificationsPage>("/api/notifications"),
   history: () => apiServer<ApiHistoryPage>("/api/history"),
-  settings: () => apiServer<ApiSettingsPage>("/api/settings"),
+  settings: () => apiClient<ApiSettingsPage>("/api/settings"),
 };
 
 /* ------------------------------------------------- browser-side mutations */
