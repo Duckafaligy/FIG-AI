@@ -233,6 +233,51 @@ read `frontend/node_modules/next/dist/docs/` before writing any Next code.**
 Two differences that already bit: `cookies()` is async (`await cookies()`),
 and `searchParams` is a Promise in Server Components.
 
+**Both are deployed for real (2026-09-19)** — `fig-ai-backend.onrender.com`
+(Render, free tier, `render.yaml` Blueprint) and `fig-ai-seven.vercel.app`
+(Vercel). See `PLATFORMS.md` for every external service and its dashboard.
+Two genuinely different domains for the same product surfaced a class of bug
+that never shows up in local dev, where frontend and backend are both
+"localhost" and count as same-site by accident:
+
+- The session cookie needs `SameSite=None; Secure` once the backend is on a
+  real `https://` URL (`app/main.py`) — `Lax` silently drops it on every
+  cross-site `fetch()`, which looks exactly like "login succeeds, then
+  nothing stays signed in."
+- That alone isn't enough. A cookie set by `fig-ai-backend.onrender.com` can
+  never be read by `fig-ai-seven.vercel.app`'s own Server Components no
+  matter what `SameSite` says — browsers only ever attach a cookie to
+  requests aimed at the domain that issued it. Every SSR auth gate and live
+  data fetch (`lib/api.ts`'s `apiServer`, used by `/app/layout.tsx` and every
+  overlay-driven page) was therefore always forwarding an empty cookie
+  header once deployed. Fixed by having `frontend/next.config.mjs` proxy
+  `/api/:path*` and `/oauth/:path*` through to the backend
+  (`FIG_BACKEND_URL`, server-only), so from the browser's perspective it
+  never talks to a different domain at all — the cookie ends up belonging to
+  the frontend's own origin, which is what both the browser's later fetches
+  and the frontend's own Server Components need. `lib/api.ts` splits
+  `CLIENT_BASE` (relative, proxied) from `SERVER_BASE` (direct, for Server
+  Components' own server-to-server calls, which were never affected by any
+  of this). Making `CLIENT_BASE` relative broke one thing that wasn't
+  obviously related: `apiUrl()` also builds the Google OAuth "Connect"
+  `<a href>` on Settings, and that 404'd until `/oauth/:path*` was added to
+  the same proxy — same lesson twice, add every path the browser actually
+  hits, not just the fetch-shaped ones.
+- **A third, unrelated bug hid behind the first two**: `api.projects()` and
+  `api.settings()` were both defined with `apiServer`, which needs
+  `next/headers` — a server-only API — but their real call sites
+  (`app/projects/page.tsx`, `app/app/settings/page.tsx`) are both `"use
+  client"` components fetching in a `useEffect`. That never worked in a
+  deployed browser (`next/headers` doesn't exist client-side), so both pages
+  silently showed their static preview for every signed-in account, not just
+  ones without a project — indistinguishable from "not wired up yet" until
+  traced. Fixed by switching those two to `apiClient` instead; every other
+  `api.*` entry runs inside a genuine Server Component and correctly keeps
+  `apiServer`.
+- `/health` needs `HEAD` too, not just `GET` (`app/main.py`) — an uptime
+  monitor's keep-alive ping uses `HEAD`, and the route only accepted `GET`,
+  so the monitor's own 405 looked like a real outage.
+
 **Two APIs, deliberately different:**
 
 - `/v1` (`app/api.py`) — the **partner** API. `fig_live_*` key auth,
@@ -449,6 +494,30 @@ placeholders** — only email/password goes through Supabase for now.
    impressions stay demo-only — summing Search Console across every site on
    that page on every load needs batching/caching first, not a straight
    per-site call.
+
+   Settings' Search Console row had its own frontend bug, found once a real
+   deployment made it visible: the static service list named it `"Search
+   Console"` while the backend's real integration row is `"Google Search
+   Console"` — the exact-match lookup in `settings/page.tsx` never found it,
+   and only `isGoogleAnalytics` had the real `/oauth/google/start` href
+   anyway. Both fixed; connecting either Analytics or Search Console from
+   Settings now grants whichever scopes the account has.
+
+   **Verified end to end against a real Google account (2026-09-19)** —
+   full round trip: Settings' Connect button, Google's consent screen, a
+   real access/refresh token stored via `app/secrets_store.py`. One
+   real-world wrinkle worth knowing about, not a bug: the OAuth consent
+   screen is still in Google's **Testing** publishing status, so only
+   accounts explicitly added under Test users can get through it at all —
+   anyone else sees "hasn't completed verification." A supervised (Family
+   Link) Google account additionally needs a parent/guardian to approve the
+   request before the actual permission screen ever appears. And because
+   Analytics/Search Console scopes are sensitive, a Testing-status app's
+   refresh tokens expire after about a week — a connection can go quiet on
+   its own and need reconnecting, not a code bug when it does. Submitting
+   for verification (a privacy policy, terms, possibly a demo video, a
+   review that takes days to weeks) is the real fix for both of these, and
+   is worth doing before this reaches anyone outside a small testing group.
 5. **Call `POST /scan` from the frontend** — the free, anonymous read is
    mounted, validated and rate-limited; nothing on the public marketing site
    calls it yet. Not the same gap as the one just closed below — this is the
@@ -502,10 +571,17 @@ placeholders** — only email/password goes through Supabase for now.
    guessed from trial state. Verified against a real (temporary, since
    deleted) account and a real test subscription — checkout's `success_url`
    confirmed pointing at `localhost:3001` after the fix, portal confirmed
-   returning a real URL once subscribed. **Still open:** real webhook
-   *delivery* has never been tested — that needs a registered endpoint in
-   the Stripe dashboard pointing at a real public URL, which doesn't exist
-   yet, to get a real `STRIPE_WEBHOOK_SECRET`.
+   returning a real URL once subscribed.
+
+   **Webhook delivery — done (2026-09-19), once the backend had a real
+   public URL to register.** A real endpoint now exists in the Stripe
+   dashboard, pointed at `https://fig-ai-backend.onrender.com/v1/billing/webhook`
+   with a real `STRIPE_WEBHOOK_SECRET`. Verified against the actual code
+   path, not just presence of the secret: a locally-constructed event,
+   signed with the real secret exactly as Stripe would sign one
+   (`t=<ts>,v1=<hmac-sha256>`), got a real `200 {"received": true}` back —
+   proves `stripe.Webhook.construct_event()` and the `.to_dict()` fix both
+   still work against the live deployment, not simulated.
 7. **Pin crawler connections to the validated address** — closes the DNS
    rebinding gap described in `app/validation.py`.
 
