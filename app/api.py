@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import billing
 from app.auth import require_account
 from app.db import get_session
 from app.jobs import enqueue_estate, enqueue_scan, queue_depth
@@ -203,6 +204,7 @@ def add_site(body: SiteIn, account: Account = Depends(require_account),
         if not existing.is_active:
             existing.is_active = True
             session.commit()
+            billing.try_sync(session, account)
         return SiteOut.of(existing)
 
     site = Site(account_id=account.id, hostname=host, label=body.label,
@@ -210,6 +212,7 @@ def add_site(body: SiteIn, account: Account = Depends(require_account),
                 monitor_days=body.monitor_days)
     session.add(site)
     session.commit()
+    billing.try_sync(session, account)
     return SiteOut.of(site)
 
 
@@ -235,6 +238,7 @@ def deactivate_site(site_id: str, account: Account = Depends(require_account),
     site.is_active = False
     site.monitor = False
     session.commit()
+    billing.try_sync(session, account)
     return {"id": site.id, "is_active": False}
 
 

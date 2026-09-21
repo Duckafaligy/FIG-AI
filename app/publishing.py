@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 
 from app import wordpress
 from app.models import Account, Change, Finding, Integration, Site
-from app.secrets_store import SecretsNotConfigured, read_secret, store_secret
+from app.secrets_store import SecretsNotConfigured, delete_secret, read_secret, store_secret
 
 log = logging.getLogger("fig.publishing")
 
@@ -276,6 +276,14 @@ def connect(session: Session, account: Account, site_id: str, platform: str,
         session.commit()
         return integ
 
+    # Replacing a credential must not leave the old ciphertext behind: nothing
+    # points at it any more, so nothing would ever delete it.
+    previous_ref = integ.credential_ref
+
+    def _drop_previous() -> None:
+        if previous_ref and previous_ref != integ.credential_ref:
+            delete_secret(session, previous_ref)
+
     if platform == wordpress.PLATFORM:
         username, _, app_password = credential.partition(":")
         ok, detail = wordpress.test_connection(integ.endpoint or "", username, app_password)
@@ -284,6 +292,7 @@ def connect(session: Session, account: Account, site_id: str, platform: str,
             integ.connected_at = None
             integ.last_error = detail
             integ.credential_ref = None
+            _drop_previous()
             session.commit()
             return integ
         try:
@@ -296,6 +305,7 @@ def connect(session: Session, account: Account, site_id: str, platform: str,
             return integ
         integ.connected_at = _now()
         integ.last_error = None
+        _drop_previous()
         session.commit()
         return integ
 
@@ -304,6 +314,7 @@ def connect(session: Session, account: Account, site_id: str, platform: str,
     integ.credential_hint = f"{platform[:2]}_...{tail}"
     integ.connected_at = None
     integ.last_error = f"the {platform} adapter is not built yet"
+    _drop_previous()
     session.commit()
     return integ
 
@@ -316,5 +327,11 @@ def disconnect(session: Session, account: Account, integration_id: str) -> None:
     site = session.get(Site, integ.site_id)
     if site is None or site.account_id != account.id:
         raise HTTPException(404, "no such integration")
+    # Disconnecting has to mean it: delete the stored token or password, not
+    # just the row that points at it. Otherwise "disconnect" leaves a live
+    # Google refresh token or WordPress password encrypted in the database
+    # indefinitely, with nothing left that could ever remove it.
+    if integ.credential_ref:
+        delete_secret(session, integ.credential_ref)
     session.delete(integ)
     session.commit()

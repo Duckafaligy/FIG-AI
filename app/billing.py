@@ -164,6 +164,21 @@ def sync(account: Account = Depends(require_account),
     return sync_quantity(session, account)
 
 
+def try_sync(session: Session, account: Account) -> dict:
+    """`sync_quantity` for callers that must not fail because Stripe did.
+
+    Adding or removing a site is the user's action and has already been saved;
+    a Stripe outage or a stale subscription must not turn that into an error
+    page. The failure is logged loudly, because it leaves the invoice out of
+    step with the site count until the next sync.
+    """
+    try:
+        return sync_quantity(session, account)
+    except Exception as exc:                       # noqa: BLE001
+        log.exception("billing: could not sync quantity for account %s", account.slug)
+        return {"synced": False, "reason": "stripe error", "error": type(exc).__name__}
+
+
 @router.post("/webhook")
 async def webhook(request: Request, session: Session = Depends(get_session)):
     """Signature is verified when STRIPE_WEBHOOK_SECRET is set. Without it the

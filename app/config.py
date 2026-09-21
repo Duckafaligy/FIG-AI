@@ -73,9 +73,14 @@ PUBLIC_SCANS_GLOBAL_PER_DAY = int(os.environ.get("FIG_PUBLIC_SCANS_GLOBAL_PER_DA
 TRUST_PROXY = os.environ.get("FIG_TRUST_PROXY", "0") == "1"
 
 # --- crawling ---------------------------------------------------------
+# The URL in a crawler's user agent is where a site owner goes to find out who
+# is reading their pages and how to stop it, so it has to be a page that exists.
+# It used to point at fig.tools/bot, a domain FIG does not have. It now follows
+# the real frontend, and moves with it when a custom domain is set.
+_BOT_HOME = os.environ.get("FIG_FRONTEND_URL", "http://localhost:3001").rstrip("/")
 USER_AGENT = os.environ.get(
     "FIG_USER_AGENT",
-    "FIGBot/0.2 (+https://fig.tools/bot; site self-check and structure scanner)",
+    f"FIGBot/0.2 (+{_BOT_HOME}/bot; site self-check and structure scanner)",
 )
 REQUEST_TIMEOUT = int(os.environ.get("FIG_REQUEST_TIMEOUT", "12"))
 # Politeness: one request per host at a time, spaced by this many seconds.

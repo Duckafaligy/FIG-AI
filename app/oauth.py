@@ -45,7 +45,7 @@ from app import config
 from app.auth import current_account
 from app.db import get_session
 from app.models import Integration, Site, _now
-from app.secrets_store import SecretsNotConfigured, store_secret
+from app.secrets_store import SecretsNotConfigured, delete_secret, store_secret
 
 log = logging.getLogger("fig.oauth")
 router = APIRouter(prefix="/oauth", tags=["oauth"])
@@ -196,6 +196,10 @@ def google_callback(request: Request, code: str = Query(default=""),
         if integ is None:
             integ = Integration(site_id=site.id, platform=platform)
             session.add(integ)
+        # Reconnecting stores a fresh token; the one it replaces would be left
+        # orphaned in the secrets table, so remove it.
+        if integ.credential_ref and integ.credential_ref != ref:
+            delete_secret(session, integ.credential_ref)
         integ.credential_ref = ref
         integ.credential_hint = "connected"
         integ.scopes = [scope_label]

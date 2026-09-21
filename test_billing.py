@@ -193,5 +193,129 @@ class CheckoutGuardTests(unittest.TestCase):
         engine.dispose()
 
 
+class FakeStripe:
+    """Just enough of the stripe module for sync_quantity: records every change."""
+
+    def __init__(self, quantity=1, fail=False):
+        self.calls, self.quantity, self.fail = [], quantity, fail
+        outer = self
+
+        class Subscription:
+            @staticmethod
+            def retrieve(sub_id):
+                if outer.fail:
+                    raise RuntimeError("stripe is down")
+                return {"items": {"data": [{"id": "si_1", "quantity": outer.quantity}]}}
+
+            @staticmethod
+            def modify(sub_id, **kw):
+                outer.calls.append((sub_id, kw))
+                outer.quantity = kw["items"][0]["quantity"]
+        self.Subscription = Subscription
+
+    def quantities(self):
+        return [kw["items"][0]["quantity"] for _, kw in self.calls]
+
+
+class QuantitySyncTests(unittest.TestCase):
+    """The subscription is billed per active site, so adding or removing a site
+    has to move its quantity. Before this nothing did: a customer who added ten
+    sites after subscribing was never billed for them, and one who removed sites
+    was never credited."""
+
+    def setUp(self):
+        from unittest.mock import patch as _patch
+        self.patchers = dummy_stripe_settings()
+        self.patchers.append(_patch.object(config, "BILLING_ENABLED", True))
+        self.patchers[-1].start()
+        self.engine = create_engine("sqlite://", poolclass=StaticPool,
+                                    connect_args={"check_same_thread": False})
+        Base.metadata.create_all(self.engine)
+        with Session(self.engine) as db:
+            db.add(Account(id="a", name="A", slug="a", stripe_subscription_id="sub_1", site_floor=0))
+            db.commit()
+
+        from app.webapp import router as workspace
+        app = FastAPI()
+        app.include_router(workspace)
+
+        def session():
+            with Session(self.engine) as db:
+                yield db
+        app.dependency_overrides[get_session] = session
+        for target, value in (
+                ("app.webapp.current_account", lambda request, db: db.get(Account, "a")),
+                ("app.webapp.public_hostname", lambda raw: raw.strip().lower())):
+            p = patch(target, side_effect=value)
+            p.start()
+            self.patchers.append(p)
+        self.fake = FakeStripe(quantity=1)
+        p = patch.object(billing, "_stripe", return_value=self.fake)
+        p.start()
+        self.patchers.append(p)
+        self.client = TestClient(app)
+
+    def tearDown(self):
+        self.client.close()
+        self.engine.dispose()
+        for p in self.patchers:
+            p.stop()
+
+    def add(self, host):
+        return self.client.post("/api/projects", json={"hostname": host})
+
+    def test_adding_sites_raises_the_subscription_quantity(self):
+        self.assertEqual(self.add("one.example").status_code, 200)
+        self.assertEqual(self.add("two.example").status_code, 200)
+        self.assertEqual(self.add("three.example").status_code, 200)
+        self.assertEqual(self.fake.quantities(), [2, 3])      # 1 was already in step
+        self.assertEqual(self.fake.quantity, 3)
+
+    def test_removing_a_site_lowers_it_again(self):
+        ids = [self.add(h).json()["id"] for h in ("one.example", "two.example", "three.example")]
+        self.assertEqual(self.fake.quantity, 3)
+        self.assertEqual(self.client.delete("/api/projects/" + ids[0]).status_code, 200)
+        self.assertEqual(self.fake.quantity, 2)
+
+    def test_no_subscription_means_no_stripe_call(self):
+        with Session(self.engine) as db:
+            db.get(Account, "a").stripe_subscription_id = None
+            db.commit()
+        self.assertEqual(self.add("one.example").status_code, 200)
+        self.assertEqual(self.fake.calls, [])
+
+    def test_a_stripe_outage_does_not_break_adding_a_site(self):
+        self.fake.fail = True
+        r = self.add("one.example")
+        self.assertEqual(r.status_code, 200)                   # the site is saved regardless
+        self.assertEqual(self.client.get("/api/projects").status_code, 200)
+
+    def test_the_partner_api_syncs_too(self):
+        from app.api import router as partner
+        from app.auth import require_account
+        app = FastAPI()
+        app.include_router(partner)
+
+        def session():
+            with Session(self.engine) as db:
+                yield db
+        app.dependency_overrides[get_session] = session
+        def account():
+            # A fresh session per request, as in production; a long-lived one
+            # would hold a stale site list and misreport the count.
+            with Session(self.engine) as db:
+                yield db.get(Account, "a")
+        app.dependency_overrides[require_account] = account
+        with patch("app.api.public_hostname", side_effect=lambda raw: raw.strip().lower()):
+            client = TestClient(app)
+            made = client.post("/v1/sites", json={"hostname": "partner-one.example"})
+            self.assertEqual(made.status_code, 201)
+            self.assertEqual(self.fake.quantity, 1)
+            made2 = client.post("/v1/sites", json={"hostname": "partner-two.example"})
+            self.assertEqual(self.fake.quantity, 2)
+            client.delete("/v1/sites/" + made2.json()["id"])
+            self.assertEqual(self.fake.quantity, 1)
+
+
 if __name__ == "__main__":
     unittest.main()

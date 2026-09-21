@@ -227,6 +227,8 @@ def add_project(request: Request, payload: dict = Body(...),
 
     scan = enqueue_scan(session, site.id, trigger="manual")
     session.commit()
+    # The subscription is billed per active site: keep its quantity in step.
+    billing.try_sync(session, account)
     return {"id": site.id, "hostname": site.hostname, "scan_id": scan.id}
 
 
@@ -241,6 +243,7 @@ def remove_project(project_id: str, request: Request,
         raise HTTPException(404, "no such project")
     site.is_active = False
     session.commit()
+    billing.try_sync(session, account)
     return {"ok": True, "id": site.id, "billable_sites": account.billable_sites()}
 
 
