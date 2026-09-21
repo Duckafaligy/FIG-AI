@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Bell,
@@ -40,8 +40,10 @@ import { actions } from "@/lib/api";
 import { ContentTemplatePreview } from "./content-template-preview";
 
 const DashboardSearchContext = createContext("");
+export function useDashboardSearch() { return useContext(DashboardSearchContext); }
 
 const nav = [
+  { href: "/app/library", label: "Library", icon: FileText },
   { href: "/app", label: "Overview", icon: Home },
   { href: "/app/seo", label: "SEO", icon: Search },
   { href: "/app/geo", label: "GEO", icon: Globe2 },
@@ -59,13 +61,15 @@ const searchCopy: Record<string, string> = {
   "/app/settings": "Search settings, APIs, or members…"
 };
 
-export function DashboardShell({ children }: { children: React.ReactNode }) {
+export function DashboardShell({ children, workspaceName = "Workspace" }: { children: React.ReactNode; workspaceName?: string }) {
   const pathname = usePathname();
+  const projectId = useSearchParams().get("project");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [accountError, setAccountError] = useState("");
   const menuRef = useRef<HTMLButtonElement>(null);
   const navigationId = useId();
   const closeNavigation = () => {
@@ -75,14 +79,28 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     setSigningOut(true);
-    await actions.signOut();
-    router.push("/signin");
-    router.refresh();
+    setAccountError("");
+    try {
+      const result = await actions.signOut();
+      if (!result.ok) { setAccountError(result.error); return; }
+      router.push("/signin");
+      router.refresh();
+    } catch { setAccountError("Couldn’t sign out. Please try again."); }
+    finally { setSigningOut(false); }
   };
 
   useEffect(() => {
     setOpen(false);
+    setSearch("");
+    setAccountMenuOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") { setAccountMenuOpen(false); document.querySelector<HTMLButtonElement>(".avatar-button")?.focus(); } };
+    document.addEventListener("keydown", close);
+    return () => document.removeEventListener("keydown", close);
+  }, [accountMenuOpen]);
 
   useEffect(() => {
     if (!open) return;
@@ -103,12 +121,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <button ref={menuRef} className="dashboard-menu" onClick={() => setOpen((isOpen) => !isOpen)} aria-label={open ? "Close dashboard navigation" : "Open dashboard navigation"} aria-expanded={open} aria-controls={navigationId}>{open ? <X /> : <Menu />}</button>
       {open && <button className="dashboard-nav-backdrop" type="button" aria-label="Close dashboard navigation" onClick={closeNavigation} />}
       <aside id={navigationId} className={`dashboard-sidebar ${open ? "is-open" : ""}`}>
-        <Link className="dashboard-brand" href="/projects" aria-label="LaunchVault projects"><span><Zap size={14} fill="currentColor" /></span><strong>LaunchVault</strong></Link>
+        <Link className="dashboard-brand" href="/projects" aria-label="Your projects"><span><Zap size={14} fill="currentColor" /></span><strong>FIG</strong></Link>
         <nav aria-label="Dashboard navigation">
           {nav.map((item) => {
             const exact = item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href);
             const Icon = item.icon;
-            return <Link className={exact ? "active" : ""} href={item.href} key={item.href} onClick={() => setOpen(false)}><Icon size={18} /><span>{item.label}</span>{item.label === "Notifications" && <small className="nav-count">3</small>}</Link>;
+            return <Link className={exact ? "active" : ""} aria-current={exact ? "page" : undefined} href={projectId ? `${item.href}?project=${encodeURIComponent(projectId)}` : item.href} key={item.href} onClick={() => setOpen(false)}><Icon size={18} /><span>{item.label}</span></Link>;
           })}
         </nav>
         <div className="sidebar-bottom">
@@ -117,10 +135,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       </aside>
       <div className="dashboard-main">
         <header className="dashboard-topbar">
-          <div className="dashboard-search"><Search size={17} /><input aria-label="Search current dashboard" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchCopy[pathname] ?? "Search LaunchVault…"} />{search ? <button aria-label="Clear dashboard search" onClick={() => setSearch("")}><X size={13} /></button> : <kbd>Search</kbd>}</div>
+          <div className="dashboard-search"><Search size={17} /><input aria-label="Search current dashboard" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search workspace records…" />{search ? <button aria-label="Clear dashboard search" onClick={() => setSearch("")}><X size={13} /></button> : <kbd>Search</kbd>}</div>
           <div className="dashboard-top-actions">
-            <div className="workspace-switch" aria-label="Current project"><span className="workspace-mark">LV</span>LaunchVault.ca</div>
-            <div className="workspace-switch" aria-label="Illustrative preview date range"><CalendarDays size={16} aria-hidden="true" /><span>May 12, 2025 – May 25, 2025</span><ChevronDown size={14} aria-hidden="true" /></div>
+            <div className="workspace-switch" aria-label="Current project"><span className="workspace-mark">{workspaceName.slice(0, 2).toUpperCase()}</span>{workspaceName}</div>
             <Link className="icon-button" href="/app/notifications" aria-label="Notifications"><Bell size={18} /></Link>
             <div style={{ position: "relative" }}>
               <button
@@ -130,7 +147,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                 onClick={() => setAccountMenuOpen((isOpen) => !isOpen)}
                 style={{ cursor: "pointer" }}
               >
-                JD
+                {workspaceName.slice(0, 2).toUpperCase()}
               </button>
               {accountMenuOpen && (
                 <>
@@ -148,6 +165,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                       padding: 6,
                     }}
                   >
+                    <Link href="/app/settings" role="menuitem" className="account-settings-link" onClick={() => setAccountMenuOpen(false)}>Account settings</Link>
+                    {accountError && <p role="alert" className="form-message">{accountError}</p>}
                     <button
                       role="menuitem"
                       onClick={signOut}
@@ -232,7 +251,7 @@ function ChartRangeSelect({ value, onChange, label }: { value: ChartRange; onCha
   </label>;
 }
 
-function LiveTrendChart({ data, legend }: { data: NonNullable<DashboardPage["sections"][number]["liveChart"]>; legend?: string[] }) {
+export function LiveTrendChart({ data, legend }: { data: NonNullable<DashboardPage["sections"][number]["liveChart"]>; legend?: string[] }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const first = data.lines[0];
   const pointCount = first.points.length;
@@ -301,7 +320,7 @@ function PreviewChart({ legend, distribution, chart = "trend", score, range = "3
       <div className="chart-plot-with-scale">
         <div className="chart-y-axis">{[500, 400, 300, 200, 100, 0].map((value) => <span key={value}>{value}</span>)}</div>
         <div className="rankings-bar-plot">
-          {bars.map((values, index) => <button key={index} type="button" className="rankings-bar" style={{ height: `${values.reduce((a, b) => a + b, 0) / 5}%` }} onMouseEnter={() => setActivePoint(index)} onMouseLeave={() => setActivePoint(null)} onFocus={() => setActivePoint(index)} onBlur={() => setActivePoint(null)} aria-label={`${samples[index].tooltipLabel}: ${values.map((value, valueIndex) => `${labels[valueIndex]} ${value}`).join(", ")}`}>{values.map((value, valueIndex) => <i key={labels[valueIndex]} style={{ flex: value, background: chartColor(labels[valueIndex], valueIndex) }} />)}</button>)}
+          {bars.map((values, index) => <button key={index} type="button" className="rankings-bar" style={{ height: `${values.reduce((a, b) => a + b, 0) / 5}%` }} onClick={() => setActivePoint(activePoint === index ? null : index)} onMouseEnter={() => setActivePoint(index)} onMouseLeave={() => setActivePoint(null)} onFocus={() => setActivePoint(index)} onBlur={() => setActivePoint(null)} aria-label={`${samples[index].tooltipLabel}: ${values.map((value, valueIndex) => `${labels[valueIndex]} ${value}`).join(", ")}`}>{values.map((value, valueIndex) => <i key={labels[valueIndex]} style={{ flex: value, background: chartColor(labels[valueIndex], valueIndex) }} />)}</button>)}
           {activePoint !== null && <ChartTooltipPosition index={activePoint} count={count}><strong>{samples[activePoint].tooltipLabel}</strong>{bars[activePoint].map((value, index) => <div key={labels[index]}><i style={{ background: chartColor(labels[index], index) }} /><span>{labels[index]}</span><b>{value}</b></div>)}</ChartTooltipPosition>}
         </div>
       </div>

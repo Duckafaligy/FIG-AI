@@ -71,6 +71,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setOpen(false);
+    setSearch("");
   }, [pathname]);
 
   useEffect(() => {
@@ -97,7 +98,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           {nav.map((item) => {
             const exact = item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href);
             const Icon = item.icon;
-            return <Link className={exact ? "active" : ""} href={item.href} key={item.href} onClick={() => setOpen(false)}><Icon size={18} /><span>{item.label}</span>{item.label === "Notifications" && <small className="nav-count">3</small>}</Link>;
+            return <Link className={exact ? "active" : ""} aria-current={exact ? "page" : undefined} href={item.href} key={item.href} onClick={() => setOpen(false)}><Icon size={18} /><span>{item.label}</span>{item.label === "Notifications" && <small className="nav-count">3</small>}</Link>;
           })}
         </nav>
         <div className="sidebar-bottom">
@@ -109,9 +110,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           <div className="dashboard-search"><Search size={17} /><input aria-label="Search current dashboard" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchCopy[pathname] ?? "Search Demo workspace…"} />{search ? <button aria-label="Clear dashboard search" onClick={() => setSearch("")}><X size={13} /></button> : <kbd>Search</kbd>}</div>
           <div className="dashboard-top-actions">
             <div className="workspace-switch" aria-label="Current project"><span className="workspace-mark">DW</span>Demo workspace</div>
-            <div className="workspace-switch" aria-label="Illustrative preview date range"><CalendarDays size={16} aria-hidden="true" /><span>May 12, 2025 – May 25, 2025</span><ChevronDown size={14} aria-hidden="true" /></div>
+            <div className="workspace-switch" aria-label="Illustrative preview date range"><CalendarDays size={16} aria-hidden="true" /><span>May 12, 2025 – May 25, 2025</span></div>
             <Link className="icon-button" href="/app/notifications" aria-label="Notifications"><Bell size={18} /></Link>
-            <span className="avatar-button" aria-label="Current account: JD" style={{ cursor: "default" }}>JD</span>
+            <Link className="avatar-button" aria-label="Account settings" href="/app/settings">JD</Link>
             <ChevronDown size={14} aria-hidden="true" />
           </div>
         </header>
@@ -203,7 +204,7 @@ function PreviewChart({ legend, distribution, chart = "trend", score, range = "3
       <div className="chart-plot-with-scale">
         <div className="chart-y-axis">{[500, 400, 300, 200, 100, 0].map((value) => <span key={value}>{value}</span>)}</div>
         <div className="rankings-bar-plot">
-          {bars.map((values, index) => <button key={index} type="button" className="rankings-bar" style={{ height: `${values.reduce((a, b) => a + b, 0) / 5}%` }} onMouseEnter={() => setActivePoint(index)} onMouseLeave={() => setActivePoint(null)} onFocus={() => setActivePoint(index)} onBlur={() => setActivePoint(null)} aria-label={`${samples[index].tooltipLabel}: ${values.map((value, valueIndex) => `${labels[valueIndex]} ${value}`).join(", ")}`}>{values.map((value, valueIndex) => <i key={labels[valueIndex]} style={{ flex: value, background: chartColor(labels[valueIndex], valueIndex) }} />)}</button>)}
+          {bars.map((values, index) => <button key={index} type="button" className="rankings-bar" style={{ height: `${values.reduce((a, b) => a + b, 0) / 5}%` }} onClick={() => setActivePoint(activePoint === index ? null : index)} onMouseEnter={() => setActivePoint(index)} onMouseLeave={() => setActivePoint(null)} onFocus={() => setActivePoint(index)} onBlur={() => setActivePoint(null)} aria-label={`${samples[index].tooltipLabel}: ${values.map((value, valueIndex) => `${labels[valueIndex]} ${value}`).join(", ")}`}>{values.map((value, valueIndex) => <i key={labels[valueIndex]} style={{ flex: value, background: chartColor(labels[valueIndex], valueIndex) }} />)}</button>)}
           {activePoint !== null && <ChartTooltipPosition index={activePoint} count={count}><strong>{samples[activePoint].tooltipLabel}</strong>{bars[activePoint].map((value, index) => <div key={labels[index]}><i style={{ background: chartColor(labels[index], index) }} /><span>{labels[index]}</span><b>{value}</b></div>)}</ChartTooltipPosition>}
         </div>
       </div>

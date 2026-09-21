@@ -129,7 +129,7 @@ function ProductPreviewCards() {
             <div className="tour-project-activity"><FileCheck2 size={9} /><span>AI agents guide · Ready for review</span></div>
           </div>
         </div>
-        <h3>Projects dashboard</h3>
+        <h3><Link href="/projects">Projects dashboard <ArrowRight size={14} /></Link></h3>
         <p>Manage your content pipeline across teams and sites.</p>
       </article>
       <article className="platform-tour-card platform-tour-card--performance">
@@ -141,7 +141,7 @@ function ProductPreviewCards() {
             <path d="M0 76 C26 72 38 74 56 68 S89 63 108 57 S143 59 164 48 S199 44 220 36" fill="none" stroke="#2f80ed" strokeWidth="2.5" />
           </svg>
         </div>
-        <h3>Content performance</h3>
+        <h3><Link href="/app">Content performance <ArrowRight size={14} /></Link></h3>
         <p>Track rankings, traffic, and engagement over time.</p>
       </article>
       <article className="platform-tour-card platform-tour-card--geo">
@@ -149,7 +149,7 @@ function ProductPreviewCards() {
           <div className="tour-ui-heading"><b>AI visibility growth</b><span>Demo workspace</span></div>
           <div className="tour-geo-content"><div className="tour-score-ring"><strong>78</strong><span>GEO score</span></div><div className="tour-geo-sources"><span>ChatGPT <b>62%</b></span><span>Google AI <b>78%</b></span><span>Perplexity <b>48%</b></span></div></div>
         </div>
-        <h3>GEO visibility</h3>
+        <h3><Link href="/app/geo">GEO visibility <ArrowRight size={14} /></Link></h3>
         <p>See how content appears across AI search and answers.</p>
       </article>
     </div>

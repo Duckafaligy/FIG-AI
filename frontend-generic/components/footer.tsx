@@ -32,10 +32,10 @@ export function Footer() {
           <strong>Product notes, without the noise.</strong>
           <p>Occasional previews of FIG’s search, AI visibility, and content workflow work.</p>
           <form action="/signup" method="get">
-            <input aria-label="Email address" name="email" type="email" placeholder="you@company.com" />
+            <input aria-label="Email address" name="email" type="email" required placeholder="you@company.com" />
             <button className="button button--small" type="submit">Get preview <ArrowUpRight size={14} /></button>
           </form>
-          <small>Opens the local signup preview. Your email is not submitted.</small>
+          <small>Continues to signup with your email filled in. Does not subscribe you.</small>
         </div>
       </div>
       <div className="page-shell footer-bottom"><span>© 2026 FIG. All rights reserved.</span><div><Link href="/projects">Explore demo</Link><Link href="/pricing">Pricing</Link><Link href="/signin">Sign in</Link><Link href="/#faq">Help</Link></div><span>Made for practical, discoverable content.</span></div>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { siShopify } from "simple-icons/icons";
 import { actions, DEMO_MODE } from "@/lib/api";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
@@ -16,6 +16,14 @@ function ProviderMark({ icon }: { icon: { path: string; hex: string; title: stri
 
 export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   const [message, setMessage] = useState("");
+  const [email, setEmail] = useState("");
+  const [requestedPlan, setRequestedPlan] = useState("");
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setEmail((params.get("email") ?? "").slice(0, 254));
+    const plan = params.get("plan");
+    if (plan && ["Starter", "Pro", "Scale", "Enterprise"].includes(plan)) setRequestedPlan(plan);
+  }, []);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const signup = mode === "signup";
@@ -61,6 +69,8 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
         return;
       }
       router.push("/app");
+    } catch {
+      setMessage("We couldn’t reach the sign-in service. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -78,9 +88,10 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
         <p>{signup ? "Start your free trial and see how FIG can help your team get found everywhere." : "Sign in to continue building high-performing content."}</p>
       </div>
 
+      {signup && requestedPlan && <p className="form-message">Interested in {requestedPlan} · plan preview only. No subscription has been started.</p>}
       <div className="auth-fields">
         {signup && <label className="auth-field" htmlFor="full-name"><span>Full name</span><input id="full-name" name="full-name" required autoComplete="name" placeholder="LaunchVault team" /></label>}
-        <label className="auth-field" htmlFor="email"><span>{signup ? "Work email" : "Email"}</span><div className="input-with-icon"><Mail size={18} aria-hidden="true" /><input id="email" name="email" required type="email" autoComplete="email" placeholder="you@company.com" /></div></label>
+        <label className="auth-field" htmlFor="email"><span>{signup ? "Work email" : "Email"}</span><div className="input-with-icon"><Mail size={18} aria-hidden="true" /><input id="email" name="email" value={email} onChange={(event) => setEmail(event.target.value)} required type="email" autoComplete="email" placeholder="you@company.com" /></div></label>
         {signup && <label className="auth-field" htmlFor="company"><span>Company name</span><input id="company" name="company" required autoComplete="organization" placeholder="LaunchVault" /></label>}
         {signup && <label className="auth-field" htmlFor="website"><span>Website URL</span><input id="website" name="website" required type="url" placeholder="https://launchvault.ca" /></label>}
         <label className="auth-field" htmlFor="password"><span>Password</span><div className="input-with-icon input-with-icon--password"><LockKeyhole size={18} aria-hidden="true" /><input id="password" name="password" required minLength={8} type={showPassword ? "text" : "password"} autoComplete={signup ? "new-password" : "current-password"} placeholder={signup ? "Create a password" : "Enter your password"} /><button className="password-toggle" type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label>

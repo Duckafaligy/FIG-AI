@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { api } from "@/lib/api";
+import { ServiceUnavailable } from "@/components/service-unavailable";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const me = await api.me();
-  // Only gate when the backend actually answered "not signed in" — if it's
-  // unreachable (e.g. this deploy has no backend behind it yet), fall back
-  // to the static preview instead of locking every visitor out.
-  if (me.ok && !me.data.signed_in && !me.data.dev_no_auth) {
+  if (!me.ok) return <ServiceUnavailable />;
+  if (!me.data.signed_in) {
     redirect("/signin");
   }
-  return <DashboardShell>{children}</DashboardShell>;
+  if (me.data.dev_no_auth) return <ServiceUnavailable message="Live workspaces require authenticated sessions. Disable FIG_DEV_NO_AUTH on the backend." />;
+  return <DashboardShell workspaceName={me.data.account.name}>{children}</DashboardShell>;
 }

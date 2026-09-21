@@ -107,6 +107,7 @@ export async function apiServer<T>(path: string): Promise<ApiResult<T>> {
 
   try {
     const res = await fetch(serverUrl(path), {
+      signal: AbortSignal.timeout(15000),
       cache: "no-store",
       headers: cookieHeader ? { cookie: cookieHeader } : undefined,
     });
@@ -121,6 +122,7 @@ export async function apiClient<T>(path: string, init?: RequestInit): Promise<Ap
   if (DEMO_MODE) return DEMO_BLOCKED as ApiResult<T>;
   try {
     const res = await fetch(apiUrl(path), {
+      signal: AbortSignal.timeout(30000),
       ...init,
       credentials: "include",
       headers: {

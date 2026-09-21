@@ -1,5 +1,7 @@
 "use client";
 
+import { ServiceUnavailable } from "@/components/service-unavailable";
+
 import { useEffect, useState, type ComponentType, type FormEvent, type KeyboardEvent } from "react";
 import {
   BadgeCheck,
@@ -57,11 +59,11 @@ const services: Service[] = [
 
 const usage = [["Content drafts", "126 / 500", "25%"], ["API credits", "48.2K / 100K", "48%"], ["AI generations", "312K / 1M", "31%"], ["Team seats", "5 / 10", "50%"]];
 
-const tabs: { id: TabId; label: string; description: string; icon: Icon }[] = [
+const allTabs: { id: TabId; label: string; description: string; icon: Icon }[] = [
   { id: "workspace", label: "Workspace", description: "Profile, plan, and workspace summary", icon: Settings2 },
   { id: "team", label: "Team & roles", description: "People, access, and permissions", icon: Users },
   { id: "integrations", label: "Integrations", description: "Services and connection preparation", icon: PlugZap },
-  { id: "billing", label: "Billing & usage", description: "Preview plan and product usage", icon: CreditCard },
+  { id: "billing", label: "Billing & usage", description: "Plan and account usage", icon: CreditCard },
   { id: "security", label: "Security", description: "Authentication and access controls", icon: ShieldCheck },
   { id: "notifications", label: "Notifications", description: "Delivery and alert preferences", icon: Bell },
   { id: "defaults", label: "Content defaults", description: "Writing and output preferences", icon: SlidersHorizontal },
@@ -81,11 +83,24 @@ function usagePercent(used: number | null, cap: number): string {
   return `${Math.min(100, Math.round((used / cap) * 100))}%`;
 }
 
+const tabs = allTabs.filter(tab => ["workspace", "team", "integrations", "billing"].includes(tab.id));
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("workspace");
   const [settings, setSettings] = useState({ twoFactor: false, email: true, project: true, system: false, browser: true, approval: true, publish: false });
   const [defaultsSaved, setDefaultsSaved] = useState(false);
+  useEffect(() => {
+    if (activeTab !== "defaults") return;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem("fig-content-defaults") ?? "{}");
+      document.querySelectorAll<HTMLSelectElement>(".settings-defaults-form select").forEach((field) => {
+        if (typeof saved[field.name] === "string" && Array.from(field.options).some(option => option.value === saved[field.name])) field.value = saved[field.name];
+      });
+    } catch { /* Storage is optional; fields still work without it. */ }
+  }, [activeTab]);
   const [live, setLive] = useState<ApiSettingsPage | null>(null);
+  const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [sharingBusy, setSharingBusy] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -96,7 +111,10 @@ export default function SettingsPage() {
   useEffect(() => {
     let cancelled = false;
     api.settings().then((result) => {
-      if (!cancelled && result.ok) setLive(result.data);
+      if (cancelled) return;
+      setLoading(false);
+      if (result.ok && !result.data.demo) setLive(result.data);
+      else setLoadError(result.ok ? "This account contains seeded demo data. Use a real workspace to continue." : "Unable to load account settings. Please sign in or retry.");
     });
     return () => {
       cancelled = true;
@@ -107,7 +125,8 @@ export default function SettingsPage() {
   const toggleSharing = async () => {
     if (!liveProjectId || !live) return;
     setSharingBusy(true);
-    await actions.shareProject(liveProjectId, !live.sharing.public);
+    const result = await actions.shareProject(liveProjectId, !live.sharing.public);
+    if (!result.ok) { setSharingBusy(false); setLoadError(result.error); return; }
     await loadSettings();
     setSharingBusy(false);
   };
@@ -195,15 +214,18 @@ export default function SettingsPage() {
     event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`#${tabId(nextTab.id)}`)?.focus();
   };
 
+  if (loading) return <p role="status">Loading settings…</p>;
+  if (!live) return <ServiceUnavailable message={loadError} />;
   return <>
     <DashboardHeader eyebrow="Settings" title="Settings & workspace configuration" description="Manage workspace details, team access, integrations, and content preferences." action="Edit profile" />
+    {loadError && <p className="form-message" role="alert">{loadError}</p>}
     <div className="settings-tabbed-workbench">
       <aside className="settings-tab-sidebar" aria-label="Settings sections">
         <div className="settings-sidebar-workspace"><span className="settings-workspace-mark">{live ? live.initials : "LV"}</span><div><strong>{live ? live.profile.name : "LaunchVault.ca"}</strong><small>{live ? "Connected workspace" : "Frontend preview"}</small></div><ChevronRight size={15} /></div>
         <nav role="tablist" aria-label="Workspace settings">
           {tabs.map((tab, index) => { const TabIcon = tab.icon; const selected = tab.id === activeTab; return <button type="button" key={tab.id} id={tabId(tab.id)} role="tab" aria-controls={panelId(tab.id)} aria-selected={selected} tabIndex={selected ? 0 : -1} className={selected ? "is-active" : ""} onClick={() => setActiveTab(tab.id)} onKeyDown={(event) => handleTabKeyDown(event, index)}><TabIcon size={17} /><span>{tab.label}</span>{tab.id === "integrations" && <small>{services.length}</small>}</button>; })}
         </nav>
-        <div className="settings-sidebar-note"><CircleDashed size={15} /><span><strong>Local preview</strong>No credentials or settings are stored from this page.</span></div>
+        <div className="settings-sidebar-note"><CircleDashed size={15} /><span><strong>Connected workspace</strong>Supported actions are saved by the backend. Unavailable controls are identified explicitly.</span></div>
       </aside>
 
       <section className="settings-tab-content" role="tabpanel" id={panelId(activeTab)} aria-labelledby={tabId(activeTab)}>
@@ -300,7 +322,7 @@ export default function SettingsPage() {
 
         {activeTab === "notifications" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Notification preferences</h3><p>Toggle sample preferences to see how the final settings interaction should feel.</p></div><span className="settings-demo-chip"><span />Changes reset on reload</span></div><div className="settings-toggle-list"><LocalToggle label="Email product updates" description="Product changes, release notes, and workspace notices." checked={settings.email} onChange={() => flip("email")} /><LocalToggle label="Project activity" description="Reviews, approvals, content movement, and comments." checked={settings.project} onChange={() => flip("project")} /><LocalToggle label="System updates" description="Maintenance, connection state, and workflow availability." checked={settings.system} onChange={() => flip("system")} /><LocalToggle label="Approval reminders" description="Follow up on content that is still waiting for a decision." checked={settings.approval} onChange={() => flip("approval")} /><LocalToggle label="Publishing alerts" description="Receive a preview alert when a content item is ready to ship." checked={settings.publish} onChange={() => flip("publish")} /></div></section><section className="settings-surface settings-notification-note"><Bell size={18} /><div><strong>Nothing is delivered from the demo</strong><p>These controls only update local visual state and do not email, notify, or subscribe anybody.</p></div></section></div>}
 
-        {activeTab === "defaults" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Content defaults</h3><p>Starting preferences for an editor or future generation workflow.</p></div><PreviewInfo className="settings-link-button" label="How defaults work" message="These fields are locally interactive presentation controls. Saving content defaults, selecting models, and using them in a generation workflow requires the backend connection phase." /></div><div className="settings-defaults-form"><label><span>Brand voice</span><select defaultValue="Professional & friendly"><option>Professional & friendly</option><option>Direct & practical</option><option>Warm & educational</option></select></label><label><span>Target audience</span><select defaultValue="Learners and operators"><option>Learners and operators</option><option>Marketing teams</option><option>Technical teams</option></select></label><label><span>Default tone</span><select defaultValue="Informative"><option>Informative</option><option>Conversational</option><option>Concise</option></select></label><label><span>Language</span><select defaultValue="English (US)"><option>English (US)</option><option>English (Canada)</option><option>French (Canada)</option></select></label><label><span>AI model</span><select defaultValue="Choose in backend"><option>Choose in backend</option><option>OpenAI content model</option><option>Anthropic content model</option></select></label><label><span>Post format</span><select defaultValue="Auto-select"><option>Auto-select</option><option>Guide</option><option>Article with FAQ</option></select></label></div><div className="settings-defaults-footer"><span><CircleDashed size={13} />{defaultsSaved ? "Saved locally for this browser session." : "Preview preferences only"}</span><button type="button" className="button button--small" onClick={() => setDefaultsSaved(true)}>Save local preview</button></div></section></div>}
+        {activeTab === "defaults" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Content defaults</h3><p>Starting preferences for an editor or future generation workflow.</p></div><PreviewInfo className="settings-link-button" label="How defaults work" message="These fields are locally interactive presentation controls. Saving content defaults, selecting models, and using them in a generation workflow requires the backend connection phase." /></div><div className="settings-defaults-form"><label><span>Brand voice</span><select name="content-default-1" onChange={() => setDefaultsSaved(false)} defaultValue="Professional & friendly"><option>Professional & friendly</option><option>Direct & practical</option><option>Warm & educational</option></select></label><label><span>Target audience</span><select name="content-default-2" onChange={() => setDefaultsSaved(false)} defaultValue="Learners and operators"><option>Learners and operators</option><option>Marketing teams</option><option>Technical teams</option></select></label><label><span>Default tone</span><select name="content-default-3" onChange={() => setDefaultsSaved(false)} defaultValue="Informative"><option>Informative</option><option>Conversational</option><option>Concise</option></select></label><label><span>Language</span><select name="content-default-4" onChange={() => setDefaultsSaved(false)} defaultValue="English (US)"><option>English (US)</option><option>English (Canada)</option><option>French (Canada)</option></select></label><label><span>AI model</span><select name="content-default-5" onChange={() => setDefaultsSaved(false)} defaultValue="Choose in backend"><option>Choose in backend</option><option>OpenAI content model</option><option>Anthropic content model</option></select></label><label><span>Post format</span><select name="content-default-6" onChange={() => setDefaultsSaved(false)} defaultValue="Auto-select"><option>Auto-select</option><option>Guide</option><option>Article with FAQ</option></select></label></div><div className="settings-defaults-footer"><span><CircleDashed size={13} />{defaultsSaved ? "Saved locally for this browser session." : "Preview preferences only"}</span><button type="button" className="button button--small" onClick={(event) => { const section = event.currentTarget.closest("section"); const values = Object.fromEntries(Array.from(section?.querySelectorAll("select") ?? []).map((field) => [field.name, field.value])); try { sessionStorage.setItem("fig-content-defaults", JSON.stringify(values)); setDefaultsSaved(true); } catch { setDefaultsSaved(false); } }}>Save local preview</button></div></section></div>}
 
         {activeTab === "webhooks" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Webhook delivery</h3><p>{live ? "Real delivery counts — outbound webhooks aren't sent yet, so these stay at zero." : "Prepare the event layer your integrations will use once the backend is online."}</p></div><PreviewInfo className="button button--small" label="Add endpoint" message="Outbound webhook delivery isn't built yet — see app/webapp.py." /></div><div className="settings-webhook-stats"><article><strong>{live ? live.webhooks.active : 0}</strong><span>Active endpoints</span></article><article><strong>{live ? fmt(live.webhooks.delivered) : "—"}</strong><span>Events delivered</span></article><article><strong>Pending</strong><span>Signing secret</span></article></div><div className="settings-webhook-empty"><Webhook size={22} /><div><strong>No webhook endpoints configured</strong><p>When available, events such as <code>content.published</code>, <code>review.requested</code>, and <code>project.updated</code> will appear here with a delivery history.</p></div><PreviewInfo className="settings-link-button" label="View example" message="Outbound webhook delivery isn't built yet, so there's no example to show." /></div></section></div>}
       </section>

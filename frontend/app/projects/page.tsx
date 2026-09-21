@@ -1,12 +1,14 @@
 "use client";
 
+import { ServiceUnavailable } from "@/components/service-unavailable";
+
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { WorkspaceTrendChart } from "@/components/visibility-chart";
 import calendarStyles from "./projects-calendar.module.css";
 import { chartRanges as trendRanges, type ChartRange } from "@/lib/chart-range";
-import { actions, api, fmt, type ApiProjectsPage } from "@/lib/api";
+import { actions, api, apiClient, fmt, type ApiProjectsPage } from "@/lib/api";
 import {
   ArrowRight,
   BarChart3,
@@ -104,17 +106,37 @@ export default function ProjectsPage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [view, setView] = useState("grid");
+  const [sort, setSort] = useState("default");
   const [trendRange, setTrendRange] = useState<ChartRange>("30");
-  const [calendarMonth, setCalendarMonth] = useState(() => new Date(2025, 4, 1));
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState("2025-05-21");
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(dateKey(new Date()));
   const [live, setLive] = useState<ApiProjectsPage | null>(null);
+  const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [scheduledEvents, setScheduledEvents] = useState<CalendarEvent[]>([]);
+  const [calendarNotice, setCalendarNotice] = useState("Loading scheduled content…");
+  useEffect(() => {
+    let cancelled = false;
+    apiClient<{ total: number; items: { id: string; title: string; category: string; scheduled_for: string | null }[] }>("/api/content?state=scheduled&limit=100").then(result => {
+      if (cancelled) return;
+      if (!result.ok) { setCalendarNotice("Scheduled content could not be loaded. Open the library to retry."); return; }
+      setScheduledEvents(result.data.items.filter(item => item.scheduled_for).map(item => {
+        const date = new Date(item.scheduled_for!);
+        return { id: item.id, title: item.title, date: dateKey(date), time: date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), status: "Scheduled", type: item.category, template: "Saved content" };
+      }));
+      setCalendarNotice(result.data.total > 100 ? "Showing the latest 100 scheduled items. Open the library for all content." : "Scheduled content from your workspace. Times are shown in your timezone.");
+    });
+    return () => { cancelled = true; };
+  }, []);
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
   const projectDialog = useRef<HTMLDialogElement>(null);
 
   const loadProjects = () => {
     api.projects().then((result) => {
-      if (result.ok) setLive(result.data);
+      setLoading(false);
+      if (result.ok && !result.data.demo) setLive(result.data);
+      else setLoadError(result.ok ? "This account contains seeded demo data. Sign in with a real workspace." : "Unable to load projects. Please sign in or retry.");
     });
   };
   useEffect(loadProjects, []);
@@ -137,7 +159,7 @@ export default function ProjectsPage() {
 
   const q = query.toLowerCase().trim();
   const visibleCards = live
-    ? live.cards.filter((c) => `${c.name} ${c.hostname} ${c.tagline}`.toLowerCase().includes(q))
+    ? live.cards.filter((c) => `${c.name} ${c.hostname} ${c.tagline}`.toLowerCase().includes(q)).sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : 0)
     : null;
   const matchesProject = "launchvault.ca ai education prompts practical tools".includes(q);
   const liveStats = live ? [
@@ -153,8 +175,8 @@ export default function ProjectsPage() {
     value: `${calendarMonth.getFullYear()}-${month}`,
     date: new Date(calendarMonth.getFullYear(), month, 1)
   }));
-  const selectedDate = useMemo(() => new Date(`${selectedCalendarDate}T12:00:00`), [selectedCalendarDate]);
-  const selectedEvents = useMemo(() => calendarEvents.filter((event) => event.date === selectedCalendarDate), [selectedCalendarDate]);
+  const selectedDate = useMemo(() => new Date(`${selectedCalendarDate}T12:00:00`), [selectedCalendarDate, scheduledEvents]);
+  const selectedEvents = useMemo(() => scheduledEvents.filter((event: CalendarEvent) => event.date === selectedCalendarDate), [selectedCalendarDate]);
   const activeTrendRange = trendRanges.find((range) => range.value === trendRange) ?? trendRanges[3];
 
   const changeCalendarMonth = (next: Date) => {
@@ -166,17 +188,19 @@ export default function ProjectsPage() {
     const [year, month] = value.split("-").map(Number);
     changeCalendarMonth(new Date(year, month, 1));
   };
+  if (loading) return <div className="route-feedback" role="status">Loading projects…</div>;
+  if (!live) return <ServiceUnavailable message={loadError} />;
   return (
     <main className="projects-page">
       <header className="projects-topbar">
-        <Link className="projects-brand" href="/projects"><span><Zap size={15} fill="currentColor" /></span><strong>LaunchVault</strong></Link>
+        <Link className="projects-brand" href="/projects"><span><Zap size={15} fill="currentColor" /></span><strong>FIG</strong></Link>
         <div className="projects-search"><Search size={16} /><input aria-label="Search projects" placeholder="Search projects, domains, or content…" value={query} onChange={(event) => setQuery(event.target.value)} /><kbd>⌘ K</kbd></div>
         <div className="projects-top-actions">
-          <div className="projects-workspace"><span>{live ? live.initials : "LV"}</span>{live ? live.account.name : "LaunchVault.ca"}<ChevronDown size={14} /></div>
-          <div className="projects-date"><CalendarDays size={15} />May 12, 2025 – May 25, 2025<ChevronDown size={14} /></div>
+          <div className="projects-workspace"><span>{live ? live.initials : "LV"}</span>{live ? live.account.name : "LaunchVault.ca"}</div>
+          <div className="projects-date"><CalendarDays size={15} />{live.range_label}</div>
           <button className="button button--small" type="button" onClick={() => projectDialog.current?.showModal()}><Plus size={15} />New project</button>
           <Link className="projects-icon-button" href="/app/notifications" aria-label="Notifications"><Bell size={17} /></Link>
-          <span className="projects-avatar">JD</span>
+          <Link className="projects-avatar" href="/app/settings" aria-label="Account settings">JD</Link>
         </div>
       </header>
 
@@ -188,13 +212,13 @@ export default function ProjectsPage() {
 
         <div className="projects-section-heading">
           <div><h2>Your projects</h2><span>{live ? `${live.cards.length} project${live.cards.length === 1 ? "" : "s"}` : "1 project"}</span></div>
-          <div className="projects-view-actions"><label><Search size={14} /><input aria-label="Filter projects" placeholder="Search projects…" value={query} onChange={(event) => setQuery(event.target.value)} /></label><button className={view === "grid" ? "active" : ""} type="button" onClick={() => setView("grid")} aria-pressed={view === "grid"}><LayoutGrid size={14} />Grid</button><button className={view === "list" ? "active" : ""} type="button" onClick={() => setView("list")} aria-pressed={view === "list"}><List size={14} />List</button><select aria-label="Sort projects"><option>Last updated</option><option>Name A–Z</option></select></div>
+          <div className="projects-view-actions"><label><Search size={14} /><input aria-label="Filter projects" placeholder="Search projects…" value={query} onChange={(event) => setQuery(event.target.value)} /></label><button className={view === "grid" ? "active" : ""} type="button" onClick={() => setView("grid")} aria-pressed={view === "grid"}><LayoutGrid size={14} />Grid</button><button className={view === "list" ? "active" : ""} type="button" onClick={() => setView("list")} aria-pressed={view === "list"}><List size={14} />List</button><select aria-label="Sort projects" value={sort} onChange={(event) => setSort(event.target.value)}><option value="default">Default order</option><option value="name">Name A–Z</option></select></div>
         </div>
 
         <section className={`projects-card-grid projects-card-grid--${view}`} aria-label="Project list">
           {live ? (
             visibleCards && visibleCards.length > 0 ? visibleCards.map((card) => (
-              <Link href="/app" key={card.id} className="project-card project-card--selected">
+              <Link href={`/app?project=${encodeURIComponent(card.id)}`} key={card.id} className="project-card project-card--selected">
                 <span className="project-card-check"><CheckCircle2 size={17} /></span>
                 <div className="project-card-heading"><span className="project-logo"><Zap size={20} fill="currentColor" /></span><div><strong>{card.name}</strong><small>{card.tagline}</small><em>{card.hostname}</em></div><MoreVertical size={17} /></div>
                 <span className="project-active"><i />{card.state}</span>
@@ -233,7 +257,7 @@ export default function ProjectsPage() {
               </label>
             </div>
             <p className={calendarStyles.trendRangeNote} aria-live="polite">Showing illustrative performance activity from the {activeTrendRange.label.toLowerCase()}.</p>
-            <WorkspaceTrendChart range={trendRange} />
+            <p className="feed-empty">Workspace-wide trend data is not yet available. Open a project to see its connected analytics.</p>
           </section>
 
           <section className="projects-panel projects-panel--health">
@@ -321,7 +345,7 @@ export default function ProjectsPage() {
 
           <section className={`projects-panel projects-panel--calendar ${calendarStyles.calendarPanel}`}>
             <div className={`${"projects-panel-heading"} ${calendarStyles.calendarHeading}`}>
-              <div><CalendarDays size={17}/><strong>Content Calendar</strong><span className={calendarStyles.calendarWorkspace}>LaunchVault.ca</span></div>
+              <div><CalendarDays size={17}/><strong>Content Calendar</strong><span className={calendarStyles.calendarWorkspace}>{live.account.name}</span></div>
               <div className={calendarStyles.calendarControls}>
                 <button type="button" className={calendarStyles.calendarIconButton} aria-label="Previous month" onClick={() => changeCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}><ChevronLeft size={15}/></button>
                 <label className={calendarStyles.monthSelect}>
@@ -334,15 +358,16 @@ export default function ProjectsPage() {
                 <button type="button" className={calendarStyles.calendarIconButton} aria-label="Next month" onClick={() => changeCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}><ChevronRight size={15}/></button>
               </div>
             </div>
+            <p className="panel-description">{calendarNotice} <Link href="/app/library">Open library</Link></p>
             <div className={calendarStyles.calendarLayout}>
               <div className={calendarStyles.calendarGrid} role="group" aria-label={`${formatMonth(calendarMonth)} content calendar`}>
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((weekday) => <span key={weekday} className={calendarStyles.weekday}>{weekday}</span>)}
                 {calendarDays.map((day) => {
                   const key = dateKey(day);
-                  const dayEvents = calendarEvents.filter((event) => event.date === key);
+                  const dayEvents = scheduledEvents.filter((event: CalendarEvent) => event.date === key);
                   const isCurrentMonth = day.getMonth() === calendarMonth.getMonth();
                   const isSelected = key === selectedCalendarDate;
-                  const isToday = key === "2025-05-21";
+                  const isToday = key === dateKey(new Date());
                   return <button key={key} type="button" className={`${calendarStyles.calendarDay} ${!isCurrentMonth ? calendarStyles.mutedDay : ""} ${isSelected ? calendarStyles.selectedDay : ""}`} onClick={() => { setSelectedCalendarDate(key); if (!isCurrentMonth) setCalendarMonth(new Date(day.getFullYear(), day.getMonth(), 1)); }} aria-pressed={isSelected} aria-label={`${formatLongDate(day)}, ${day.getFullYear()}${dayEvents.length ? `, ${dayEvents.length} content item${dayEvents.length > 1 ? "s" : ""}` : ""}`}>
                     <span className={`${calendarStyles.dayNumber} ${isToday ? calendarStyles.todayNumber : ""}`}>{day.getDate()}</span>
                     <span className={calendarStyles.dayEvents}>

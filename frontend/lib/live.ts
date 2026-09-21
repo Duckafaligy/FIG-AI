@@ -72,7 +72,7 @@ function metric(o: Overlay, label: string, value: string, change = "", detail = 
 }
 
 function rows(o: Overlay, area: string, list: DashboardRow[]): void {
-  if (list.length) o.rows[area] = list;
+  o.rows[area] = list;
 }
 
 function chart(o: Overlay, area: string, c: ApiChart): void {
@@ -83,7 +83,7 @@ function chart(o: Overlay, area: string, c: ApiChart): void {
 }
 
 function stats(o: Overlay, area: string, list: DashboardStat[]): void {
-  if (list.length) o.stats[area] = list;
+  o.stats[area] = list;
 }
 
 /* ------------------------------------------------------------ builders */
@@ -417,6 +417,7 @@ export async function fetchOverlay(key: LivePageKey, project = ""): Promise<Over
   }
 
   const d = res.data;
+  if (d.demo) return { live: false, overlay: null, reason: "Seeded demo data is not available in the live workspace." };
   const overlay =
     key === "overview" ? fromOverview(d as ApiOverviewPage)
     : key === "seo" ? fromSeo(d as ApiSeoPage)
@@ -443,16 +444,16 @@ export function applyOverlay(page: DashboardPage, overlay: Overlay | null): Dash
       : page.description,
     metrics: page.metrics.map((m) => {
       const next = overlay.metrics[m.label];
-      return next ? { ...m, value: next.value, change: next.change, detail: next.detail } : { ...m };
+      return next ? { ...m, value: next.value, change: next.change, detail: next.detail } : { ...m, value: "—", change: "", detail: "Not available from the connected service" };
     }),
     sections: page.sections.map((s) => {
       const area = s.area ?? "";
       return {
         ...s,
-        rows: overlay.rows[area] ?? s.rows,
-        stats: overlay.stats[area] ?? s.stats,
-        score: overlay.scores[area] ?? s.score,
-        tabs: overlay.tabs[area] ?? s.tabs,
+        rows: overlay.rows[area] ?? [],
+        stats: overlay.stats[area] ?? [],
+        score: overlay.scores[area],
+        tabs: overlay.tabs[area],
         liveChart: overlay.charts[area],
       };
     }),

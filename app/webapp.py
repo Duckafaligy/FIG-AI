@@ -23,12 +23,13 @@ from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
+from sqlalchemy import select, func
 
 from app import billing, config, content, pages, publishing
 from app.auth import current_account, end_session, session_user, start_session
 from app.db import get_session
 from app.jobs import enqueue_estate, enqueue_scan, queue_depth
-from app.models import Account, Site
+from app.models import Account, Site, ContentPost
 from app.api import public_hostname
 
 router = APIRouter(prefix="/api", tags=["workspace"])
@@ -288,6 +289,35 @@ def content_add(request: Request, payload: dict = Body(...),
     except content.Refused as exc:
         raise HTTPException(422, str(exc)) from exc
     return _post_json(session, post)
+
+
+@router.get("/content")
+def content_library(request: Request, project: str = Query(default=""),
+                    state: str = Query(default=""), q: str = Query(default="", max_length=200),
+                    limit: int = Query(default=30, ge=1, le=100),
+                    offset: int = Query(default=0, ge=0),
+                    session: Session = Depends(get_session)):
+    """Account-scoped content, with bounded pagination and real empty results."""
+    account = _account(request, session)
+    filters = [Site.account_id == account.id]
+    if project:
+        _project(session, account, project)
+        filters.append(ContentPost.site_id == project)
+    if state:
+        if state not in content.STATES:
+            raise HTTPException(422, "Unknown content status")
+        filters.append(ContentPost.state == state)
+    if q.strip():
+        filters.append(ContentPost.title.contains(q.strip(), autoescape=True))
+    query = select(ContentPost).join(Site, ContentPost.site_id == Site.id).where(*filters)
+    total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
+    posts = session.scalars(query.order_by(ContentPost.created_at.desc(), ContentPost.id)
+                           .offset(offset).limit(limit)).all()
+    return {"items": [_post_json(session, post) for post in posts],
+            "total": total, "limit": limit, "offset": offset,
+            "projects": [{"id": site.id, "name": site.client_name or site.hostname,
+                          "hostname": site.hostname}
+                         for site in pages.sites_of(session, account)]}
 
 
 @router.get("/content/{post_id}")

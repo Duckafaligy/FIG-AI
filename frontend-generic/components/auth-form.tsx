@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { siShopify } from "simple-icons/icons";
 import { PreviewInfo } from "./preview-info";
 
@@ -13,6 +13,14 @@ function ProviderMark({ icon }: { icon: { path: string; hex: string; title: stri
 
 export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   const [message, setMessage] = useState("");
+  const [email, setEmail] = useState("");
+  const [requestedPlan, setRequestedPlan] = useState("");
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setEmail((params.get("email") ?? "").slice(0, 254));
+    const plan = params.get("plan");
+    if (plan && ["Starter", "Pro", "Scale", "Enterprise"].includes(plan)) setRequestedPlan(plan);
+  }, []);
   const [showPassword, setShowPassword] = useState(false);
   const signup = mode === "signup";
 
@@ -33,6 +41,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
         <p>{signup ? "Start your free trial and see how FIG can help your team get found everywhere." : "Sign in to continue building high-performing content."}</p>
       </div>
 
+      {signup && requestedPlan && <p className="form-message">Interested in {requestedPlan} · plan preview only. No subscription has been started.</p>}
       <div className="auth-fields">
         {signup && <label className="auth-field" htmlFor="full-name"><span>Full name</span><input id="full-name" required autoComplete="name" placeholder="Demo workspace team" /></label>}
         <label className="auth-field" htmlFor="email"><span>{signup ? "Work email" : "Email"}</span><div className="input-with-icon"><Mail size={18} aria-hidden="true" /><input id="email" required type="email" autoComplete="email" placeholder="you@company.com" /></div></label>

@@ -172,7 +172,7 @@ export default function PricingPage() {
                   <ul className="plan-feature-list">
                     {plan.features.map((feature) => <li key={feature}><Check size={16} aria-hidden="true" />{feature}</li>)}
                   </ul>
-                  <Link className={plan.popular ? "button" : "secondary-button"} href="/signup">{plan.cta}{plan.name !== "Enterprise" && <ArrowRight size={16} />}</Link>
+                  <Link className={plan.popular ? "button" : "secondary-button"} href={`/signup?plan=${encodeURIComponent(plan.name)}&billing=${annual ? "yearly" : "monthly"}`}>{plan.name === "Enterprise" ? "Explore Enterprise" : plan.cta}{plan.name !== "Enterprise" && <ArrowRight size={16} />}</Link>
                 </article>
               );
             })}

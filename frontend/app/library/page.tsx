@@ -77,8 +77,8 @@ export default async function LibraryPage() {
 
           {entries.length === 0 ? (
             <section className={styles.empty}>
-              <p>No public scans yet.</p>
-              <Link className="button" href="/">Run the first one<ArrowRight size={16} /></Link>
+              <p>{data ? "No public scans yet." : "The scan library is unavailable. Please try again shortly."}</p>
+              <Link className="button" href="/">{data ? "Run the first one" : "Back to home"}<ArrowRight size={16} /></Link>
             </section>
           ) : (
             <div className={styles.grid}>

@@ -101,6 +101,7 @@ function formatLongDate(date: Date) {
 export default function ProjectsPage() {
   const [query, setQuery] = useState("");
   const [view, setView] = useState("grid");
+  const [sort, setSort] = useState("default");
   const [trendRange, setTrendRange] = useState<ChartRange>("30");
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(2025, 4, 1));
   const [selectedCalendarDate, setSelectedCalendarDate] = useState("2025-05-21");
@@ -130,11 +131,11 @@ export default function ProjectsPage() {
         <Link className="projects-brand" href="/projects"><span><Zap size={15} fill="currentColor" /></span><strong>Demo workspace</strong></Link>
         <div className="projects-search"><Search size={16} /><input aria-label="Search projects" placeholder="Search projects, domains, or content…" value={query} onChange={(event) => setQuery(event.target.value)} /><kbd>⌘ K</kbd></div>
         <div className="projects-top-actions">
-          <div className="projects-workspace"><span>DW</span>Demo workspace<ChevronDown size={14} /></div>
-          <div className="projects-date"><CalendarDays size={15} />May 12, 2025 – May 25, 2025<ChevronDown size={14} /></div>
+          <div className="projects-workspace"><span>DW</span>Demo workspace</div>
+          <div className="projects-date"><CalendarDays size={15} />May 12, 2025 – May 25, 2025</div>
           <button className="button button--small" type="button" onClick={() => projectDialog.current?.showModal()}><Plus size={15} />New project</button>
           <Link className="projects-icon-button" href="/app/notifications" aria-label="Notifications"><Bell size={17} /></Link>
-          <span className="projects-avatar">JD</span>
+          <Link className="projects-avatar" href="/app/settings" aria-label="Account settings">JD</Link>
         </div>
       </header>
 
@@ -146,7 +147,7 @@ export default function ProjectsPage() {
 
         <div className="projects-section-heading">
           <div><h2>Your projects</h2><span>1 project</span></div>
-          <div className="projects-view-actions"><label><Search size={14} /><input aria-label="Filter projects" placeholder="Search projects…" value={query} onChange={(event) => setQuery(event.target.value)} /></label><button className={view === "grid" ? "active" : ""} type="button" onClick={() => setView("grid")} aria-pressed={view === "grid"}><LayoutGrid size={14} />Grid</button><button className={view === "list" ? "active" : ""} type="button" onClick={() => setView("list")} aria-pressed={view === "list"}><List size={14} />List</button><select aria-label="Sort projects"><option>Last updated</option><option>Name A–Z</option></select></div>
+          <div className="projects-view-actions"><label><Search size={14} /><input aria-label="Filter projects" placeholder="Search projects…" value={query} onChange={(event) => setQuery(event.target.value)} /></label><button className={view === "grid" ? "active" : ""} type="button" onClick={() => setView("grid")} aria-pressed={view === "grid"}><LayoutGrid size={14} />Grid</button><button className={view === "list" ? "active" : ""} type="button" onClick={() => setView("list")} aria-pressed={view === "list"}><List size={14} />List</button><span className="projects-sort-note">1 project</span></div>
         </div>
 
         <section className={`projects-card-grid projects-card-grid--${view}`} aria-label="Project list">
