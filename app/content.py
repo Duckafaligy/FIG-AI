@@ -313,12 +313,27 @@ class Refused(Exception):
 
 def _owned(session: Session, account: Account, post_id: str) -> ContentPost:
     post = session.get(ContentPost, post_id)
-    if post is None:
-        raise Refused("That post no longer exists.")
-    site = session.get(Site, post.site_id)
-    if site is None or site.account_id != account.id:
-        raise Refused("That post belongs to another account.")
+    site = session.get(Site, post.site_id) if post is not None else None
+    # One answer for "doesn't exist" and "isn't yours", so nobody can probe
+    # which ids are real by comparing the two.
+    if post is None or site is None or site.account_id != account.id:
+        raise Refused("That post doesn't exist in this workspace.")
     return post
+
+
+def reopen_if_scheduled(post: ContentPost) -> bool:
+    """Editing approved text sends it back through Review.
+
+    Review is the gate: a post is scheduled because a person read *that* text
+    and said yes. If the text changes afterwards, that yes no longer applies,
+    so the post goes back to Review and loses its date until it is approved
+    again. Returns True when it did.
+    """
+    if post.state != "scheduled":
+        return False
+    post.state = "review"
+    post.scheduled_for = None
+    return True
 
 ALLOWED = {
     ("queued", "in_progress"),

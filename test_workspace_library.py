@@ -80,6 +80,35 @@ class LibraryTests(unittest.TestCase):
         self.assertEqual(result["total"], 1)
         self.assertEqual(result["items"][0]["body"], "# A draft\n\nA real saved paragraph.")
 
+    def test_editing_approved_text_goes_back_through_review(self):
+        post = self.create().json()["id"]
+        url = "/api/content/" + post
+        self.client.patch(url, headers=self.headers, json={"body": "The approved draft."})
+        for state in ["in_progress", "review", "scheduled"]:
+            self.assertEqual(self.client.post(url + "/move", headers=self.headers, json={"to": state}).status_code, 200)
+        # Saving identical text is not an edit: still scheduled, date kept.
+        same = self.client.patch(url, headers=self.headers, json={"body": "The approved draft."}).json()
+        self.assertEqual(same["state"], "scheduled")
+        self.assertTrue(same["scheduled_for"])
+        # Changing the text after approval withdraws the approval.
+        edited = self.client.patch(url, headers=self.headers, json={"body": "Different words, never read."}).json()
+        self.assertEqual(edited["state"], "review")
+        self.assertIsNone(edited["scheduled_for"])
+        # A change of keyword alone does not touch the approved text.
+        self.client.post(url + "/move", headers=self.headers, json={"to": "scheduled"})
+        kept = self.client.patch(url, headers=self.headers, json={"keyword": "another"}).json()
+        self.assertEqual(kept["state"], "scheduled")
+
+    def test_someone_elses_post_looks_the_same_as_a_missing_one(self):
+        foreign = self.create(account="b", site="site-b").json()["id"]
+        theirs = self.client.get("/api/content/" + foreign, headers=self.headers)
+        missing = self.client.get("/api/content/no-such-post", headers=self.headers)
+        self.assertEqual(theirs.status_code, missing.status_code)
+        self.assertEqual(theirs.text, missing.text)
+        moved = self.client.post("/api/content/" + foreign + "/move", headers=self.headers, json={"to": "in_progress"})
+        gone = self.client.post("/api/content/no-such-post/move", headers=self.headers, json={"to": "in_progress"})
+        self.assertEqual(moved.text, gone.text)
+
     def test_pagination_and_validation(self):
         for title in ["One", "Two", "100% literal"]:
             self.create(title)

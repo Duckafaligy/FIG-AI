@@ -345,12 +345,15 @@ def content_patch(post_id: str, request: Request, payload: dict = Body(...),
         post = content._owned(session, account, post_id)
     except content.Refused as exc:
         raise HTTPException(404, str(exc)) from exc
+    before = (post.title, post.body)
     if "body" in (payload or {}):
         post.body = (payload["body"] or "").strip() or None
     if "title" in (payload or {}) and payload["title"]:
         post.title = payload["title"].strip()
     if "keyword" in (payload or {}):
         post.target_keyword = (payload["keyword"] or "").strip().lower() or None
+    if (post.title, post.body) != before:
+        content.reopen_if_scheduled(post)
     content.rescore(post)
     session.commit()
     return _post_json(session, post) | {"report": content.score_post(post)}
