@@ -69,6 +69,9 @@ Two separate projects, same codebase (`frontend/`), same org (`ducakfaligy`):
     `https://fig-ai-seven.vercel.app/**`, `http://localhost:3000/**`,
     `http://localhost:3001/**` (the wildcard is what lets `/signin` and
     `/reset-password` through; the bare origin alone does not).
+  - `SUPABASE_SERVICE_ROLE_KEY` must be set on **Render** too (it is in
+    `render.yaml`): the backend uses it only to delete a person's sign-in record
+    when they delete their workspace. Never expose it to the frontend.
   - Authentication → Email Templates: the six templates were replaced with
     branded HTML on 2026-09-19 (Confirm signup, Invite, Magic Link/OTP,
     Change email, Reset password, Reauthentication)

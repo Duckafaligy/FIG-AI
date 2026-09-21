@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
+import { ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { DEMO_MODE } from "@/lib/api";
+import { actions, DEMO_MODE } from "@/lib/api";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 
 /**
@@ -164,6 +164,10 @@ export function ResetPasswordForm() {
       }
       const { error } = await supabase.auth.updateUser({ password });
       if (error) { setMessage(error.message); return; }
+      // Sign out every FIG session this person already has (a stolen cookie, a
+      // shared computer) so the reset actually locks them out. Best effort: the
+      // password is already changed, so a failure here must not look like one.
+      await actions.revokeSessions(session.data.session?.access_token ?? tokens.access).catch(() => undefined);
       // Sign-in to FIG itself is our own cookie session; this Supabase session
       // existed only to change the password, so end it here.
       await supabase.auth.signOut({ scope: "local" });
@@ -198,7 +202,7 @@ export function ResetPasswordForm() {
     return (
       <div className="auth-form" role="status">
         <div className="auth-heading">
-          <span className="eyebrow"><CheckCircle2 size={13} /> Password updated</span>
+          <span className="eyebrow"><Check size={13} /> Password updated</span>
           <h2>You&rsquo;re all set</h2>
           <p>Your password has been changed. Sign in with the new one.</p>
         </div>

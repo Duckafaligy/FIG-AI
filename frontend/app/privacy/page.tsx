@@ -6,6 +6,7 @@ import { OPERATOR, SERVICE_PROVIDERS } from "@/lib/legal";
 export const metadata: Metadata = {
   title: "Privacy Policy — FIG",
   description: "What FIG collects, why, who it is shared with, how long it is kept, and the rights you have over it.",
+  alternates: { canonical: "/privacy" },
 };
 
 /**
@@ -163,9 +164,9 @@ const sections: LegalSection[] = [
     body: (
       <>
         <ul>
-          <li><strong>Account and workspace data:</strong> while your account is open. After a verified deletion request we delete it within 30 days, apart from what the law requires us to keep.</li>
+          <li><strong>Account and workspace data:</strong> while your account is open. You can delete your workspace yourself at any time in Settings, which removes your sites, scan history, drafts, connected services and stored credentials, and your sign-in, and cancels your subscription. If you would rather ask us, we delete it within 30 days of a verified request. Either way we keep only what the law requires us to keep.</li>
           <li><strong>Projects and scan history:</strong> while your account is open, because history is part of the product. Removing a project stops monitoring and billing for it but keeps its history until you ask us to delete it.</li>
-          <li><strong>Free scans and library entries:</strong> until you ask us to remove them. The hashed identifiers are stored with the record and used only for the free-scan limits.</li>
+          <li><strong>Free scans and library entries:</strong> until you ask us to remove them. The hashed IP and device identifiers stored with a free scan are used only for the free-scan limits, and are blanked automatically after 30 days. The scan itself and its library entry are not affected.</li>
           <li><strong>Payment records:</strong> Stripe and we keep invoice and transaction records for as long as tax and accounting law requires, commonly several years.</li>
           <li><strong>Backups and logs:</strong> held by our providers on their own short schedules, after which they are overwritten.</li>
         </ul>
@@ -186,7 +187,7 @@ const sections: LegalSection[] = [
           <li>not to be <strong>treated worse</strong> for using these rights.</li>
         </ul>
         <p>These come from laws including the GDPR and UK GDPR, the California CCPA/CPRA, and Canada&rsquo;s PIPEDA and provincial privacy laws. We give the same rights to everyone, wherever you live.</p>
-        <p><strong>To use them, email {OPERATOR.email}</strong> from the address on your account (we may ask one or two questions to confirm it is you). We reply within 30 days. You can also change your workspace name and disconnect services yourself in Settings.</p>
+        <p><strong>To use them, email {OPERATOR.email}</strong> from the address on your account (we may ask one or two questions to confirm it is you). We reply within 30 days. You can also rename your workspace, disconnect services and delete your whole workspace yourself in Settings.</p>
         <p>If you are unhappy with how we handle a request, you can complain to your data protection authority, for example the Office of the Privacy Commissioner of Canada, your EU or UK regulator, or the California Attorney General. We would like the chance to fix it first.</p>
       </>
     ),

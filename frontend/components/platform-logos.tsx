@@ -1,13 +1,15 @@
 import {
   siBigcommerce,
-  siGoogleanalytics,
   siShopify,
   siWebflow,
   siWix,
   siWordpress
 } from "simple-icons/icons";
 
-const platforms = [siShopify, siWix, siWebflow, siWordpress, siBigcommerce, siGoogleanalytics];
+// Sites FIG can read, not integrations: it scans public HTML, so the platform
+// doesn't matter. Only WordPress (approved fixes), Google Analytics and Search
+// Console are actual connections, and the copy around this says so.
+const platforms = [siShopify, siWix, siWebflow, siWordpress, siBigcommerce];
 
 export function PlatformLogos() {
   return (

@@ -1,4 +1,4 @@
-import { BarChart3, FileText, Home, Library, Search, Settings2, Sparkles } from "lucide-react";
+import { BarChart3, FileText, Home, Library, Search, Settings2, Quote } from "lucide-react";
 
 type LaptopVariant = "overview" | "queue" | "library";
 
@@ -55,7 +55,7 @@ export function ProductLaptop({ compact = false, variant = "overview" }: { compa
   const view = views[variant];
 
   return (
-    <div className={`laptop laptop--${variant} ${compact ? "laptop--compact" : ""}`} aria-label={`FIG ${view.title} dashboard preview`}>
+    <div className={`laptop laptop--${variant} ${compact ? "laptop--compact" : ""}`} aria-label={`FIG ${view.title} sample dashboard`}>
       <div className="laptop-lid">
         <div className="laptop-camera" />
         <div className="laptop-screen">
@@ -85,12 +85,12 @@ export function ProductLaptop({ compact = false, variant = "overview" }: { compa
               </div>
               {variant !== "queue" && <div className="mini-opportunities">
                 <div className="mini-panel-title">{variant === "library" ? "Continue learning" : "Next steps"}</div>
-                {view.actions.map((action, index) => <span key={action}>{index === 0 ? <Search size={11} /> : index === 1 ? <FileText size={11} /> : <Sparkles size={11} />}{action}</span>)}
-                <div className="mini-health"><b>Workspace health</b><strong>● Healthy</strong><small>LaunchVault.ca preview</small></div>
+                {view.actions.map((action, index) => <span key={action}>{index === 0 ? <Search size={11} /> : index === 1 ? <FileText size={11} /> : <Quote size={11} />}{action}</span>)}
+                <div className="mini-health"><b>Workspace health</b><strong>● Healthy</strong><small>LaunchVault.ca</small></div>
               </div>}
             </div>
             {variant === "overview" && <div className="mini-recent-panel"><div className="mini-panel-title">Recent content <span>View all →</span></div>{recentContent.map(([title, status, traffic, score]) => <div className="mini-recent-row" key={title}><FileText size={9} /><b>{title}</b><em>{status}</em><span>{traffic} views</span><strong>{score}</strong></div>)}</div>}
-            <div className="mini-screen-footer"><span>LaunchVault.ca</span><span>Illustrative product preview</span><span>May 2025</span></div>
+            <div className="mini-screen-footer"><span>LaunchVault.ca</span><span>Sample data</span><span>Demo workspace</span></div>
           </div>
         </div>
       </div>

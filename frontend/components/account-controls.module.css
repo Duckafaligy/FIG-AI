@@ -1,0 +1,18 @@
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.row input { flex: 1 1 240px; min-width: 0; height: 42px; padding: 0 14px; border: 1px solid var(--line-strong, #d8deed); border-radius: 8px; background: #fff; color: var(--ink); font-size: 14px; }
+.row input:focus-visible, .confirm input:focus-visible { outline: 2px solid var(--violet, #5b45f2); outline-offset: 1px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.danger { border-color: #f3c9d2; }
+.danger svg { color: #d4385c; }
+.confirm { display: flex; flex-direction: column; gap: 10px; }
+.confirm p { margin: 0; color: #536080; font-size: 13.5px; line-height: 1.6; }
+.confirm label { font-size: 13px; font-weight: 700; color: var(--ink); }
+.confirm code { padding: 1px 6px; border-radius: 5px; background: #f1f2fb; font-size: 0.92em; font-weight: 600; }
+.confirm input { height: 42px; padding: 0 14px; border: 1px solid #f3c9d2; border-radius: 8px; background: #fff; color: var(--ink); font-size: 14px; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.dangerButton { align-self: flex-start; height: 40px; padding: 0 18px; border: 0; border-radius: 8px; background: #d4385c; color: #fff; font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.dangerButton:hover:not(:disabled) { background: #b92d4d; }
+.dangerButton:disabled { opacity: 0.55; cursor: not-allowed; }
+.done p { color: #536080; }

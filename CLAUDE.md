@@ -725,19 +725,67 @@ placeholders** — only email/password goes through Supabase for now.
    real user's confirmation link would have pointed at `localhost:3000`
    (`signUp` now passes one; the dashboard allow-list still has to be set).
 
-   **Still open, found here and not built:** (1) the trial is **not enforced** —
-   `on_trial()` is display-only and nothing gates features after `TRIAL_DAYS`
+   **Built after that audit (same day):** self-serve workspace deletion
+   (`app/account_data.py`, `POST /api/account/delete`, Settings → Workspace):
+   cancels the Stripe subscription *first* and refuses to delete anything if
+   Stripe won't cancel, deletes sites/scans/content/changes/credentials/API keys/
+   people, keeps Stripe's invoice records, and removes the Supabase sign-in
+   record when `SUPABASE_SERVICE_ROLE_KEY` is set on the backend (it is in
+   `render.yaml`). Password resets now end every other session: `User.
+   session_epoch` is bumped by `POST /api/session/revoke` (called from the
+   reset page) and a cookie from an older epoch stops working; cookies issued
+   before epochs existed count as epoch 0, so deploying signed nobody out.
+   `app/retention.py` blanks the hashed IP/device identifiers on free scans after
+   30 days (run from the job loop). `PATCH /api/settings/profile` has a real
+   form. The migration path for the new column is tested against an old-schema
+   database (`test_account_lifecycle.py`), because production had no
+   `users.session_epoch` until the backend started once after deploy.
+
+   **The site no longer says "preview" or shows invented numbers (2026-09-21).**
+   Every public page was rewritten to describe what FIG does today: 19 checks in
+   four layers, a free scan of up to 6 pages with no account, real per-site
+   volume prices from `frontend/lib/pricing.ts` (held equal to the backend and so
+   to Stripe by `test_pricing_sync.py`, with a live calculator). The invented
+   outcome stats (+187%, 3.4x, 92%...), the stock-photo "customer quotes", the
+   fabricated GEO "AI visibility" figures and the plan/seat/SSO/annual-billing
+   pricing were **removed, not relabelled**: a disclaimer does not make a made-up
+   testimonial acceptable. The sign-in/sign-up pages had said "no account is
+   created from this form" while signup really creates one; that and "Create
+   with AI" / "publish" claims (FIG writes and publishes nothing new) are gone.
+   The in-app demo screens keep their "sample data" labels: they are honest
+   labels on a real demo. **Rule for future copy:** if a claim, number or quote
+   can't be traced to code or a real customer, don't ship it.
+
+   **Dogfooding worked.** Running FIG's own rules on FIG's own rendered pages
+   found 37 findings (overused arrow/sparkles icons, a 182-character meta
+   description, no canonical link and no JSON-LD on any page, flat `h2`-only
+   auth pages, the stale "Content that gets found" title) and got it to 14. The
+   remainder are false positives worth **tuning in `app/rules/checks.py`**, not
+   fixing in the site: `flat_typography` and `no_answerable_questions` fire on
+   long legal documents and auth forms where a lone `h1` over many `h2` sections
+   and no Q&A block are correct. (`numbered_eyebrows` also fired on the legal
+   pages' "1." section labels; those now come from a CSS counter, which is
+   cleaner anyway.) Run it again after any large copy change:
+   `next start`, fetch pages, `parse_html` + `run_all_checks`.
+
+   **Production-data cleanup needs a human.** The auto-mode permission system
+   blocked a bulk delete of test accounts and stale library rows in the live
+   database, correctly. It is now `scripts/cleanup_test_data.py` (dry run by
+   default, `--apply` to delete, fixed named list, guards on each deletion) to
+   be read and run by the owner: `python scripts/cleanup_test_data.py`. It
+   refuses to run until the backend has migrated `users.session_epoch`.
+
+   **Still open, found here and not built:** (1) the trial is **not enforced**
+   — `on_trial()` is display-only and nothing gates features after `TRIAL_DAYS`
    (7; the signup form said 14 until this fixed it), so the Terms deliberately
-   say a subscription "may" be required later; (2) there is **no account
-   deletion** — the policy promises deletion by email request within 30 days;
-   a self-serve delete (users, accounts, sites, scans, secrets) should replace
-   that; (3) resetting a password does not end existing 14-day `fig_session`
-   cookies, so a stolen session survives a password reset (needs a per-user
-   session version); (4) `PublicRead` keeps hashed IP/device identifiers
-   indefinitely — they are only used for 1-hour/1-day limits, so they could be
-   blanked after ~30 days; (5) Supabase's shared email sender allows only a few
-   messages per hour and is shared by signup confirmations and recovery — a real
-   SMTP provider (which needs a domain to send from) is required before launch.
+   say a subscription "may" be required later; (2) Supabase's shared email
+   sender only delivers to team members and is rate-limited, so signup and
+   recovery emails need real SMTP (which needs a domain to send from) and the
+   dashboard **Site URL / Redirect URLs** still point at localhost; (3) the
+   Google consent screen is published but **unverified** (100-user cap, warning
+   screen) until there is a custom domain and a logo; (4) `PLATFORMS.md`'s
+   Sentry is still not added; (5) the Watch scheduler is off by default
+   (`FIG_WATCH_ENABLED=0`), so nothing may claim daily monitoring.
 
 **Design tool:** the UI is being replicated into Paper (`FIG AI Frontend UI`,
 `PLATFORMS.md`) so it can be restyled visually and ported back to the Next.js
@@ -772,7 +820,7 @@ Tests with no network, database or API key required:
 python test_local.py      # the rules engine
 python test_content.py    # the content queue
 python test_backend.py    # validation, robots.txt, crawler network rules, AI accounting
-python -m unittest test_workspace_library test_billing test_jobs test_secrets_cleanup
+python -m unittest test_workspace_library test_billing test_jobs test_secrets_cleanup \n                   test_account_lifecycle test_pricing_sync
                           # the /api contract (auth, isolation, content lifecycle,
                           # profile), the Stripe webhook + checkout guard + quantity
                           # sync, orphaned-job recovery, and credential deletion. The

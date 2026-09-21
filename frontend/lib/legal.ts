@@ -17,13 +17,13 @@
 
 export const OPERATOR = {
   /** The person or company that runs FIG and is party to the Terms. */
-  name: "[Legal name of the person or company operating FIG]",
+  name: "Brendan Ho Lok Lau",
   /** A monitored address for privacy, refund and removal requests. */
-  email: "[contact email]",
+  email: "Brendanhllau@gmail.com",
   /** A postal address (required by CASL and by GDPR Art. 13 for the controller). */
-  address: "[mailing address]",
+  address: "L63 2E9",
   /** Whose law governs the Terms, e.g. "Ontario, Canada". */
-  jurisdiction: "[province or state, country]",
+  jurisdiction: "Ontario, Canada",
 };
 
 /** Every field must be filled before the pages stop saying "draft". */

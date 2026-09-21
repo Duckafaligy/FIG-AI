@@ -459,6 +459,15 @@ export const actions = {
       workspace_name: workspaceName ?? "",
     }),
   signOut: () => apiSend<{ ok: true }>("/api/logout", "POST"),
+  /** Ends every FIG session for the person this Supabase token belongs to. Called by the reset-password page. */
+  revokeSessions: (accessToken: string) =>
+    apiSend<{ ok: true }>("/api/session/revoke", "POST", { access_token: accessToken }),
+  renameWorkspace: (name: string) =>
+    apiSend<{ ok: true; profile: { name: string; slug: string } }>("/api/settings/profile", "PATCH", { name }),
+  /** Deletes the workspace and everything in it. `confirm` must be the account email. */
+  deleteAccount: (confirm: string) =>
+    apiSend<{ deleted: true; sites: number; subscription_cancelled: boolean; sign_in_record_deleted: boolean }>(
+      "/api/account/delete", "POST", { confirm }),
   addProject: (hostname: string, name?: string) =>
     apiSend<{ id: string; hostname: string; scan_id: string }>("/api/projects", "POST", { hostname, name }),
   removeProject: (id: string) => apiSend<{ ok: true }>(`/api/projects/${id}`, "DELETE"),

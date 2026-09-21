@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
+import { ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { siShopify } from "simple-icons/icons";
 import { actions, DEMO_MODE } from "@/lib/api";
@@ -25,12 +25,9 @@ const SOCIAL_LOGIN_AVAILABLE = false;
 export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState("");
-  const [requestedPlan, setRequestedPlan] = useState("");
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setEmail((params.get("email") ?? "").slice(0, 254));
-    const plan = params.get("plan");
-    if (plan && ["Starter", "Pro", "Scale", "Enterprise"].includes(plan)) setRequestedPlan(plan);
   }, []);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -102,7 +99,6 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
         <p>{signup ? "Start your free trial and see how FIG can help your team get found everywhere." : "Sign in to continue building high-performing content."}</p>
       </div>
 
-      {signup && requestedPlan && <p className="form-message">Interested in {requestedPlan} · plan preview only. No subscription has been started.</p>}
       <div className="auth-fields">
         {signup && <label className="auth-field" htmlFor="full-name"><span>Full name</span><input id="full-name" name="full-name" required autoComplete="name" placeholder="LaunchVault team" /></label>}
         <label className="auth-field" htmlFor="email"><span>{signup ? "Work email" : "Email"}</span><div className="input-with-icon"><Mail size={18} aria-hidden="true" /><input id="email" name="email" value={email} onChange={(event) => setEmail(event.target.value)} required type="email" autoComplete="email" placeholder="you@company.com" /></div></label>
@@ -113,7 +109,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
 
       {!signup && <div className="form-row"><label className="check"><input type="checkbox" />Remember me</label><Link className="text-button" href="/forgot-password">Forgot password?</Link></div>}
       <button className="button auth-submit" type="submit" disabled={busy} aria-busy={busy}>{busy ? "Please wait…" : signup ? "Start free trial" : "Sign in"}{!busy && <ArrowRight size={18} />}</button>
-      {signup && <div className="trial-reassurance" aria-label="Trial terms"><span><CheckCircle2 size={14} />{TRIAL_DAYS}-day free trial</span><span><CheckCircle2 size={14} />No credit card required</span><span><CheckCircle2 size={14} />Cancel anytime</span></div>}
+      {signup && <div className="trial-reassurance" aria-label="Trial terms"><span><Check size={14} />{TRIAL_DAYS}-day free trial</span><span><Check size={14} />No credit card required</span><span><Check size={14} />Cancel anytime</span></div>}
 
       {SOCIAL_LOGIN_AVAILABLE && (
         <>

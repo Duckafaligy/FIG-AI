@@ -1,126 +1,134 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { FreeScanForm } from "@/components/free-scan-form";
 import {
-  ArrowRight,
   BarChart3,
-  Bell,
+  Braces,
   Check,
   Eye,
   FileCheck2,
   FileText,
-  Globe2,
+  Layers3,
   Link2,
   MessageSquareText,
+  MoveRight,
   PenLine,
+  Quote,
+  Scale,
   Search,
-  Settings,
-  Sparkles,
-  TrendingUp,
   Upload,
-  Users
 } from "lucide-react";
 import { Faq } from "@/components/faq";
 import { Footer } from "@/components/footer";
+import { JsonLd, faqJsonLd } from "@/components/json-ld";
 import { PlatformLogos } from "@/components/platform-logos";
 import { ProductLaptop } from "@/components/product-laptop";
 import { PublicNav } from "@/components/public-nav";
-import { VisibilityChart } from "@/components/visibility-chart";
+import { TRIAL_DAYS } from "@/lib/legal";
+import { TIERS, dollars, tierRange } from "@/lib/pricing";
+
+export const metadata: Metadata = {
+  title: "FIG — see what makes your site read as generic",
+  description: "Paste a URL and FIG checks 19 patterns across design, structure, search and answers, then shows where each is and how to fix it. Free, no account.",
+  alternates: { canonical: "/" },
+};
+
+/**
+ * Everything on this page describes something FIG does today, and the numbers
+ * are ones that can be checked: 19 checks in four layers (app/rules/checks.py),
+ * a free scan of up to 6 pages with no account, prices from lib/pricing.ts
+ * (held equal to the backend by test_pricing_sync.py). The old outcome stats and
+ * customer quotes were invented, so they are gone rather than relabelled.
+ */
 
 const featureCards = [
-  { icon: PenLine, tone: "violet", title: "AI-assisted planning", copy: "Turn ideas and search opportunities into structured, on-brand briefs." },
-  { icon: Search, tone: "blue", title: "SEO review queue", copy: "Review drafts against keywords, intent, links, and on-page essentials." },
-  { icon: Sparkles, tone: "indigo", title: "GEO optimization", copy: "Prepare content for AI answers, citations, and generative discovery." },
-  { icon: Upload, tone: "green", title: "CMS publishing", copy: "Move approved work into connected publishing workflows." },
-  { icon: BarChart3, tone: "blue", title: "Analytics & tracking", copy: "Follow visibility, content health, traffic, and publishing progress." },
-  { icon: Users, tone: "violet", title: "Approvals & collaboration", copy: "Keep comments, decisions, permissions, and sign-off together." },
-  { icon: Bell, tone: "amber", title: "Useful notifications", copy: "Surface reviews, failed jobs, and scheduled work that need attention." },
-  { icon: Settings, tone: "indigo", title: "Settings & API", copy: "Shape integrations and workspace defaults around your team." }
+  { icon: PenLine, tone: "violet", title: "Design and copy tells", copy: "Uniform cards, numbered labels, filler phrases, default colours, flat headings and overused icons, each with the evidence." },
+  { icon: Layers3, tone: "blue", title: "Page structure", copy: "Sections out of a sensible order, missing or extra H1s, skipped heading levels and thin pages." },
+  { icon: Search, tone: "indigo", title: "Search basics", copy: "Titles, meta descriptions, canonical links, language, image alt text and orphan pages: what a crawler can reach." },
+  { icon: Quote, tone: "indigo", title: "Answer readiness", copy: "Structured data, Q&A blocks and specific claims: what a model could quote from your pages." },
+  { icon: FileCheck2, tone: "green", title: "A fix for every finding", copy: "Each one says where it is, why it reads as generic, and one concrete change to make." },
+  { icon: BarChart3, tone: "blue", title: "History and re-scans", copy: "Run it again after you change something and see what moved." },
+  { icon: FileText, tone: "violet", title: "A content queue", copy: "Gaps become briefs. Paste a draft and it is scored on nine rules, then moves through your review." },
+  { icon: Link2, tone: "amber", title: "Connect your tools", copy: "Google Analytics and Search Console, read-only, plus WordPress fixes that apply only when you approve them." },
 ];
 
 const workflowSteps = [
-  { icon: Link2, title: "Connect", copy: "Link your CMS and analytics tools." },
-  { icon: FileText, title: "Generate", copy: "Create SEO + GEO content with AI." },
-  { icon: Users, title: "Review", copy: "Collaborate and refine with your team." },
-  { icon: Eye, title: "Preview", copy: "See how the final content will look." },
-  { icon: Upload, title: "Publish", copy: "Send approved work to your CMS." },
-  { icon: BarChart3, title: "Track", copy: "Measure performance and iterate." }
+  { icon: Link2, title: "Scan", copy: "Paste a public URL. Up to 6 pages free, no account." },
+  { icon: FileText, title: "Read", copy: "See findings grouped by craft, structure, search and answers." },
+  { icon: PenLine, title: "Fix", copy: "Every finding comes with a concrete change." },
+  { icon: Check, title: "Approve", copy: "Connected WordPress fixes apply only when you say so." },
+  { icon: BarChart3, title: "Re-scan", copy: "Run it again and compare the results." },
+  { icon: Upload, title: "Share", copy: "Optionally turn on a public report link." },
 ];
 
-const outcomes = [
-  { icon: TrendingUp, value: "+187%", label: "avg. organic traffic growth", tone: "purple" },
-  { icon: Sparkles, value: "3.4x", label: "more AI visibility", tone: "blue" },
-  { icon: FileCheck2, value: "10,000+", label: "content pieces optimized", tone: "green" },
-  { icon: Users, value: "92%", label: "of teams see positive ROI", tone: "amber" }
+const glance = [
+  { icon: Search, value: "19", label: "checks, each a stated rule", tone: "purple" },
+  { icon: Layers3, value: "4", label: "layers: craft, structure, search, answers", tone: "blue" },
+  { icon: FileCheck2, value: "$0", label: "to scan a public site, no account", tone: "green" },
+  { icon: Scale, value: "0", label: "accusations: findings are signals", tone: "amber" },
 ];
 
 const audiences = [
   {
-    title: "Marketers",
-    copy: "Drive organic growth with less manual work.",
+    title: "Students and learners",
+    copy: "See what makes your project read as generic, and learn to fix it yourself.",
     image: "https://images.unsplash.com/photo-1758876021859-bd2371d8f0a2?auto=format&fit=crop&w=900&q=88",
     alt: "Woman working on a laptop and taking notes in a shared office",
     position: "center 45%"
   },
   {
-    title: "Agencies",
-    copy: "Manage multiple clients from the same workflow.",
+    title: "Freelancers and small teams",
+    copy: "Check a site before you hand it over, and share a report with the client.",
     image: "https://images.unsplash.com/photo-1758873268023-15a6e6d739ed?auto=format&fit=crop&w=900&q=88",
     alt: "Professional wearing glasses at an office desk with a laptop",
     position: "center 45%"
   },
   {
-    title: "Commerce teams",
-    copy: "Increase product visibility and discoverability.",
+    title: "Agencies",
+    copy: "Keep a whole client list in one workspace, billed per site.",
     image: "https://images.unsplash.com/photo-1758873268745-dd2cf0d677b5?auto=format&fit=crop&w=900&q=88",
     alt: "Colleagues collaborating around a computer in a shared workspace",
     position: "center 45%"
   }
 ];
 
-const testimonialPreviews = [
-  {
-    quote: "FIG has streamlined how our content moves from an idea to something the team can review and ship.",
-    name: "Sarah K.",
-    role: "Marketing lead",
-    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=180&q=88"
-  },
-  {
-    quote: "The GEO workspace gives us one clear view of prompts, citations, and content opportunities.",
-    name: "Daniel M.",
-    role: "Head of growth",
-    image: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=180&q=88"
-  },
-  {
-    quote: "It is easy to use, and the review flow makes it obvious what needs attention next.",
-    name: "Priya S.",
-    role: "Content manager",
-    image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=180&q=88"
-  }
+const principles = [
+  { icon: Scale, title: "Signals, not accusations", copy: "A finding says a pattern is commonly associated with generic design. FIG never claims a person or a program wrote something." },
+  { icon: Eye, title: "Your results are yours", copy: "Nobody else sees your results unless you turn on a share link. There is no leaderboard and no admin view." },
+  { icon: Check, title: "Nothing changes without you", copy: "FIG edits a connected site only after you approve each change, and every change can be reverted." },
 ];
 
 const frequentlyAsked = [
   {
-    question: "What CMS platforms does FIG support?",
-    answer: "FIG is being designed around flexible integrations, beginning with the CMS and analytics workflows shown in this product preview. Production availability will be confirmed as each connection is tested."
+    question: "Do I need an account to try FIG?",
+    answer: "No. Paste a public URL and FIG scans up to 6 pages for free. Free scans appear in the public library with the site's domain unless you tick the option to keep yours anonymous. An account adds history, more pages and connections."
   },
   {
-    question: "Do I need technical knowledge to use FIG?",
-    answer: "No. The core workspace is designed for marketers and content teams, while API and automation controls can stay out of the way until they are needed."
+    question: "What does FIG actually check?",
+    answer: "19 checks in four layers: craft (how it reads), structure (what sits where), search (what a crawler reaches) and answers (what a model could quote). They are ordinary code with a stated rule. AI is used only to write the plain-language explanation of each finding."
   },
   {
-    question: "Can FIG optimize content for AI search?",
-    answer: "The product design includes GEO workflows for prompt coverage, answer previews, citation opportunities, and source visibility. The values in this frontend are illustrative until live data is connected."
+    question: "Does FIG say my site was written by AI?",
+    answer: "No. Findings are patterns commonly associated with generic, templated design, and they are informed guesses, not verdicts. FIG can't tell you who or what wrote a page, and our terms ask you not to use it to judge other people's work."
   },
   {
-    question: "Can I try FIG before paying?",
-    answer: "The current build includes a frontend demo and signup experience. Billing, trial entitlements, and production integrations will be connected during the backend phase."
-  }
+    question: "What can FIG change on my site?",
+    answer: "Only title and heading fixes on a connected WordPress site, and only after you approve each one; every change can be reverted. Everything else is advice you apply yourself. FIG doesn't write your content or publish new posts."
+  },
+  {
+    question: "Which platforms does it work with?",
+    answer: "FIG reads any public website, whatever it is built with. Google Analytics and Search Console connect read-only, and WordPress connects for approved fixes. Other platform connections aren't built yet."
+  },
+  {
+    question: "What does it cost?",
+    answer: `From $20 down to $5 per site per month, depending on how many sites you have. There is a ${TRIAL_DAYS}-day free trial with no card, and you can cancel any time.`
+  },
 ];
 
 function ProductPreviewCards() {
   return (
-    <div className="platform-tour-cards" aria-label="FIG workspace previews">
+    <div className="platform-tour-cards" aria-label="Sample FIG workspace screens">
       <article className="platform-tour-card platform-tour-card--projects">
         <div className="tour-card-ui tour-card-ui--projects" aria-hidden="true">
           <div className="tour-project-content">
@@ -130,8 +138,8 @@ function ProductPreviewCards() {
             <div className="tour-project-activity"><FileCheck2 size={9} /><span>AI agents guide · Ready for review</span></div>
           </div>
         </div>
-        <h3><Link href="/projects">Projects dashboard <ArrowRight size={14} /></Link></h3>
-        <p>Manage your content pipeline across teams and sites.</p>
+        <h3>Your sites at a glance</h3>
+        <p>Every site in one list, with its score and its top finding.</p>
       </article>
       <article className="platform-tour-card platform-tour-card--performance">
         <div className="tour-card-ui" aria-hidden="true">
@@ -142,16 +150,16 @@ function ProductPreviewCards() {
             <path d="M0 76 C26 72 38 74 56 68 S89 63 108 57 S143 59 164 48 S199 44 220 36" fill="none" stroke="#2f80ed" strokeWidth="2.5" />
           </svg>
         </div>
-        <h3><Link href="/app">Content performance <ArrowRight size={14} /></Link></h3>
-        <p>Track rankings, traffic, and engagement over time.</p>
+        <h3>Search data beside your findings</h3>
+        <p>Connect Search Console to see real traffic and queries next to what FIG found.</p>
       </article>
       <article className="platform-tour-card platform-tour-card--geo">
         <div className="tour-card-ui tour-card-ui--geo" aria-hidden="true">
-          <div className="tour-ui-heading"><b>AI visibility growth</b><span>LaunchVault.ca</span></div>
-          <div className="tour-geo-content"><div className="tour-score-ring"><strong>78</strong><span>GEO score</span></div><div className="tour-geo-sources"><span>ChatGPT <b>62%</b></span><span>Google AI <b>78%</b></span><span>Perplexity <b>48%</b></span></div></div>
+          <div className="tour-ui-heading"><b>Answer readiness</b><span>LaunchVault.ca</span></div>
+          <div className="tour-geo-content"><div className="tour-score-ring"><strong>78</strong><span>Answers score</span></div><div className="tour-geo-sources"><span>Structured data <b>✓</b></span><span>Q&A block <b>✓</b></span><span>Specific claims <b>!</b></span></div></div>
         </div>
-        <h3><Link href="/app/geo">GEO visibility <ArrowRight size={14} /></Link></h3>
-        <p>See how content appears across AI search and answers.</p>
+        <h3>Answer readiness</h3>
+        <p>Whether a model could quote your pages: structured data, Q&A and specifics.</p>
       </article>
     </div>
   );
@@ -160,6 +168,7 @@ function ProductPreviewCards() {
 export default function HomePage() {
   return (
     <div className="public-page public-home">
+      <JsonLd data={faqJsonLd(frequentlyAsked)} />
       <PublicNav />
       <main>
         <section className="home-hero section-glow">
@@ -167,19 +176,16 @@ export default function HomePage() {
           <div className="home-hero-shape home-hero-shape--right" />
           <div className="page-shell home-hero-grid">
             <div className="home-hero-copy">
-              <span className="eyebrow"><Sparkles size={13} />SEO + GEO content operations</span>
-              <h1>Launch SEO and GEO content that gets <span>your brand found</span></h1>
-              <p>Plan, create, review, and publish—all in one place. Bring your team, content, and insights together to get found in search and AI answers.</p>
-              <FreeScanForm />
+              <span className="eyebrow">Site self-check for SEO + GEO</span>
+              <h1>Find what makes your site <span>read as generic</span></h1>
+              <p>Paste a URL. FIG checks 19 patterns across design, structure, search and answer-readiness, then shows where each one is, why it matters and how to fix it.</p>
+              <div id="scan"><FreeScanForm /></div>
               <div className="home-hero-actions">
-                <Link className="button" href="/projects">Try the demo <ArrowRight size={17} /></Link>
+                <Link className="button" href="/projects">Try the demo</Link>
                 <Link className="secondary-button" href="/signup">Start free</Link>
               </div>
               <div className="home-hero-proof">
-                <div className="avatar-stack avatar-stack--photos" aria-hidden="true">
-                  {audiences.map((audience) => <Image key={audience.title} src={audience.image} width={48} height={48} alt="" />)}
-                </div>
-                <p>Built for marketers, agencies, and commerce teams. Product figures shown are illustrative.</p>
+                <p>A self-check tool for the people who build the site. Findings are signals, never verdicts. Screens shown are sample data.</p>
               </div>
             </div>
             <div className="home-hero-product">
@@ -188,16 +194,16 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="home-integrations" id="integrations" aria-label="Integration platforms">
+        <section className="home-integrations" id="integrations" aria-label="Sites FIG can read">
           <div className="page-shell">
-            <span className="section-kicker">Connect with the platforms your team already uses</span>
+            <span className="section-kicker">Reads any public site, whatever it is built with</span>
             <PlatformLogos />
           </div>
         </section>
 
-        <section className="page-shell home-outcomes" aria-label="Illustrative product outcomes">
-          <span className="home-outcomes-label">Illustrative product outcomes</span>
-          {outcomes.map(({ icon: Icon, value, label, tone }) => (
+        <section className="page-shell home-outcomes" aria-label="FIG at a glance">
+          <span className="home-outcomes-label">FIG at a glance</span>
+          {glance.map(({ icon: Icon, value, label, tone }) => (
             <article className={`home-outcome home-outcome--${tone}`} key={label}>
               <Icon size={20} />
               <strong>{value}</strong>
@@ -208,9 +214,9 @@ export default function HomePage() {
 
         <section className="section page-shell home-features" id="features">
           <div className="section-heading centered">
-            <span className="section-kicker">Everything you need</span>
-            <h2>A complete content operations platform</h2>
-            <p>From idea to impact, FIG keeps planning, optimization, review, publishing, and measurement in one organized workflow.</p>
+            <span className="section-kicker">What FIG checks</span>
+            <h2>19 checks across four layers</h2>
+            <p>Every check is ordinary code with a stated rule, so you can see exactly what triggers it. AI only writes the plain-language explanation.</p>
           </div>
           <div className="home-feature-grid">
             {featureCards.map(({ icon: Icon, tone, title, copy }) => (
@@ -227,8 +233,8 @@ export default function HomePage() {
           <div className="page-shell">
             <div className="section-heading centered">
               <span className="section-kicker">How FIG works</span>
-              <h2>From idea to impact in six simple steps</h2>
-              <p>A connected path from your existing tools to content that can be reviewed, shipped, and improved.</p>
+              <h2>From a URL to a fixed page in six steps</h2>
+              <p>No account is needed to start. Sign up when you want history and connections.</p>
             </div>
             <ol className="home-workflow-grid">
               {workflowSteps.map(({ icon: Icon, title, copy }, index) => (
@@ -236,7 +242,7 @@ export default function HomePage() {
                   <span className="home-workflow-icon"><Icon size={20} /></span>
                   <div><small>{index + 1}</small><h3>{title}</h3></div>
                   <p>{copy}</p>
-                  {index < workflowSteps.length - 1 && <ArrowRight className="home-workflow-arrow" size={16} aria-hidden="true" />}
+                  {index < workflowSteps.length - 1 && <MoveRight className="home-workflow-arrow" size={16} aria-hidden="true" />}
                 </li>
               ))}
             </ol>
@@ -246,10 +252,10 @@ export default function HomePage() {
         <section className="section home-platform-tour">
           <div className="page-shell home-platform-tour-grid">
             <div className="home-platform-tour-copy">
-              <span className="section-kicker">The platform</span>
-              <h2>A modern workspace for high-performing content</h2>
-              <p>Your content, reviews, and performance in one workspace. See what’s ready, what needs attention, and where to focus next.</p>
-              <Link href="/projects">See the full demo <ArrowRight size={15} /></Link>
+              <span className="section-kicker">The workspace</span>
+              <h2>One place for every site you check</h2>
+              <p>See what needs attention and where to focus next. Sites, findings, history and a content queue live together. The screens here use sample data.</p>
+              <Link href="/projects">See the demo workspace <MoveRight size={15} /></Link>
             </div>
             <ProductPreviewCards />
           </div>
@@ -258,23 +264,22 @@ export default function HomePage() {
         <section className="section home-geo-feature">
           <div className="page-shell home-geo-grid">
             <div className="home-geo-copy">
-              <span className="eyebrow"><MessageSquareText size={13} />AI search ready</span>
+              <span className="eyebrow"><MessageSquareText size={13} />Answer-ready</span>
               <h2>Be found beyond Google</h2>
-              <p>Shape content for generative answers while keeping traditional search fundamentals visible in the same workflow.</p>
-              <Link className="button" href="/app/geo">Explore GEO <ArrowRight size={16} /></Link>
+              <p>People increasingly get answers from a model, not a list of links. FIG checks whether yours could be quoted, next to the search basics.</p>
+              <Link className="button" href="/projects">See it in the demo</Link>
             </div>
             <div className="home-visibility-card">
               <div className="home-visibility-chart-panel">
                 <div className="home-visibility-heading">
-                  <div><strong>AI visibility growth</strong><small>Illustrative demo data · LaunchVault.ca</small></div>
-                  <span><b>3.4x</b> more AI visibility</span>
+                  <div><strong>The answers layer</strong><small>3 checks · what a model can quote</small></div>
                 </div>
-                <VisibilityChart />
+                <p className="home-answers-copy">A page is easier to quote when it answers a question directly, says something specific, and tells machines what it is.</p>
               </div>
               <div className="home-visibility-sources">
-                <span><MessageSquareText size={15} /><b>ChatGPT</b><strong>+210%</strong></span>
-                <span><Globe2 size={15} /><b>Perplexity</b><strong>+180%</strong></span>
-                <span><Search size={15} /><b>Google AI</b><strong>+150%</strong></span>
+                <span><Braces size={15} /><b>Structured data</b><strong>JSON-LD</strong></span>
+                <span><MessageSquareText size={15} /><b>Question and answer block</b><strong>Q&amp;A</strong></span>
+                <span><Search size={15} /><b>Specific, checkable claims</b><strong>Detail</strong></span>
               </div>
             </div>
           </div>
@@ -282,9 +287,9 @@ export default function HomePage() {
 
         <section className="section page-shell home-audience" id="teams">
           <div className="home-audience-copy">
-            <span className="section-kicker">Built for your team</span>
-            <h2>Made for marketers, agencies, and commerce teams</h2>
-            <p>Whether you are building a brand, coordinating client work, or scaling a content library, FIG keeps the next action clear.</p>
+            <span className="section-kicker">Who it is for</span>
+            <h2>Made for people who build websites</h2>
+            <p>Whether you are learning, freelancing or running a client list, FIG keeps the next fix clear.</p>
           </div>
           <div className="home-audience-grid">
             {audiences.map((audience) => (
@@ -296,21 +301,17 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="section page-shell home-testimonials">
-          <div className="home-testimonial-heading">
-            <span className="section-kicker">Customer story preview</span>
-            <h2>Less busywork. More content that matters.</h2>
-            <p>Representative copy for this frontend prototype—not published customer endorsements.</p>
+        <section className="section page-shell home-principles">
+          <div className="home-principles-heading">
+            <span className="section-kicker">How FIG behaves</span>
+            <h2>A self-check tool, never a verdict</h2>
+            <p>Three commitments we keep.</p>
           </div>
-          <div className="home-testimonial-grid">
-            {testimonialPreviews.map((testimonial) => (
-              <article key={testimonial.name}>
-                <Image src={testimonial.image} width={96} height={96} alt="" />
-                <div>
-                  <p>“{testimonial.quote}”</p>
-                  <strong>{testimonial.name}</strong>
-                  <small>{testimonial.role}</small>
-                </div>
+          <div className="home-principles-grid">
+            {principles.map(({ icon: Icon, title, copy }) => (
+              <article key={title}>
+                <span className="home-feature-icon"><Icon size={21} /></span>
+                <div><h3>{title}</h3><p>{copy}</p></div>
               </article>
             ))}
           </div>
@@ -318,36 +319,34 @@ export default function HomePage() {
 
         <section className="section page-shell home-pricing-preview">
           <div className="home-pricing-heading">
-            <div><span className="section-kicker">Simple, transparent pricing</span><h2>Plans for every stage of growth</h2><p>Frontend pricing preview. Billing rules will be finalized during the backend phase.</p></div>
-            <Link href="/pricing">View full pricing <ArrowRight size={15} /></Link>
+            <div><span className="section-kicker">Simple, transparent pricing</span><h2>Pay per site, pay less as you grow</h2><p>The rate for your total number of sites applies to every site. Every check is included at every size.</p></div>
+            <Link href="/pricing">View full pricing <MoveRight size={15} /></Link>
           </div>
           <div className="home-plan-grid">
-            <article>
-              <h3>Starter</h3><p>For individuals and small teams.</p><strong>$29<span>/month</span></strong>
-              <ul><li><Check size={14} />AI content generation</li><li><Check size={14} />One CMS connection</li><li><Check size={14} />Basic analytics</li></ul>
-              <Link className="secondary-button" href="/signup">Start free</Link>
-            </article>
-            <article className="home-plan-card--featured">
-              <span className="popular-tag">Most popular</span><h3>Pro</h3><p>For growing businesses and agencies.</p><strong>$79<span>/month</span></strong>
-              <ul><li><Check size={14} />Everything in Starter</li><li><Check size={14} />SEO + GEO workflows</li><li><Check size={14} />Approvals and analytics</li></ul>
-              <Link className="button" href="/signup">Start free</Link>
-            </article>
-            <article>
-              <h3>Scale</h3><p>For larger teams with more needs.</p><strong>$199<span>/month</span></strong>
-              <ul><li><Check size={14} />Everything in Pro</li><li><Check size={14} />Advanced automation</li><li><Check size={14} />Priority support</li></ul>
-              <Link className="secondary-button" href="/pricing">See all plans</Link>
-            </article>
+            {[0, 1, 2].map((index) => (
+              <article key={index}>
+                <h3>{tierRange(index)}</h3>
+                <p>{index === 0 ? "Where most people start." : index === 1 ? "A growing set of projects." : "For agencies and larger estates."}</p>
+                <strong>{dollars(TIERS[index][1])}<span>/site/month</span></strong>
+                <ul>
+                  <li><Check size={14} />All 19 checks</li>
+                  <li><Check size={14} />{TRIAL_DAYS}-day free trial, no card</li>
+                  <li><Check size={14} />{index === 2 ? `Down to ${dollars(TIERS[TIERS.length - 1][1])} at 1,000+ sites` : "Cancel anytime"}</li>
+                </ul>
+                <Link className="secondary-button" href={index === 2 ? "/pricing" : "/signup"}>{index === 2 ? "See all tiers" : "Start free trial"}</Link>
+              </article>
+            ))}
           </div>
         </section>
 
         <section className="section page-shell home-faq" id="faq">
-          <div className="home-faq-heading"><span className="section-kicker">Frequently asked questions</span><h2>Everything you need to know</h2><p>A few straight answers about this FIG frontend preview, its demo workspace, and what comes next.</p></div>
+          <div className="home-faq-heading"><span className="section-kicker">Frequently asked questions</span><h2>Everything you need to know</h2><p>Straight answers about what FIG does, and what it doesn&rsquo;t.</p></div>
           <Faq items={frequentlyAsked} />
         </section>
 
         <section className="page-shell home-cta">
-          <div className="home-cta-copy"><span>See FIG in motion</span><h2>Ready to make the content workflow feel less scattered?</h2><p>Explore the LaunchVault.ca demo first, then shape the product around the way your team actually works.</p></div>
-          <div className="home-cta-actions"><div><Link className="secondary-button secondary-button--light" href="/projects">Explore demo</Link><Link className="button button--light" href="/signup">Create preview</Link></div><small>No account or payment is created in this frontend preview.</small></div>
+          <div className="home-cta-copy"><span>Ready when you are</span><h2>See how your site reads to people, crawlers and models.</h2><p>Paste a URL for a free scan, or open the demo workspace to look around first.</p></div>
+          <div className="home-cta-actions"><div><Link className="secondary-button secondary-button--light" href="/projects">Explore demo</Link><Link className="button button--light" href="/signup">Start free</Link></div><small>A free scan needs no account. The trial is {TRIAL_DAYS} days with no card.</small></div>
         </section>
       </main>
       <Footer />

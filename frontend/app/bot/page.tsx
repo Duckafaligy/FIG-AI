@@ -6,6 +6,7 @@ import { OPERATOR } from "@/lib/legal";
 export const metadata: Metadata = {
   title: "About FIGBot — FIG",
   description: "What FIGBot is, what it reads, how politely it behaves, and how to block it or ask us to remove your site.",
+  alternates: { canonical: "/bot" },
 };
 
 /**

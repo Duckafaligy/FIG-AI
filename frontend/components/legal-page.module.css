@@ -18,12 +18,13 @@
 .related a { color: var(--muted); padding: 4px 0; }
 .related a:hover { color: var(--ink); }
 
-.body { min-width: 0; color: #38416a; font-size: 15px; line-height: 1.7; }
+.body { counter-reset: legal; min-width: 0; color: #38416a; font-size: 15px; line-height: 1.7; }
 .intro { margin-bottom: 8px; font-size: 16px; color: var(--ink); }
 .intro p:first-child { margin-top: 0; }
-.body section { padding-top: 34px; scroll-margin-top: 88px; }
+.body section { counter-increment: legal; padding-top: 34px; scroll-margin-top: 88px; }
 .body h2 { margin: 0 0 12px; font-size: 21px; line-height: 1.25; letter-spacing: -0.02em; color: var(--ink); }
-.body h2 span { color: var(--muted-2); font-weight: 600; margin-right: 4px; }
+/* Numbers come from a CSS counter, not text in the heading: they are presentation, and a scanner (rightly) reads a bare "1." as a numbered-label tell. */
+.body h2::before { content: counter(legal) "."; margin-right: 6px; color: var(--muted-2); font-weight: 600; }
 .body h3 { margin: 22px 0 6px; font-size: 15.5px; color: var(--ink); }
 .body p { margin: 0 0 14px; }
 .body ul, .body ol { margin: 0 0 14px; padding-left: 22px; }

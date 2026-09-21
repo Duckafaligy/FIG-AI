@@ -6,6 +6,7 @@ import { OPERATOR, REFUND_WINDOW_DAYS, TRIAL_DAYS } from "@/lib/legal";
 export const metadata: Metadata = {
   title: "Refunds & Cancellation — FIG",
   description: "How to cancel FIG, when you can get a refund, and how billing changes are handled.",
+  alternates: { canonical: "/refunds" },
 };
 
 /**

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowUpRight, Sparkles } from "lucide-react";
+import { ArrowUpRight, Scale } from "lucide-react";
+import { TRIAL_DAYS } from "@/lib/legal";
 import { Brand } from "./brand";
 
 const columns = [
@@ -15,9 +16,9 @@ export function Footer() {
       <div className="page-shell footer-top">
         <div className="footer-intro">
           <Brand />
-          <h2>Clearer content operations, from the first brief to the final review.</h2>
-          <p>FIG brings planning, SEO, GEO, collaboration, and publishing into one calm workspace for teams building visible, useful content.</p>
-          <div className="footer-intro-note"><Sparkles size={14} /><span>Frontend preview for <b>LaunchVault.ca</b> · illustrative data only</span></div>
+          <h2>See what makes your site read as generic, and how to fix it.</h2>
+          <p>FIG checks the design, structure, search basics and answer-readiness of your public pages, and tells you where each finding is and what to change.</p>
+          <div className="footer-intro-note"><Scale size={14} /><span>A self-check tool. Findings are <b>signals, never verdicts</b>.</span></div>
         </div>
         <div className="footer-navigation">
           {columns.map((column) => (
@@ -28,14 +29,14 @@ export function Footer() {
           ))}
         </div>
         <div className="footer-newsletter">
-          <span className="footer-eyebrow">Keep in the loop</span>
-          <strong>Product notes, without the noise.</strong>
-          <p>Occasional previews of FIG’s search, AI visibility, and content workflow work.</p>
+          <span className="footer-eyebrow">Get started</span>
+          <strong>Try it on your own site.</strong>
+          <p>Run a free scan with no account, or create an account for a {TRIAL_DAYS}-day trial with no card.</p>
           <form action="/signup" method="get">
             <input aria-label="Email address" name="email" type="email" required placeholder="you@company.com" />
-            <button className="button button--small" type="submit">Get preview <ArrowUpRight size={14} /></button>
+            <button className="button button--small" type="submit">Create account <ArrowUpRight size={14} /></button>
           </form>
-          <small>Continues to signup with your email filled in. Does not subscribe you.</small>
+          <small>Continues to sign-up with your email filled in. Nothing is sent to you.</small>
         </div>
       </div>
       <div className="page-shell footer-bottom"><span>© 2026 FIG. All rights reserved.</span><div><Link href="/projects">Explore demo</Link><Link href="/pricing">Pricing</Link><Link href="/signin">Sign in</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds</Link><Link href="/bot">FIGBot</Link></div><span>Made for practical, discoverable content.</span></div>

@@ -1,17 +1,24 @@
 import Link from "next/link";
-import { BarChart3, PenLine, Search, Share2, Sparkles } from "lucide-react";
+import type { Metadata } from "next";
+import { BarChart3, PenLine, Search, Share2 } from "lucide-react";
 import { AuthForm } from "@/components/auth-form";
 import { Brand } from "@/components/brand";
 import { PlatformLogos } from "@/components/platform-logos";
 import { ProductLaptop } from "@/components/product-laptop";
-import { PreviewInfo } from "@/components/preview-info";
+import { TRIAL_DAYS } from "@/lib/legal";
 
 const signupBenefits = [
-  { icon: PenLine, title: "Create with AI", copy: "Turn ideas into high-performing content in minutes." },
-  { icon: BarChart3, title: "Optimize every surface", copy: "Prepare content for SEO, GEO, and AI-ready discovery." },
-  { icon: Share2, title: "Publish with confidence", copy: "Move through collaborative review from draft to live." },
-  { icon: Search, title: "Get found everywhere", copy: "Increase visibility across Google, AI search, and beyond." },
+  { icon: PenLine, title: "See what reads as generic", copy: "19 checks across design, structure, search and answers." },
+  { icon: Search, title: "Know where and why", copy: "Every finding names the page, the reason and a concrete fix." },
+  { icon: BarChart3, title: "Track what changed", copy: "Re-scan after a fix and compare it with your history." },
+  { icon: Share2, title: "Share when you choose", copy: "A public report link stays off until you turn it on." },
 ];
+
+export const metadata: Metadata = {
+  title: "Create your account — FIG",
+  description: "Create a FIG account for a 7-day free trial with no card, then scan your sites and track what changes.",
+  alternates: { canonical: "/signup" },
+};
 
 export default function SignUpPage() {
   return (
@@ -23,11 +30,11 @@ export default function SignUpPage() {
       <main>
         <section className="signup-layout signup-layout--refined page-shell">
           <section className="signup-story" aria-label="Why choose FIG">
-            <span className="eyebrow"><Sparkles size={13} />Built for the next generation of search</span>
-            <h1>Turn your content into growth. <span>Get found everywhere.</span></h1>
-            <p>FIG helps marketing, product, and content teams create, optimize, and publish content that performs across Google, AI search, and every discovery channel.</p>
+            <span className="eyebrow">Free scan or {TRIAL_DAYS}-day trial</span>
+            <h1>See what makes your site <span>read as generic.</span></h1>
+            <p>FIG checks the public pages of your site and tells you what to change. An account adds scan history, up to 40 pages per scan, and connections to Google and WordPress.</p>
             <div className="signup-benefits signup-benefits--grid">
-              {signupBenefits.map(({ icon: Icon, title, copy }) => <article key={title}><span><Icon size={24} /></span><h2>{title}</h2><p>{copy}</p></article>)}
+              {signupBenefits.map(({ icon: Icon, title, copy }) => <article key={title}><span><Icon size={24} /></span><h3>{title}</h3><p>{copy}</p></article>)}
             </div>
             <div className="signup-laptop-frame">
               <div className="signup-laptop"><ProductLaptop compact variant="queue" /></div>
@@ -37,13 +44,13 @@ export default function SignUpPage() {
           <div className="auth-card auth-card--signup signup-card"><AuthForm mode="signup" /></div>
         </section>
 
-        <section className="signup-platform-proof page-shell" aria-label="Supported platform integrations">
-          <span className="section-kicker">Built to work alongside the tools your team already uses</span>
+        <section className="signup-platform-proof page-shell" aria-label="Sites FIG can read">
+          <span className="section-kicker">Reads any public site, whatever it is built with</span>
           <PlatformLogos />
-          <p>Account preview only — no account, payment, or integration is created from this form.</p>
+          <p>Creating an account starts a {TRIAL_DAYS}-day free trial. No card is needed, and nothing is charged unless you subscribe.</p>
         </section>
       </main>
-      <footer className="auth-footer auth-footer--signup page-shell"><span><Brand /><i />© 2026 FIG. All rights reserved.</span><span><Link href="/#features">Product</Link><Link href="/pricing">Pricing</Link><PreviewInfo label="Privacy" message="The privacy policy will be published before authentication is enabled. This form does not send or store the information you enter." /><PreviewInfo label="Terms" message="FIG’s terms will be published before account creation is enabled." /><Link href="/#faq">Help</Link></span></footer>
+      <footer className="auth-footer auth-footer--signup page-shell"><span><Brand /><i />© 2026 FIG. All rights reserved.</span><span><Link href="/#features">Product</Link><Link href="/pricing">Pricing</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/#faq">Help</Link></span></footer>
     </div>
   );
 }
