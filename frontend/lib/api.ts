@@ -14,13 +14,12 @@
  *     as same-site). Deployed for real, frontend and backend live on two
  *     genuinely different domains, so this only stays true if the browser
  *     never talks to the backend's domain directly -- see SERVER_BASE below.
- *   - In the browser, `credentials: "include"` plus SameSite=None on the
- *     cookie (set by the backend once it's on a real https:// URL) is
- *     enough on its own -- that part doesn't need the proxy.
+ *   - In the browser, requests use the same-origin proxy and include cookies.
+ *     Cross-domain requests are not a production authentication option.
  *
  * Nothing here throws on a failed request. Every call returns a result object,
- * because the frontend ships with a static preview and should fall back to it
- * rather than error out when the backend is not running.
+ * so callers can show a real unavailable/error state. Live pages must never
+ * substitute preview records for failed requests.
  *
  * NEXT_PUBLIC_DEMO_MODE=1 makes that fallback a guarantee instead of an
  * accident of network conditions: apiServer/apiClient short-circuit before
@@ -41,7 +40,11 @@ const DEMO_BLOCKED: ApiErr = { ok: false, status: 0, error: "demo mode: no backe
 // docstring above). Local dev sets NEXT_PUBLIC_API_URL explicitly, which
 // opts back into calling the backend directly -- fine there, since
 // localhost:3001/localhost:8000 are already same-site.
-const CLIENT_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
+// Production must use the same-origin proxy: cross-domain cookies cannot
+// authenticate Server Components, even when browser fetches include them.
+const CLIENT_BASE = process.env.NODE_ENV === "production"
+  ? ""
+  : (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
 
 // Server Components call the backend directly -- a plain server-to-server
 // request, never subject to a browser's SameSite/CORS rules, so it doesn't
@@ -124,6 +127,7 @@ export async function apiClient<T>(path: string, init?: RequestInit): Promise<Ap
     const res = await fetch(apiUrl(path), {
       signal: AbortSignal.timeout(30000),
       ...init,
+      cache: "no-store",
       credentials: "include",
       headers: {
         ...(init?.body ? { "Content-Type": "application/json" } : {}),

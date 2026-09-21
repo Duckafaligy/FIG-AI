@@ -37,7 +37,7 @@ const VERDICT_LABEL: Record<string, string> = { clean: "Clean", check: "Worth a 
 async function fetchLibrary(): Promise<LibraryResponse | null> {
   const base = (process.env.FIG_BACKEND_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
   try {
-    const res = await fetch(`${base}/scan/library?limit=48`, { cache: "no-store" });
+    const res = await fetch(`${base}/scan/library?limit=48`, { cache: "no-store", signal: AbortSignal.timeout(15000) });
     if (!res.ok) return null;
     return (await res.json()) as LibraryResponse;
   } catch {

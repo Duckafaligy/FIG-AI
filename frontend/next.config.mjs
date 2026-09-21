@@ -21,8 +21,15 @@ const nextConfig = {
   // lib/api.ts) since localhost:3001/localhost:8000 already count as
   // same-site regardless of port -- this only matters once deployed.
   async rewrites() {
-    const backend = process.env.FIG_BACKEND_URL;
+    const backend = process.env.FIG_BACKEND_URL?.trim().replace(/\/+$/, "");
+    if (process.env.VERCEL && process.env.NEXT_PUBLIC_DEMO_MODE !== "1" && !backend) {
+      throw new Error("FIG_BACKEND_URL is required for a live Vercel deployment.");
+    }
     if (!backend) return [];
+    const target = new URL(backend);
+    if (!["http:", "https:"].includes(target.protocol) || target.username || target.password || target.search || target.hash || target.pathname !== "/") {
+      throw new Error("FIG_BACKEND_URL must be an HTTP(S) origin without credentials, path, query, or fragment.");
+    }
     return [
       { source: "/api/:path*", destination: `${backend}/api/:path*` },
       // apiUrl() (lib/api.ts) is relative in production, and it's used for

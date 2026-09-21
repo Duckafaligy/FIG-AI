@@ -51,6 +51,17 @@ class LibraryTests(unittest.TestCase):
         self.assertEqual(result["total"], 0)
         self.assertEqual(result["projects"][0]["name"], "a.example")
 
+    def test_workspace_reads_require_authentication(self):
+        for path in ["projects", "overview", "seo", "geo", "notifications", "history", "settings", "content", "changes"]:
+            with self.subTest(path=path):
+                self.assertEqual(self.client.get("/api/" + path).status_code, 401)
+
+    def test_foreign_content_cannot_be_created_or_moved(self):
+        self.assertEqual(self.create(site="site-b").status_code, 422)
+        foreign = self.create(account="b", site="site-b").json()["id"]
+        self.assertEqual(self.client.post("/api/content/" + foreign + "/move", headers=self.headers, json={"to": "in_progress"}).status_code, 409)
+        self.assertEqual(self.client.get("/api/content/" + foreign, headers={"x-test-account": "b"}).json()["state"], "queued")
+
     def test_account_isolation(self):
         foreign = self.create(account="b", site="site-b").json()["id"]
         self.assertEqual(self.client.get("/api/content", headers=self.headers).json()["total"], 0)

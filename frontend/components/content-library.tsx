@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { apiClient, apiSend, fmt, type ApiProject } from "@/lib/api";
 import { BookOpen, Plus, RefreshCw, Search, X } from "lucide-react";
 import { useDashboardSearch } from "./dashboard-shell";
@@ -19,9 +20,11 @@ const label = (value: string) => value.replaceAll("_", " ");
 
 export function ContentLibrary() {
   const globalSearch = useDashboardSearch();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const project = searchParams.get("project") ?? "";
   const [data, setData] = useState<Library | null>(null);
   const [query, setQuery] = useState("");
-  const [project, setProject] = useState("");
   const [status, setStatus] = useState("");
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -29,6 +32,12 @@ export function ContentLibrary() {
   const [selected, setSelected] = useState<Post | null>(null);
   const [creating, setCreating] = useState(false);
   const request = useRef(0);
+  useEffect(() => { setOffset(0); }, [globalSearch, project]);
+  const setProject = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set("project", value); else params.delete("project");
+    router.replace(`/app/library${params.size ? `?${params}` : ""}`, { scroll: false });
+  };
   const load = useCallback(async () => {
     const id = ++request.current;
     setLoading(true);

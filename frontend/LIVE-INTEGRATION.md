@@ -30,3 +30,15 @@ Team invitations/profile editing, notification preference persistence, and sever
 The hosted backend is https://fig-ai-backend.onrender.com, proxied by https://fig-ai-seven.vercel.app. Its health and session endpoints were verified without authentication. Local production builds can use FIG_BACKEND_URL pointed at that same backend; no local Python process is required. A full signed-in browser acceptance test remains outstanding. Deploy/restart the backend with the new GET /api/content endpoint before testing the new library.
 
 The public marketing pages still contain illustrative product imagery and pricing copy; those are not live account metrics. This work is not a claim of complete production readiness.
+
+## Integration hardening — September 21, 2026
+
+- Production browser requests always use the same-origin proxy, even if NEXT_PUBLIC_API_URL is mistakenly configured with another domain.
+- Live Vercel builds fail explicitly if FIG_BACKEND_URL is absent. Backend origins are validated and trailing slashes normalized.
+- Browser API reads bypass caches; public report/library reads have bounded timeouts.
+- Library honors the project in its URL and resets pagination when the project or global search changes.
+- Transport regression tests: `node scripts/test-api-transport.cjs` from frontend.
+- Workspace tests now cover unauthenticated access to all nine read surfaces and rejection of cross-account creation/transitions.
+- Read-only hosted checks: backend health 200; Vercel session 200 with signed_in=false and dev_no_auth=false; content/projects/settings return expected 401 JSON without login.
+
+Release blockers remain: authenticated browser acceptance, AI drafting, new-post publishing, password recovery, social login, team/profile editing, deployment email/OAuth setup, and verification of the real billing journey. No production account, payment, or CMS content was changed by these tests. Never interpret configured secrets or a health response as proof that a third-party workflow completes successfully.

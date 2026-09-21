@@ -63,7 +63,7 @@ async function fetchScan(scanId: string): Promise<ScanResult | null> {
   // (see next.config.mjs and lib/api.ts for why).
   const base = (process.env.FIG_BACKEND_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
   try {
-    const res = await fetch(`${base}/scan/${scanId}`, { cache: "no-store" });
+    const res = await fetch(`${base}/scan/${encodeURIComponent(scanId)}`, { cache: "no-store", signal: AbortSignal.timeout(15000) });
     if (!res.ok) return null;
     return (await res.json()) as ScanResult;
   } catch {
