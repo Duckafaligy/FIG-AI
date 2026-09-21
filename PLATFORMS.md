@@ -63,8 +63,12 @@ Two separate projects, same codebase (`frontend/`), same org (`ducakfaligy`):
   `.env`, same project).
 - **Dashboard:** supabase.com/dashboard → this project.
 - **Settings that matter and where:**
-  - Authentication → URL Configuration: Site URL / Redirect URLs (must
-    include `https://fig-ai-seven.vercel.app`)
+  - Authentication → URL Configuration — **required or emails break.** Site
+    URL: `https://fig-ai-seven.vercel.app` (it was `http://localhost:3000`,
+    which is where every confirmation and recovery link went). Redirect URLs:
+    `https://fig-ai-seven.vercel.app/**`, `http://localhost:3000/**`,
+    `http://localhost:3001/**` (the wildcard is what lets `/signin` and
+    `/reset-password` through; the bare origin alone does not).
   - Authentication → Email Templates: the six templates were replaced with
     branded HTML on 2026-09-19 (Confirm signup, Invite, Magic Link/OTP,
     Change email, Reset password, Reauthentication)
@@ -87,6 +91,11 @@ Two separate projects, same codebase (`frontend/`), same org (`ducakfaligy`):
 - **Dashboard:** dashboard.stripe.com. The old **FIG sandbox** account
   (`sk_test_...`) is a separate account with its own product, price and keys;
   nothing in it carries over to live.
+- **Customer portal (live):** Settings → Billing → Customer portal. One
+  default configuration exists (`bpc_1UIFQtEHHPscpAUr2S0fDiT2`): cancel at
+  period end, no self-service quantity change, invoices and card updates on,
+  privacy/terms links to the site. Without it `start_portal()` fails in live
+  mode and nobody can cancel.
 - **Webhook endpoint:** Developers → Webhooks → the live endpoint pointed at
   `https://fig-ai-backend.onrender.com/v1/billing/webhook`. It must subscribe
   to `checkout.session.completed`, `customer.subscription.created`,

@@ -38,7 +38,7 @@ export function Footer() {
           <small>Continues to signup with your email filled in. Does not subscribe you.</small>
         </div>
       </div>
-      <div className="page-shell footer-bottom"><span>© 2026 FIG. All rights reserved.</span><div><Link href="/projects">Explore demo</Link><Link href="/pricing">Pricing</Link><Link href="/signin">Sign in</Link><Link href="/#faq">Help</Link></div><span>Made for practical, discoverable content.</span></div>
+      <div className="page-shell footer-bottom"><span>© 2026 FIG. All rights reserved.</span><div><Link href="/projects">Explore demo</Link><Link href="/pricing">Pricing</Link><Link href="/signin">Sign in</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refunds">Refunds</Link><Link href="/bot">FIGBot</Link></div><span>Made for practical, discoverable content.</span></div>
     </footer>
   );
 }

@@ -60,6 +60,10 @@ body { color: var(--fig-navy); }
 .home-scan-input input { flex: 1; min-width: 0; height: 46px; padding: 0 16px; border: 1px solid var(--fig-line); border-radius: 9px; background: #fff; font-size: 14px; color: var(--ink); }
 .home-scan-input input:focus-visible { outline: 2px solid var(--fig-violet); outline-offset: 1px; }
 .home-scan-input .button { flex-shrink: 0; }
+.home-scan-anon { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; font-size: 13px; color: var(--fig-copy, #526087); cursor: pointer; }
+.home-scan-anon input { width: 15px; height: 15px; accent-color: var(--fig-violet); }
+.home-scan-note { max-width: 420px; margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted-2, #8991b2); }
+.home-scan-note a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .home-scan-spin { animation: home-scan-spin 1s linear infinite; }
 @keyframes home-scan-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .home-scan-spin { animation: none; } }

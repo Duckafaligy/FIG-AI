@@ -679,6 +679,66 @@ placeholders** — only email/password goes through Supabase for now.
    backend was running the old code until it was noticed. A green local test
    is not the same as deployed; confirm what is actually live.
 
+8. **Legal pages, password recovery, and a launch audit — built 2026-09-21.**
+   `/privacy`, `/terms`, `/refunds` and `/bot` (`frontend/app/*`, one shared
+   `components/legal-page.tsx`, facts in `frontend/lib/legal.ts`). Written to
+   GDPR Art. 13, CCPA/CPRA, PIPEDA and Google's API Services User Data Policy
+   (the Limited Use sentence is required wording), and every factual claim was
+   checked against the code, which caught real errors (below). **They are
+   drafts until `OPERATOR` in `lib/legal.ts` is filled in** — name, contact
+   email, postal address, governing jurisdiction; each page shows a visible
+   "Draft" notice until then (`legalIsDraft`). Not legal advice; the founder is a
+   minor, so a parent/guardian should read them and decide who the contracting
+   party is. Refund policy (14-day money-back on the first payment, cancel at
+   period end) is a business default in `REFUND_WINDOW_DAYS`, not a legal
+   minimum. `/bot` is what the crawler's user agent links to; it used to point
+   at `fig.tools/bot`, a domain FIG doesn't own, and now follows
+   `FIG_FRONTEND_URL`. Password recovery: `/forgot-password` and
+   `/reset-password` (`components/recovery-form.tsx`), verified end to end with
+   a disposable user through Supabase's admin link generator; the tokens live in
+   the URL fragment and are scrubbed from the address bar immediately. Social
+   login buttons are hidden behind `SOCIAL_LOGIN_AVAILABLE` (they only ever
+   showed "will be available"), and the free-scan form now offers the
+   anonymous-library opt-out the API always supported.
+
+   **Real bugs the audit found and fixed** (each has tests that fail on the old
+   code): (a) `disconnect()` and every reconnect left the encrypted Google token
+   / WordPress password in `secrets` forever, so "disconnect deletes your
+   token" was false; (b) adding or removing a site never changed the Stripe
+   subscription quantity — `sync_quantity` had no caller outside the archived
+   dashboard — so customers were under- or over-billed; `billing.try_sync` now
+   runs after every add/remove and never fails the request; (c) the privacy
+   policy first said "never page content" to the AI provider, but the evidence
+   snippets the rules quote (a phrase, a colour, an icon name) do go — the
+   policy now says so.
+
+   **Stripe live setup found missing:** no Customer Portal configuration existed
+   in live mode, so `start_portal()` would have failed and no customer could
+   cancel or update a card. Created (`bpc_1UIFQtEHHPscpAUr2S0fDiT2`, default):
+   cancel at period end, no self-service quantity changes (FIG owns the site
+   count), invoice history and card updates on.
+
+   **Supabase must be configured or signup and recovery emails go to
+   localhost:** Authentication → URL Configuration → Site URL was still
+   `http://localhost:3000`, and `/reset-password` is not in the Redirect URLs.
+   Email confirmation is required and `signUp` had no `emailRedirectTo`, so every
+   real user's confirmation link would have pointed at `localhost:3000`
+   (`signUp` now passes one; the dashboard allow-list still has to be set).
+
+   **Still open, found here and not built:** (1) the trial is **not enforced** —
+   `on_trial()` is display-only and nothing gates features after `TRIAL_DAYS`
+   (7; the signup form said 14 until this fixed it), so the Terms deliberately
+   say a subscription "may" be required later; (2) there is **no account
+   deletion** — the policy promises deletion by email request within 30 days;
+   a self-serve delete (users, accounts, sites, scans, secrets) should replace
+   that; (3) resetting a password does not end existing 14-day `fig_session`
+   cookies, so a stolen session survives a password reset (needs a per-user
+   session version); (4) `PublicRead` keeps hashed IP/device identifiers
+   indefinitely — they are only used for 1-hour/1-day limits, so they could be
+   blanked after ~30 days; (5) Supabase's shared email sender allows only a few
+   messages per hour and is shared by signup confirmations and recovery — a real
+   SMTP provider (which needs a domain to send from) is required before launch.
+
 **Design tool:** the UI is being replicated into Paper (`FIG AI Frontend UI`,
 `PLATFORMS.md`) so it can be restyled visually and ported back to the Next.js
 files. Home and Pricing are built; the rest of the pages are not. Paper's free
@@ -712,11 +772,13 @@ Tests with no network, database or API key required:
 python test_local.py      # the rules engine
 python test_content.py    # the content queue
 python test_backend.py    # validation, robots.txt, crawler network rules, AI accounting
-python -m unittest test_workspace_library test_billing
+python -m unittest test_workspace_library test_billing test_jobs test_secrets_cleanup
                           # the /api contract (auth, isolation, content lifecycle,
-                          # profile) and the Stripe webhook + checkout guard. The
-                          # billing tests patch dummy Stripe settings, so they can
-                          # never reach the live account whatever .env holds.
+                          # profile), the Stripe webhook + checkout guard + quantity
+                          # sync, orphaned-job recovery, and credential deletion. The
+                          # billing tests patch dummy Stripe settings and a fake Stripe
+                          # module, so they can never reach the live account whatever
+                          # .env holds.
 ```
 
 The signed-in end-to-end test drives a *deployed* site as two disposable users

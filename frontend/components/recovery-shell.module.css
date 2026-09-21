@@ -1,0 +1,5 @@
+.main { display: flex; justify-content: center; align-items: flex-start; padding: 64px 0 96px; position: relative; z-index: 1; }
+
+@media (max-width: 560px) {
+  .main { padding: 32px 0 64px; }
+}

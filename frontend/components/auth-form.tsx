@@ -7,12 +7,20 @@ import { ArrowRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail } from "lucide
 import { FormEvent, useEffect, useState } from "react";
 import { siShopify } from "simple-icons/icons";
 import { actions, DEMO_MODE } from "@/lib/api";
+import { TRIAL_DAYS } from "@/lib/legal";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
-import { PreviewInfo } from "./preview-info";
 
 function ProviderMark({ icon }: { icon: { path: string; hex: string; title: string } }) {
   return <svg className="provider-mark" aria-label={icon.title} role="img" viewBox="0 0 24 24"><path d={icon.path} fill={`#${icon.hex}`} /></svg>;
 }
+
+/**
+ * The Google and Shopify buttons only ever showed "will be available once it's
+ * connected". A button that promises a sign-in it cannot perform is worse than
+ * no button, so they stay hidden until the flows behind them exist (Supabase's
+ * Google provider, and a Shopify OAuth app). Flip this when they do.
+ */
+const SOCIAL_LOGIN_AVAILABLE = false;
 
 export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   const [message, setMessage] = useState("");
@@ -49,7 +57,13 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
     setMessage("");
     try {
       const { data, error } = signup
-        ? await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } })
+        ? await supabase.auth.signUp({
+            email, password,
+            // Without this the confirmation link goes to Supabase's Site URL,
+            // which was still localhost:3000. It must also be allow-listed in
+            // Supabase -> Authentication -> URL Configuration -> Redirect URLs.
+            options: { data: { full_name: fullName }, emailRedirectTo: `${window.location.origin}/signin` },
+          })
         : await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
@@ -76,8 +90,8 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
     }
   };
 
-  const showPendingMessage = (provider?: string) => {
-    setMessage(provider ? `${provider} sign-in will be available once it's connected.` : "Password recovery will be available once it's connected.");
+  const showPendingMessage = (provider: string) => {
+    setMessage(`${provider} sign-in will be available once it's connected.`);
   };
 
   return (
@@ -97,16 +111,20 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
         <label className="auth-field" htmlFor="password"><span>Password</span><div className="input-with-icon input-with-icon--password"><LockKeyhole size={18} aria-hidden="true" /><input id="password" name="password" required minLength={8} type={showPassword ? "text" : "password"} autoComplete={signup ? "new-password" : "current-password"} placeholder={signup ? "Create a password" : "Enter your password"} /><button className="password-toggle" type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label>
       </div>
 
-      {!signup && <div className="form-row"><label className="check"><input type="checkbox" />Remember me</label><button className="text-button" type="button" onClick={() => showPendingMessage()}>Forgot password?</button></div>}
+      {!signup && <div className="form-row"><label className="check"><input type="checkbox" />Remember me</label><Link className="text-button" href="/forgot-password">Forgot password?</Link></div>}
       <button className="button auth-submit" type="submit" disabled={busy} aria-busy={busy}>{busy ? "Please wait…" : signup ? "Start free trial" : "Sign in"}{!busy && <ArrowRight size={18} />}</button>
-      {signup && <div className="trial-reassurance" aria-label="Trial terms"><span><CheckCircle2 size={14} />14-day free trial</span><span><CheckCircle2 size={14} />No credit card required</span><span><CheckCircle2 size={14} />Cancel anytime</span></div>}
+      {signup && <div className="trial-reassurance" aria-label="Trial terms"><span><CheckCircle2 size={14} />{TRIAL_DAYS}-day free trial</span><span><CheckCircle2 size={14} />No credit card required</span><span><CheckCircle2 size={14} />Cancel anytime</span></div>}
 
-      <div className="auth-separator"><span>or continue with</span></div>
-      <div className="auth-social-buttons">
-        <button className="oauth-button" type="button" onClick={() => showPendingMessage("Google")}><Image className="provider-mark" src="/brands/google-g.png" width={23} height={23} alt="" unoptimized />Continue with Google</button>
-        <button className="oauth-button" type="button" onClick={() => showPendingMessage("Shopify")}><ProviderMark icon={siShopify} />Continue with Shopify</button>
-      </div>
-      {signup && <div className="check check--terms"><input id="terms" required type="checkbox" aria-label="Agree to terms and privacy policy" /><div><label htmlFor="terms">I agree to the </label><PreviewInfo label="Terms & Conditions" message="FIG’s published terms aren’t live yet. Creating an account here does start a real Supabase sign-up, though — no billing or subscription starts until you add a payment method." /> and <PreviewInfo label="Privacy Policy" message="FIG’s published privacy policy isn’t live yet. The email and password you enter here are sent to Supabase Auth to create a real account." />.</div></div>}
+      {SOCIAL_LOGIN_AVAILABLE && (
+        <>
+          <div className="auth-separator"><span>or continue with</span></div>
+          <div className="auth-social-buttons">
+            <button className="oauth-button" type="button" onClick={() => showPendingMessage("Google")}><Image className="provider-mark" src="/brands/google-g.png" width={23} height={23} alt="" unoptimized />Continue with Google</button>
+            <button className="oauth-button" type="button" onClick={() => showPendingMessage("Shopify")}><ProviderMark icon={siShopify} />Continue with Shopify</button>
+          </div>
+        </>
+      )}
+      {signup && <div className="check check--terms"><input id="terms" required type="checkbox" aria-label="Agree to the terms and privacy policy, and confirm you are at least 13" /><div><label htmlFor="terms">I&rsquo;m at least 13 and I agree to the </label><Link href="/terms" target="_blank">Terms of Service</Link> and <Link href="/privacy" target="_blank">Privacy Policy</Link>.</div></div>}
       {message && <p className="form-message" role="status">{message}</p>}
       <p className="auth-switch">{signup ? "Already have an account?" : "Don’t have an account?"} <Link href={signup ? "/signin" : "/signup"}>{signup ? "Sign in" : "Sign up for free"}</Link></p>
     </form>
