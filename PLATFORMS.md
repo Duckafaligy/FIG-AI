@@ -74,17 +74,30 @@ Two separate projects, same codebase (`frontend/`), same org (`ducakfaligy`):
 
 ## Stripe
 
-- **Mode:** test mode (`sk_test_...` key) — not live/real money yet.
-- **What for:** graduated per-site subscription billing. Checkout, customer
-  portal, and a webhook, all wired end to end (2026-09-19).
-- **Dashboard:** dashboard.stripe.com (make sure the **Test mode** toggle is
-  on to see anything relevant).
-- **Webhook endpoint:** Developers → Webhooks → the one pointed at
-  `https://fig-ai-backend.onrender.com/v1/billing/webhook`.
-- **Going live later:** means a second, separate `sk_live_...` key, a
-  second live-mode webhook endpoint (new signing secret), and switching
-  `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/`STRIPE_PRICE_ID` on Render to
-  the live-mode equivalents — not a code change.
+- **Mode:** **live** (`sk_live_...`, account `FIG`) since 2026-09-21. Real
+  money. Payouts stay off until the ID/bank step in Stripe is finished —
+  charges are enabled and funds accumulate until then.
+- **What for:** per-site subscription billing, **volume** tiers (at 30 sites
+  every site costs the 30-site rate; see `scripts/stripe_setup.py`). Checkout,
+  customer portal, and a webhook, all wired end to end.
+- **Live objects:** product `prod_VIXXfDZbv0o5C8`, price
+  `price_1UHwSSEHHPscpAUrKPKmULPz` (lookup key `fig_per_site_monthly`),
+  created by `python scripts/stripe_setup.py --write` against the live key.
+  Not secrets, safe to record.
+- **Dashboard:** dashboard.stripe.com. The old **FIG sandbox** account
+  (`sk_test_...`) is a separate account with its own product, price and keys;
+  nothing in it carries over to live.
+- **Webhook endpoint:** Developers → Webhooks → the live endpoint pointed at
+  `https://fig-ai-backend.onrender.com/v1/billing/webhook`. It must subscribe
+  to `checkout.session.completed`, `customer.subscription.created`,
+  `customer.subscription.updated` and `customer.subscription.deleted` (the
+  handler in `app/billing.py` acts on those four). Missing `.deleted` means a
+  cancelled customer keeps showing as subscribed.
+- **Render env vars that must be the LIVE values:** `STRIPE_SECRET_KEY`,
+  `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET` (the live endpoint's own signing
+  secret, revealed in the dashboard — it differs from any sandbox one).
+- **To go back to test mode for development:** use the sandbox account's
+  `sk_test_...` key locally only, never on Render.
 
 ## Google Cloud Console
 

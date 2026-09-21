@@ -140,8 +140,11 @@ a real competitor's site, Citalis, to understand its design).
   scale requires it
 - **Email:** Resend (not yet wired up — needed for verification instructions
   and Watch alerts)
-- **Payments:** Stripe, test mode — checkout, portal and webhook are live
-  (see roadmap item 6). Live mode is a separate, deliberate step.
+- **Payments:** Stripe, **live mode since 2026-09-21** — checkout, portal and
+  webhook (see roadmap item 6). Payouts are off until the account's ID step is
+  finished. Local `.env` holds the live key too, so scripts and tests that
+  touch Stripe act on real money: use the sandbox account's `sk_test_` key for
+  anything experimental, and never point Render at it.
 - **Hosting:** Render (backend, free tier, `render.yaml`) + Vercel (frontend).
   Railway and Fly.io no longer have free tiers. UptimeRobot pings `/health`
   every 5 minutes so Render's free tier doesn't sleep. See `PLATFORMS.md`.
@@ -243,7 +246,9 @@ again (unmounts `/api`, allows no browser origin); `/v1`, `/scan` and
   rule forbids. A read can still opt out with `share: false`. Rows recorded
   before this change keep the old anonymous default.
 - `app/auth.py` — `fig_live_*` keys, SHA-256 stored, plaintext shown once.
-- `app/billing.py` — Stripe: graduated per-site tiers, checkout, portal,
+- `app/billing.py` — Stripe: **volume** per-site tiers (not graduated — at 30
+  sites every site costs the 30-site rate, matching
+  `Account.monthly_cents`), checkout, portal,
   webhook, and `sync_quantity` so provisioning changes the invoice without a
   renegotiation. Degrades quietly with no key.
 - `scripts/test_run.py` — the end-to-end test: starts the API disconnected,
@@ -619,6 +624,24 @@ placeholders** — only email/password goes through Supabase for now.
    (`t=<ts>,v1=<hmac-sha256>`), got a real `200 {"received": true}` back —
    proves `stripe.Webhook.construct_event()` and the `.to_dict()` fix both
    still work against the live deployment, not simulated.
+
+   **Correction (2026-09-20) and live mode (2026-09-21).** The paragraph above
+   proved the *receiving* side only. Listing `/v1/webhook_endpoints` on the
+   sandbox account showed **zero registered endpoints**: a valid signature
+   against Render says nothing about whether Stripe is configured to send
+   anything. Check the account, not just the secret. Stripe then moved to
+   **live mode**: a separate `FIG` account (`sk_live_...`), its own webhook
+   endpoint, and a product/price created with
+   `python scripts/stripe_setup.py --write` (see `PLATFORMS.md` for the ids).
+   The live endpoint was first registered with only two events
+   (`checkout.session.completed`, `customer.subscription.updated`) — the
+   handler also needs `customer.subscription.created` and
+   `customer.subscription.deleted`, or a cancellation never reaches the app.
+   `scripts/stripe_setup.py --check` also had the same `.get()`-on-a-Stripe-
+   object crash the webhook once had; fixed with `.to_dict()`.
+   **Still open:** one real live purchase, confirmed against the app and then
+   refunded, has not been done — until it has, live mode is configured, not
+   verified.
 7. **Pin crawler connections to the validated address — done (2026-09-19).**
    See `app/validation.py` above. Verified three ways: a fake-network test
    proving the pin overrides resolution and never bleeds across

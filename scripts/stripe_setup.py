@@ -66,6 +66,7 @@ def main() -> int:
         if not prices["data"]:
             print("No active prices in this account yet — run without --check to make one.")
         for p in prices["data"]:
+            p = p.to_dict()   # Stripe objects are not dicts: .get() raises on them
             name = p["product"]["name"] if isinstance(p["product"], dict) else p["product"]
             rec = p.get("recurring") or {}
             print(f"  {p['id']}  {name}  "
