@@ -213,6 +213,14 @@ again (unmounts `/api`, allows no browser origin); `/v1`, `/scan` and
   findings are framed as generic or AI-made. Tokens and cost land in the trace.
 - `app/jobs.py` — DB-backed queue and worker threads. An estate scan is a
   queue depth, not a long request.
+  **Orphaned jobs are reclaimed** (`reclaim_stale`, 2026-09-21): a worker that
+  dies mid-scan (every Render restart or deploy kills the process) used to leave
+  its job `running` forever and its scan spinning for whoever was waiting; two
+  were found stuck for over a day in production. Jobs claimed more than 20
+  minutes ago are requeued with partial pages/findings dropped, or failed with a
+  reason if out of attempts or over 6 hours old. Age-based, not "everything at
+  startup", so a rolling deploy can't steal a job the old instance is still
+  running. Runs at worker start and every 5 minutes (`test_jobs.py`).
 - `app/scheduler.py` — Scheduled Watches: an APScheduler sweep, off by
   default (`FIG_WATCH_ENABLED`), that finds verified/monitored/active sites
   due for a re-scan and calls `app/jobs.py:enqueue_scan` the same way a
