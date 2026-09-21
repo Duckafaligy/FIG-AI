@@ -172,6 +172,29 @@ def settings(request: Request, session: Session = Depends(get_session)):
     return _public(pages.settings(session, account))
 
 
+@router.patch("/settings/profile")
+def update_profile(request: Request, payload: dict = Body(...),
+                   session: Session = Depends(get_session)):
+    """Rename the workspace. The name is the only editable profile field.
+
+    The slug and contact email are deliberately not settable here: the slug
+    appears in URLs, and the email is what billing and account recovery hang
+    off, so changing either belongs to a flow that proves it is the owner.
+    """
+    account = _account(request, session)
+    raw = (payload or {}).get("name")
+    if not isinstance(raw, str):
+        raise HTTPException(422, "a workspace name is required")
+    name = " ".join(raw.split())          # trims and collapses runs of whitespace
+    if not 2 <= len(name) <= 80:
+        raise HTTPException(422, "a workspace name is 2 to 80 characters")
+    if any(not ch.isprintable() for ch in name):
+        raise HTTPException(422, "a workspace name cannot contain control characters")
+    account.name = name
+    session.commit()
+    return {"ok": True, "profile": {"name": account.name, "slug": account.slug}}
+
+
 # --- things the frontend needs to be able to do --------------------------
 
 
@@ -396,6 +419,7 @@ def _post_json(session: Session, post) -> dict:
         "search_volume": post.search_volume,
         "keyword_difficulty": post.keyword_difficulty,
         "scheduled_for": post.scheduled_for.isoformat() if post.scheduled_for else None,
+        "overdue": content.is_overdue(post),
         "published_at": post.published_at.isoformat() if post.published_at else None,
         "project": {"id": site.id, "hostname": site.hostname} if site else None,
         "next_action": content._next_action(post.state),

@@ -99,6 +99,25 @@ class LibraryTests(unittest.TestCase):
         kept = self.client.patch(url, headers=self.headers, json={"keyword": "another"}).json()
         self.assertEqual(kept["state"], "scheduled")
 
+    def test_a_scheduled_post_past_its_date_is_reported_overdue(self):
+        from datetime import datetime, timedelta, timezone
+        from app.models import ContentPost
+        post = self.create().json()["id"]
+        url = "/api/content/" + post
+        self.assertFalse(self.client.get(url, headers=self.headers).json()["overdue"])
+        self.client.patch(url, headers=self.headers, json={"body": "A real draft to approve."})
+        for state in ["in_progress", "review", "scheduled"]:
+            self.client.post(url + "/move", headers=self.headers, json={"to": state})
+        self.assertFalse(self.client.get(url, headers=self.headers).json()["overdue"])   # two days out
+        with Session(self.engine) as db:
+            db.get(ContentPost, post).scheduled_for = datetime.now(timezone.utc) - timedelta(hours=3)
+            db.commit()
+        late = self.client.get(url, headers=self.headers).json()
+        self.assertTrue(late["overdue"])
+        self.assertEqual(late["state"], "scheduled")          # reported, never auto-published
+        listed = self.client.get("/api/content?state=scheduled", headers=self.headers).json()["items"]
+        self.assertTrue(listed[0]["overdue"])
+
     def test_someone_elses_post_looks_the_same_as_a_missing_one(self):
         foreign = self.create(account="b", site="site-b").json()["id"]
         theirs = self.client.get("/api/content/" + foreign, headers=self.headers)
@@ -108,6 +127,25 @@ class LibraryTests(unittest.TestCase):
         moved = self.client.post("/api/content/" + foreign + "/move", headers=self.headers, json={"to": "in_progress"})
         gone = self.client.post("/api/content/no-such-post/move", headers=self.headers, json={"to": "in_progress"})
         self.assertEqual(moved.text, gone.text)
+
+    def test_profile_rename(self):
+        url = "/api/settings/profile"
+        self.assertEqual(self.client.patch(url, json={"name": "New"}).status_code, 401)
+        ok = self.client.patch(url, headers=self.headers, json={"name": "  Acme   Studio \n"})
+        self.assertEqual(ok.status_code, 200)
+        self.assertEqual(ok.json()["profile"]["name"], "Acme Studio")
+        with Session(self.engine) as db:
+            self.assertEqual(db.get(Account, "a").name, "Acme Studio")
+            self.assertEqual(db.get(Account, "a").slug, "a")        # the slug is untouched
+            self.assertEqual(db.get(Account, "b").name, "Account B")  # so is everyone else
+        for bad in ({}, {"name": ""}, {"name": "x"}, {"name": "y" * 81}, {"name": 5}, {"name": "a\x00b"}):
+            with self.subTest(bad=bad):
+                self.assertEqual(self.client.patch(url, headers=self.headers, json=bad).status_code, 422)
+        # Only the name is editable: slug and email in the body are ignored.
+        self.client.patch(url, headers=self.headers, json={"name": "Keep", "slug": "hijack", "email": "x@y.z"})
+        with Session(self.engine) as db:
+            self.assertEqual(db.get(Account, "a").slug, "a")
+            self.assertIsNone(db.get(Account, "a").contact_email)
 
     def test_pagination_and_validation(self):
         for title in ["One", "Two", "100% literal"]:

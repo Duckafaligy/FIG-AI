@@ -432,7 +432,14 @@ with frontend work in flight):
   with no figures, a site with no structured data) become briefs, which move
   queued → in progress → review → scheduled → published. `score_post` is nine
   weighted deterministic rules on the draft. **It does not write the prose:**
-  `draft()` raises `Refused`. See the AI-calls rule below.
+  `draft()` raises `Refused`. See the AI-calls rule below. Review is a gate,
+  not a label: editing a *scheduled* post's title or body sends it back to
+  Review and clears its date (`reopen_if_scheduled`), because the approval was
+  for the text a person read. A scheduled date is a reminder, not a timer —
+  nothing publishes on a schedule (no CMS push exists), so a post past its date
+  is reported `overdue` (`is_overdue`) instead of quietly still saying
+  "scheduled". `_owned` gives one identical answer for "doesn't exist" and
+  "isn't yours" so ids can't be probed.
 - `app/roadmap.py` — the product checklist, in code so it is visible in the
   product and hard to let drift. Rendered at `/app/settings?tab=roadmap`.
 - `app/seed.py` — an invented agency with 22 invented client sites. The
@@ -639,6 +646,18 @@ placeholders** — only email/password goes through Supabase for now.
    `customer.subscription.deleted`, or a cancellation never reaches the app.
    `scripts/stripe_setup.py --check` also had the same `.get()`-on-a-Stripe-
    object crash the webhook once had; fixed with `.to_dict()`.
+   **Webhook hardening (2026-09-21)** — found by reading the handler while
+   testing, then covered by `test_billing.py` (7 of its 13 tests fail on the
+   old code): the handler linked an account on *any* `subscription.updated`
+   whatever the subscription's status, so a late event for an already-cancelled
+   subscription re-linked a cancelled customer, and an `incomplete`
+   subscription (first payment not cleared) granted access before money moved.
+   The logic is now `billing.apply_event()`, driven by the subscription's own
+   status (`active`/`trialing`/`past_due` link; `canceled`/`unpaid`/
+   `incomplete_expired` clear), matching on subscription id so ending an old
+   subscription never unlinks a newer one. `start_checkout` also refuses (409)
+   when the account already has a subscription: only the Settings *button*
+   used to switch to the portal, so a second tab could have charged twice.
    **Still open:** one real live purchase, confirmed against the app and then
    refunded, has not been done — until it has, live mode is configured, not
    verified.
@@ -685,7 +704,27 @@ Tests with no network, database or API key required:
 python test_local.py      # the rules engine
 python test_content.py    # the content queue
 python test_backend.py    # validation, robots.txt, crawler network rules, AI accounting
+python -m unittest test_workspace_library test_billing
+                          # the /api contract (auth, isolation, content lifecycle,
+                          # profile) and the Stripe webhook + checkout guard. The
+                          # billing tests patch dummy Stripe settings, so they can
+                          # never reach the live account whatever .env holds.
 ```
+
+The signed-in end-to-end test drives a *deployed* site as two disposable users
+(real Supabase auth, through the real proxy) and deletes everything it made. It
+is the only test that has caught a bug "the tests pass" and "health is green"
+both missed, so run it after any change to auth, sessions or content:
+
+```bash
+python scripts/e2e_signed_in.py                    # the live Vercel proxy
+python scripts/e2e_signed_in.py http://localhost:8765   # a local backend
+python scripts/e2e_signed_in.py --cleanup <tag>    # remove rows a crashed run left
+```
+
+It never touches billing (a checkout here is real money in live mode) and does
+not cover session expiry. Point it at a local backend started with
+`FIG_DATABASE_URL=sqlite:///...` to check a change before pushing it.
 
 The end-to-end run — real network, real database, real Claude tokens (under a
 cent). It appends `## Test #N` to `Test Runs.md`; read the output, not just the

@@ -86,6 +86,13 @@ def start_checkout(session: Session, account: Account) -> dict:
     stripe = _stripe()
     if not config.STRIPE_PRICE_ID:
         raise HTTPException(503, "set STRIPE_PRICE_ID to the per-site recurring price")
+    # The Settings button already switches to the portal once subscribed, but
+    # this is the function that takes the money, so it refuses on its own: a
+    # second tab, a double click or a direct API call must not open a second
+    # subscription and charge twice.
+    if account.stripe_subscription_id:
+        raise HTTPException(409, "This workspace already has a subscription. "
+                                 "Change or cancel it from the billing portal.")
     customer_id = ensure_customer(session, account)
     qty = max(account.billable_sites(), account.site_floor, 1)
     # Carry over whatever is left of the free week rather than restarting it
@@ -180,26 +187,88 @@ async def webhook(request: Request, session: Session = Depends(get_session)):
     # call below safe again.
     obj = event["data"]["object"].to_dict()
     kind = event["type"]
-
-    if kind in ("checkout.session.completed", "customer.subscription.created",
-                "customer.subscription.updated"):
-        account_id = (obj.get("metadata") or {}).get("fig_account_id")
-        account = session.get(Account, account_id) if account_id else None
-        if account is None and obj.get("customer"):
-            account = session.query(Account).filter(
-                Account.stripe_customer_id == obj["customer"]).first()
-        if account is not None:
-            sub_id = obj.get("subscription") or (obj.get("id") if "sub_" in str(obj.get("id")) else None)
-            if sub_id:
-                account.stripe_subscription_id = sub_id
-            session.commit()
-            log.info("billing: linked account %s to %s", account.slug, sub_id)
-
-    elif kind == "customer.subscription.deleted":
-        account = session.query(Account).filter(
-            Account.stripe_subscription_id == obj.get("id")).first()
-        if account is not None:
-            account.stripe_subscription_id = None
-            session.commit()
-
+    apply_event(session, kind, obj)
     return {"received": True, "type": kind}
+
+
+# A subscription in one of these states is one FIG should treat as paid for.
+# past_due stays subscribed on purpose: Stripe is still retrying the card, and
+# cutting someone off on the first failed attempt is a decision for the dunning
+# settings, not for this file. Anything else (incomplete, paused, ...) links
+# nothing.
+SUBSCRIBED_STATUSES = frozenset({"active", "trialing", "past_due"})
+ENDED_STATUSES = frozenset({"canceled", "incomplete_expired", "unpaid"})
+
+
+def _account_for_event(session: Session, obj: dict) -> Account | None:
+    account_id = (obj.get("metadata") or {}).get("fig_account_id")
+    account = session.get(Account, account_id) if account_id else None
+    if account is None and obj.get("customer"):
+        account = session.query(Account).filter(
+            Account.stripe_customer_id == obj["customer"]).first()
+    return account
+
+
+def apply_event(session: Session, kind: str, obj: dict) -> str | None:
+    """Change an account's subscription link for one Stripe event.
+
+    Returns "linked", "cleared", or None when the event changes nothing. Kept
+    apart from the HTTP handler so it can be tested without Stripe.
+
+    Stripe does not promise events arrive in order, so this never treats an
+    event as "the latest word" on its own: it looks at the subscription's own
+    status. That closes two holes the first version had. A late
+    `customer.subscription.updated` for an already-cancelled subscription used
+    to re-link the account and show a cancelled customer as subscribed. And a
+    `customer.subscription.created` for a subscription whose first payment had
+    not cleared (status `incomplete`) used to grant access before any money
+    moved.
+    """
+    if kind == "checkout.session.completed":
+        if obj.get("mode") != "subscription":
+            return None
+        # "no_payment_required" is a checkout that starts with a free trial.
+        if obj.get("payment_status") not in ("paid", "no_payment_required"):
+            return None
+        sub_id = obj.get("subscription")
+        account = _account_for_event(session, obj)
+        if account is None or not sub_id:
+            return None
+        account.stripe_subscription_id = sub_id
+        session.commit()
+        log.info("billing: linked account %s to %s", account.slug, sub_id)
+        return "linked"
+
+    if kind in ("customer.subscription.created", "customer.subscription.updated"):
+        sub_id, status = obj.get("id"), obj.get("status")
+        if status in ENDED_STATUSES:
+            return _clear(session, sub_id)
+        if status not in SUBSCRIBED_STATUSES or not sub_id:
+            return None
+        account = _account_for_event(session, obj)
+        if account is None:
+            return None
+        account.stripe_subscription_id = sub_id
+        session.commit()
+        log.info("billing: linked account %s to %s", account.slug, sub_id)
+        return "linked"
+
+    if kind == "customer.subscription.deleted":
+        return _clear(session, obj.get("id"))
+    return None
+
+
+def _clear(session: Session, sub_id: str | None) -> str | None:
+    """Unlink whichever account holds this subscription. Matching on the
+    subscription id means ending an old subscription can never unlink a newer
+    one the account has since taken out."""
+    if not sub_id:
+        return None
+    account = session.query(Account).filter(
+        Account.stripe_subscription_id == sub_id).first()
+    if account is None:
+        return None
+    account.stripe_subscription_id = None
+    session.commit()
+    log.info("billing: cleared %s from account %s", sub_id, account.slug)
+    return "cleared"

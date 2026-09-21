@@ -567,6 +567,20 @@ def view(session: Session, account: Account, *, tab: str = "all",
     }
 
 
+def is_overdue(post: ContentPost, now: datetime | None = None) -> bool:
+    """A scheduled post whose date has passed and which nobody has published.
+
+    Nothing here publishes on a timer: the push to a CMS is not built, and a
+    post going live with nobody reading it is what this product exists as a
+    reaction to. So a date is a reminder, and when it slips by the honest
+    thing to show is that it slipped, not a label that still says "scheduled".
+    """
+    if post.state != "scheduled":
+        return False
+    due = _aware(post.scheduled_for)
+    return due is not None and due < (now or _now())
+
+
 def _next_action(state: str) -> dict | None:
     return {
         "queued": {"to": "in_progress", "label": "Start"},
