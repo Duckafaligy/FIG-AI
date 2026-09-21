@@ -121,6 +121,7 @@ def _run(job_id: str) -> None:
 STALE_AFTER = timedelta(minutes=20)      # no honest scan runs this long
 ABANDON_AFTER = timedelta(hours=6)       # too old to be worth running again
 RECLAIM_EVERY = 300.0
+PURGE_EVERY = 6 * 3600.0                 # identifier retention only needs to run a few times a day
 
 
 def reclaim_stale(now: datetime | None = None) -> dict:
@@ -162,7 +163,7 @@ def reclaim_stale(now: datetime | None = None) -> dict:
 
 def _loop(name: str) -> None:
     log.info("worker %s up", name)
-    last_reclaim = 0.0
+    last_reclaim = last_purge = float("-inf")     # so the first pass runs immediately
     while not _stop.is_set():
         # One worker does the housekeeping; a failure here must never stop it
         # taking jobs.
@@ -172,6 +173,13 @@ def _loop(name: str) -> None:
                 reclaim_stale()
             except Exception:                      # noqa: BLE001
                 log.exception("reclaim_stale failed")
+        if name == "w1" and time.monotonic() - last_purge >= PURGE_EVERY:
+            last_purge = time.monotonic()
+            try:
+                from app.retention import purge_identifiers
+                purge_identifiers()
+            except Exception:                      # noqa: BLE001
+                log.exception("purge_identifiers failed")
         job_id = _claim()
         if job_id is None:
             _stop.wait(1.0)

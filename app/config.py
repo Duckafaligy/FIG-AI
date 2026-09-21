@@ -35,6 +35,10 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 # Safe to send to the browser: it is the key the Supabase JS client uses, and
 # it carries no privileges of its own. The service-role key never leaves here.
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
+# Server-side only, never sent to a browser. Used to delete a person's sign-in
+# record when they delete their workspace; without it the rest of the deletion
+# still happens and the response says the sign-in record was left.
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 AUTH_READY = bool(SUPABASE_URL and SUPABASE_ANON_KEY)
 
 # The email that inherits the seeded account on first sign-in. Anyone else

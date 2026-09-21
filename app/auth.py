@@ -181,27 +181,39 @@ def link_user(session: Session, supabase_user: dict,
     return user
 
 
+EPOCH_KEY = "ep"
+
+
 def start_session(request: Request, user: User) -> None:
     request.session[SESSION_KEY] = user.id
+    request.session[EPOCH_KEY] = user.session_epoch or 0
 
 
 def end_session(request: Request) -> None:
     request.session.pop(SESSION_KEY, None)
 
 
-def session_account(request: Request, session: Session) -> Account | None:
+def session_user(request: Request, session: Session) -> User | None:
+    """The signed-in person, or None. A session issued before their epoch was
+    last bumped is dead: that is how a password reset ends every other device.
+    Sessions from before epochs existed carry none and count as epoch 0, so
+    deploying this signed nobody out."""
     uid = request.session.get(SESSION_KEY) if hasattr(request, "session") else None
     if not uid:
         return None
     user = session.get(User, uid)
+    if user is None:
+        return None
+    if request.session.get(EPOCH_KEY, 0) != (user.session_epoch or 0):
+        return None
+    return user
+
+
+def session_account(request: Request, session: Session) -> Account | None:
+    user = session_user(request, session)
     if user is None or user.account_id is None:
         return None
     return session.get(Account, user.account_id)
-
-
-def session_user(request: Request, session: Session) -> User | None:
-    uid = request.session.get(SESSION_KEY) if hasattr(request, "session") else None
-    return session.get(User, uid) if uid else None
 
 
 # --- what the dashboard asks -------------------------------------------

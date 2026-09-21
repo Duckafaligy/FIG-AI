@@ -311,6 +311,10 @@ class User(Base):
     email = Column(String, unique=True, nullable=False)
     supabase_uid = Column(String, unique=True, nullable=True)
     role = Column(String, nullable=False, default="owner")
+    # Bumped to end every signed-in session this person has (after a password
+    # reset). A session cookie remembers the epoch it was issued at and stops
+    # working when this moves past it.
+    session_epoch = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, default=_now)
 
 

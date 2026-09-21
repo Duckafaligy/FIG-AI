@@ -103,7 +103,7 @@ def make_user(label: str) -> dict:
     t = requests.post(f"{SUPA}/auth/v1/token?grant_type=password", headers={"apikey": ANON},
                       json={"email": email, "password": password}, timeout=30)
     t.raise_for_status()
-    return {"email": email, "uid": uid, "token": t.json()["access_token"], "client": Client()}
+    return {"email": email, "uid": uid, "password": password, "token": t.json()["access_token"], "client": Client()}
 
 
 def cleanup(users: list[dict]) -> None:
@@ -277,6 +277,41 @@ def main() -> int:
         check("session is gone after logout", A.call("GET", "/api/me").json().get("signed_in") is False)
         check("protected route is 401 again", A.call("GET", "/api/content").status_code == 401)
         check("B is still signed in (sessions are separate)", B.call("GET", "/api/me").json().get("signed_in") is True)
+
+        print("\n7. rename, ending sessions after a reset, deleting an account")
+        A.call("POST", "/api/session", json={"access_token": a["token"]})            # A signs back in after section 6
+        r = A.call("PATCH", "/api/settings/profile", json={"name": "E2E A renamed"})
+        check("A can rename the workspace", r.status_code == 200 and r.json().get("profile", {}).get("name") == "E2E A renamed", r.text[:120])
+        check("a blank name is refused", A.call("PATCH", "/api/settings/profile", json={"name": "  "}).status_code == 422)
+        check("...and B's name is untouched", B.call("GET", "/api/me").json().get("account", {}).get("name") == "E2E B")
+
+        A2 = Client()                                                                # a second device for A
+        A2.call("POST", "/api/session", json={"access_token": a["token"]})
+        check("A is signed in on two devices", A.call("GET", "/api/me").json().get("signed_in") is True
+              and A2.call("GET", "/api/me").json().get("signed_in") is True)
+        forged = Client().call("POST", "/api/session/revoke", json={"access_token": "forged"})
+        check("a forged token revokes nothing", forged.status_code == 200 and A.call("GET", "/api/me").json().get("signed_in") is True)
+        rv = Client().call("POST", "/api/session/revoke", json={"access_token": a["token"]})   # what the reset page does
+        check("revoke answers ok", rv.status_code == 200, rv.text[:80])
+        check("...and signs out every device", A.call("GET", "/api/me").json().get("signed_in") is False
+              and A2.call("GET", "/api/me").json().get("signed_in") is False)
+        check("...but the person can sign in again", A.call("POST", "/api/session", json={"access_token": a["token"]}).status_code == 200
+              and A.call("GET", "/api/me").json().get("signed_in") is True)
+        check("...and B was not signed out by A's revoke", B.call("GET", "/api/me").json().get("signed_in") is True)
+
+        wrong = B.call("POST", "/api/account/delete", json={"confirm": "someone-else@example.com"})
+        check("deleting needs the right email", wrong.status_code == 422, str(wrong.status_code))
+        check("...and nothing was deleted", B.call("GET", "/api/me").json().get("signed_in") is True)
+        gone = B.call("POST", "/api/account/delete", json={"confirm": b["email"]})
+        check("B can delete their own workspace", gone.status_code == 200 and gone.json().get("deleted") is True, gone.text[:160])
+        check("...their session ends", B.call("GET", "/api/me").json().get("signed_in") is False)
+        check("...their sign-in record is removed at Supabase", gone.json().get("sign_in_record_deleted") is True,
+              "the backend may lack SUPABASE_SERVICE_ROLE_KEY")
+        login = requests.post(f"{SUPA}/auth/v1/token?grant_type=password", headers={"apikey": ANON},
+                              json={"email": b["email"], "password": b["password"]}, timeout=30)
+        check("...so they cannot sign in again", login.status_code == 400, str(login.status_code))
+        check("A's data survived B's deletion", A.call("GET", "/api/content").json().get("total") == 2)
+        check("...and so did A's project", HOST in A.call("GET", "/api/projects").text)
 
         print("\nwaiting for the one queued scan to finish before cleanup")
         deadline = time.time() + 120

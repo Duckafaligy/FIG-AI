@@ -25,11 +25,11 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
-from app import billing, config, content, pages, publishing
+from app import account_data, billing, config, content, pages, publishing
 from app.auth import current_account, end_session, session_user, start_session
 from app.db import get_session
 from app.jobs import enqueue_estate, enqueue_scan, queue_depth
-from app.models import Account, Site, ContentPost
+from app.models import Account, Site, ContentPost, User
 from app.api import public_hostname
 
 router = APIRouter(prefix="/api", tags=["workspace"])
@@ -116,6 +116,51 @@ async def establish(request: Request, payload: dict = Body(...),
 def logout(request: Request):
     end_session(request)
     return {"ok": True}
+
+
+@router.post("/session/revoke")
+async def revoke_sessions(request: Request, payload: dict = Body(...),
+                          session: Session = Depends(get_session)):
+    """End every FIG session for the person this Supabase token belongs to.
+
+    The reset-password page calls this right after a password change, so a
+    session someone else already holds (a stolen cookie, a shared computer) does
+    not survive the reset. It answers the same way whatever the token, so it
+    cannot be used to find out who has an account.
+    """
+    from app.auth import verify_access_token
+    token = (payload or {}).get("access_token", "")
+    claims = None
+    if token:
+        try:
+            claims = await verify_access_token(token)
+        except HTTPException:
+            claims = None      # verify_access_token raises on a bad token; that must look the same as a good one
+    if claims:
+        user = session.scalars(select(User).where(User.supabase_uid == claims["id"])).first()
+        if user is not None:
+            user.session_epoch = (user.session_epoch or 0) + 1
+            session.commit()
+    return {"ok": True}
+
+
+@router.post("/account/delete")
+def delete_account(request: Request, payload: dict = Body(...),
+                   session: Session = Depends(get_session)):
+    """Delete this workspace and everything in it. Requires the account email
+    typed as confirmation. POST rather than DELETE-with-a-body, which proxies
+    and CDNs are free to drop."""
+    account = _account(request, session)
+    user = session_user(request, session)
+    if user is None:
+        raise HTTPException(401, "sign in required")
+    try:
+        result = account_data.delete_workspace(
+            session, account, user, confirm=(payload or {}).get("confirm", ""))
+    except account_data.DeletionRefused as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
+    end_session(request)
+    return result
 
 
 # --- the surfaces --------------------------------------------------------

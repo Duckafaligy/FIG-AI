@@ -164,6 +164,25 @@ def sync(account: Account = Depends(require_account),
     return sync_quantity(session, account)
 
 
+def cancel_subscription(account: Account) -> bool:
+    """End the account's subscription now (used when a workspace is deleted, so
+    nobody keeps paying for something that no longer exists). True when there
+    was one to cancel or it was already gone; raises if Stripe refuses, so the
+    caller can stop rather than delete a workspace that is still being billed."""
+    if not account.stripe_subscription_id:
+        return False
+    stripe = _stripe()
+    try:
+        current = stripe.Subscription.retrieve(account.stripe_subscription_id)
+        if current["status"] != "canceled":
+            stripe.Subscription.cancel(account.stripe_subscription_id)
+    except Exception as exc:                       # noqa: BLE001
+        if getattr(exc, "code", None) == "resource_missing":
+            return True
+        raise
+    return True
+
+
 def try_sync(session: Session, account: Account) -> dict:
     """`sync_quantity` for callers that must not fail because Stripe did.
 
