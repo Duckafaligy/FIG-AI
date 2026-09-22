@@ -30,3 +30,64 @@
 .fig-footer-bottom > div { display:flex; gap:22px; }
 @media(max-width:800px) { .fig-plan-cards { grid-template-columns:1fr; } .fig-footer-main { grid-template-columns:1fr; gap:36px; } .fig-plan-card { padding:24px; } }
 @media(max-width:420px) { .fig-footer-links { grid-template-columns:1fr 1fr; } .fig-pricing-audiences { flex-wrap:wrap; } .fig-footer-bottom { flex-direction:column; } }
+
+/* Shared public navigation: brand left, discovery centered, account right. */
+.public-nav.page-shell { display:grid; grid-template-columns:1fr auto 1fr; height:80px; gap:24px; }
+.public-nav > .brand { justify-self:start; }
+.public-nav .public-nav-links { display:contents; }
+.public-nav-discover,.public-nav-account { display:flex; align-items:center; gap:34px; font-size:14px; font-weight:550; }
+.public-nav-discover { grid-column:2; justify-self:center; }
+.public-nav-account { grid-column:3; justify-self:end; gap:24px; }
+.public-nav-discover a,.public-nav-account > a:not(.button) { padding:12px 2px; color:#59647d; }
+.public-nav a[aria-current=page]:not(.button) { color:#6645df; }
+.public-nav a:hover:not(.button) { color:#6645df; }
+.public-nav-account .button { min-width:108px; border-radius:9px; }
+.public-nav .mobile-nav-toggle { display:none; }
+.pricing-page { background:linear-gradient(180deg,#f8f7ff 0,#fff 660px); }
+.pricing-page .fig-pricing-intro { padding-top:76px; padding-bottom:70px; }
+.fig-pricing-pill { display:inline-flex; background:#efebff; border:1px solid #e0d8fa; color:#6b50c9; border-radius:30px; padding:8px 15px; font-size:11px; font-weight:600; letter-spacing:.4px; }
+.pricing-page .fig-pricing-intro h1 { margin:27px 0 24px; font-size:clamp(38px,5.2vw,66px); letter-spacing:-2.8px; }
+.pricing-page .fig-pricing-intro h1 span { font-family:Georgia,serif; font-style:italic; font-weight:400; color:#6650b8; }
+.pricing-page .fig-pricing-audiences { gap:0; display:inline-flex; margin-top:34px; padding:6px; border:1px solid #e2ddef; background:white; border-radius:16px; box-shadow:0 10px 25px #42357108; }
+.pricing-page .fig-pricing-audiences a { display:grid; gap:7px; border:0; border-radius:10px; padding:14px 30px; min-width:195px; text-align:left; color:#333e55; }
+.pricing-page .fig-pricing-audiences a:first-child { background:#f2effc; }
+.pricing-page .fig-pricing-audiences a:last-child:hover { background:#eef8f3; }
+.fig-pricing-audiences a span { font-weight:650; font-size:14px; }
+.fig-pricing-audiences a small { font-size:11px; color:#7c8295; }
+.fig-plan-banner { display:flex; align-items:center; gap:22px; padding:30px; border-radius:16px; background:#17233c; color:white; margin-bottom:24px; }
+.fig-plan-banner .section-kicker { color:#b7acf4; }
+.fig-plan-banner h2 { color:inherit; font-size:26px; }
+.fig-plan-banner p { margin:0; color:#afbdd2; font-size:13px; line-height:1.7; }
+.fig-plan-banner-icon { display:grid; place-items:center; width:64px; height:64px; flex-shrink:0; border:1px solid #ffffff20; background:#ffffff09; border-radius:15px; color:#c4b7ff; }
+.fig-plan-banner-note { margin-left:auto; font-family:Georgia,serif; font-style:italic; font-size:19px; color:#c3cbe0; max-width:140px; line-height:1.5; }
+.fig-plan-banner--education { background:#eaf5ef; color:#1d4c3c; }
+.fig-plan-banner--education .section-kicker,.fig-plan-banner--education p,.fig-plan-banner--education .fig-plan-banner-note { color:#547b68; }
+.fig-plan-banner--education .fig-plan-banner-icon { background:#d8eade; color:#397659; border-color:#cbe0d2; }
+.fig-plan-card-top { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:26px; color:#8990a1; font-size:10px; }
+.fig-plan-symbol { display:grid; place-items:center; width:46px; height:46px; border-radius:12px; color:#6d50d8; background:#f1edff; }
+.fig-plan-card-note { text-align:center; color:#8a93a3; font-size:11px; margin-top:14px; }
+.pricing-page .fig-plan-card { padding:30px; border-radius:16px; transition:box-shadow .2s,border-color .2s; }
+.pricing-page .fig-plan-card:hover { box-shadow:0 14px 30px #2439550c; border-color:#bcb2dc; }
+.pricing-page .fig-plan-card h3 { font-size:24px; letter-spacing:-.5px; }
+.pricing-page .fig-plan-price { padding:22px 0; margin:16px 0 22px; border-bottom:1px solid #e9eaf0; }
+.pricing-page .fig-plan-price strong { font-size:42px; }
+.fig-plan-cards--education .fig-plan-symbol { background:#e8f4ec; color:#3c7959; }
+.fig-pricing-faq { display:grid; grid-template-columns:1fr 1.6fr; gap:55px; align-items:start; }
+.fig-pricing-faq .section-heading { text-align:left; margin:0; }
+@media(max-width:800px) { .fig-plan-banner-note { display:none; } .fig-pricing-faq { grid-template-columns:1fr; gap:25px; } .fig-plan-banner { padding:24px; } }
+@media(max-width:860px) {
+ .public-nav.page-shell { grid-template-columns:1fr auto; height:68px; }
+ .public-nav .mobile-nav-toggle { display:flex; grid-column:2; justify-self:end; }
+ .public-nav .public-nav-links { display:none; }
+ .public-nav .public-nav-links.is-open { display:flex; gap:12px; }
+ .public-nav-discover,.public-nav-account { display:flex; flex-direction:column; align-items:stretch; gap:6px; width:100%; }
+ .public-nav-account { border-top:1px solid #ececf4; padding-top:12px; }
+ .pricing-page .fig-pricing-intro { padding-top:44px; padding-bottom:35px; }
+ .pricing-page .fig-pricing-intro h1 { letter-spacing:-1.5px; }
+ .pricing-page .fig-pricing-audiences { display:flex; flex-wrap:nowrap; width:100%; }
+ .pricing-page .fig-pricing-audiences a { min-width:0; padding:12px; flex:1; }
+ .fig-plan-banner { align-items:flex-start; gap:14px; padding:22px 18px; }
+ .fig-plan-banner-icon { width:43px; height:43px; }
+ .fig-plan-banner h2 { font-size:22px; }
+}
+@media(prefers-reduced-motion:reduce) { .pricing-page .fig-plan-card { transition:none; } }

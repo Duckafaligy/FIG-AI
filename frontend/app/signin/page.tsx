@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { ArrowDownRight, BarChart3, LockKeyhole, PenLine, Search } from "lucide-react";
 import { AuthForm } from "@/components/auth-form";
 import { Brand } from "@/components/brand";
+import { PublicNav } from "@/components/public-nav";
 import { PlatformLogos } from "@/components/platform-logos";
 import { ProductLaptop } from "@/components/product-laptop";
 
@@ -21,10 +22,7 @@ export const metadata: Metadata = {
 export default function SignInPage() {
   return (
     <div className="auth-page auth-page--signin">
-      <header className="auth-nav page-shell">
-        <Brand />
-        <nav aria-label="Account navigation"><Link href="/projects">Demo</Link><Link href="/signin" aria-current="page">Sign in</Link><Link className="button button--small" href="/signup">Sign up</Link></nav>
-      </header>
+      <PublicNav />
       <main>
         <section className="auth-layout auth-layout--signin page-shell">
           <div className="auth-card auth-card--signin"><AuthForm mode="signin" /></div>

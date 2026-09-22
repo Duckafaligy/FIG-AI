@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { BarChart3, PenLine, Search, Share2 } from "lucide-react";
 import { AuthForm } from "@/components/auth-form";
 import { Brand } from "@/components/brand";
+import { PublicNav } from "@/components/public-nav";
 import { PlatformLogos } from "@/components/platform-logos";
 import { ProductLaptop } from "@/components/product-laptop";
 import { TRIAL_DAYS } from "@/lib/legal";
@@ -23,10 +24,7 @@ export const metadata: Metadata = {
 export default function SignUpPage() {
   return (
     <div className="auth-page auth-page--signup signup-page">
-      <header className="auth-nav page-shell">
-        <Brand />
-        <nav aria-label="Account navigation"><Link href="/projects">Demo</Link><Link href="/pricing">Pricing</Link><Link href="/signin">Sign in</Link><Link className="button button--small" href="/signup" aria-current="page">Sign up</Link></nav>
-      </header>
+      <PublicNav />
       <main>
         <section className="signup-layout signup-layout--refined page-shell">
           <section className="signup-story" aria-label="Why choose FIG">
