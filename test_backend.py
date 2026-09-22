@@ -18,17 +18,21 @@ from __future__ import annotations
 
 import gzip
 import json
+import re
 import sys
 import traceback
 import types
 from contextlib import contextmanager
+from pathlib import Path
 
 import requests as real_requests
 
-from app import ai_explain, scraper, search_console, validation, wordpress
+from app import ai_explain, pages, scraper, search_console, validation, wordpress
 from app.pipeline import explanation_payload, group_flags
 from app.rules.checks import Flag
 from app.validation import ValidationError, check_url, normalise_target, validate_target
+
+ROOT = Path(__file__).resolve().parent
 
 PUBLIC = "93.184.216.34"
 DNS = {
@@ -523,6 +527,31 @@ def test_wordpress_title_fix_refuses_without_drafted_text():
         assert not ok and applied is None
         assert "42" not in " ".join(str(c) for c in wp.calls if c[0] == "POST"), \
             "should never have tried to write without a drafted title"
+
+
+def test_settings_integration_names_match_the_frontends_static_list():
+    """The workspace API's connection state is looked up by the frontend as
+    `live.apis.find(a => a.name === service.name)` -- a string comparison
+    between two files that don't import each other, so nothing but a test
+    catches a drift. This already happened for real once (Search Console
+    said "Search Console" on one side, "Google Search Console" on the
+    other, and simply never matched) and is checked here for every service
+    that has a real Connect button wired in Settings: connecting would have
+    kept showing "Not connected" forever, no matter how it actually went."""
+    frontend_src = (ROOT / "frontend" / "app" / "app" / "settings" / "page.tsx").read_text(encoding="utf-8")
+    start = frontend_src.index("const services: Service[] = [")
+    end = frontend_src.index("];", start)
+    frontend_names = set(re.findall(r'name:\s*"([^"]+)"', frontend_src[start:end]))
+
+    backend_names = {row["name"] for row in pages._api_rows(None, [])}
+
+    wired_in_frontend = {"Google Analytics", "Google Search Console", "WordPress", "Shopify"}
+    missing_from_frontend = wired_in_frontend - frontend_names
+    assert not missing_from_frontend, \
+        f"expected a static row for {missing_from_frontend} in settings/page.tsx"
+    missing_from_backend = wired_in_frontend - backend_names
+    assert not missing_from_backend, \
+        f"_api_rows() has no matching row for {missing_from_backend} -- Connect would never show as connected"
 
 
 def test_wordpress_promotes_the_first_h2_to_h1():

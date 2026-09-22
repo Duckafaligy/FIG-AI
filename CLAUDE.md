@@ -582,6 +582,43 @@ placeholders** — only email/password goes through Supabase for now.
    install (wordpress.org's own) and a full round trip through the actual
    running backend against that same real site. Every other platform
    (Shopify, Webflow, ...) still refuses unconditionally, same as before.
+
+   **Shopify OAuth connect step — done (2026-09-23); the write adapter is
+   deliberately still absent.** `app/oauth.py`'s `/oauth/shopify/start` and
+   `/oauth/shopify/callback` follow the file's own three-step OAuth shape,
+   with the two things Shopify's flow needs that Google's doesn't: the
+   authorize URL lives on the merchant's own store
+   (`https://{shop}.myshopify.com/admin/oauth/authorize`, so `/start` takes a
+   `shop` query param, validated against `^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$`
+   both when supplied and again when Shopify echoes it back), and the
+   callback's whole query string is HMAC-SHA256 verified against the app's
+   client secret (Shopify's documented algorithm, constant-time compared) —
+   proof the redirect really came from Shopify, not a forged URL carrying a
+   guessed or stolen `code`. `publish()` in `app/publishing.py` already
+   refuses out loud for any platform but WordPress, so a connected Shopify
+   integration is honest on its own with zero extra code: "Connected," and
+   nothing pretends to write through it. **Why no write adapter yet:**
+   there is no real Shopify store to verify field names, API version or
+   response shapes against — the same bar `app/wordpress.py` had to clear,
+   except WordPress's REST API is publicly probeable even unauthenticated
+   (verified against wordpress.org's own install) and Shopify's requires a
+   real OAuth grant first, so not even that much could be checked here.
+   Covered by 13 fake-network tests in `test_oauth_shopify.py`, including a
+   genuinely-computed HMAC (the same algorithm the endpoint itself runs,
+   used to prove the verification is actually correct — not just "some
+   function got called") and confirmed to fail without it by disabling the
+   check and rerunning. **Found and fixed in the same pass:** `app/pages.py`'s
+   `_api_rows()` named the Shopify row `"Shopify Store API"` against a
+   static `"Shopify"` in `frontend/app/app/settings/page.tsx` — the exact
+   same class of bug the Search Console naming mismatch already was (see
+   roadmap item 4b), just never noticed because nothing had tried to
+   connect Shopify yet. Now covered by
+   `test_settings_integration_names_match_the_frontends_static_list` in
+   `test_backend.py`, which reads both files for real rather than hardcoding
+   a second copy of either list, so it can't itself drift out of sync.
+   Settings' Integrations tab has a real "Connect" flow for it now (a small
+   store-domain form, since Shopify has no one fixed authorize URL to link
+   straight to). **Webflow is next, same three-step shape** — not started.
 4. **Google Analytics OAuth — done (2026-09-17), real credentials
    configured.** `app/oauth.py`, `app/secrets_store.py`, `app/ga.py` (reads
    the stored token, refreshes it, auto-discovers the GA4 property, pulls

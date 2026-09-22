@@ -161,6 +161,7 @@ def health(session: Session = Depends(get_session)):
         "dev_no_auth": config.DEV_NO_AUTH,
         "secrets_configured": bool(config.SECRET_ENCRYPTION_KEY),
         "google_oauth": config.GOOGLE_OAUTH_ENABLED,
+        "shopify_oauth": config.SHOPIFY_OAUTH_ENABLED,
         "watches": config.WATCH_ENABLED,
         "sentry": bool(config.SENTRY_DSN),
     }

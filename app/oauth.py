@@ -37,6 +37,10 @@ from urllib.parse import urlencode
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
+import hashlib
+import hmac as hmac_module
+import re
+
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -209,3 +213,152 @@ def google_callback(request: Request, code: str = Query(default=""),
 
     session.commit()
     return _return(integration=",".join(connected_platforms), connected="1")
+
+
+# --- shopify --------------------------------------------------------------
+# Real, unlike the rest of this module's write-capable claims: only the
+# CONNECT step exists here. The write adapter itself does not -- there is no
+# real Shopify store to verify field names, API version or response shapes
+# against, the same bar `app/wordpress.py` had to clear before it could claim
+# anything (see that module and CLAUDE.md). `app/publishing.py:publish()`
+# already refuses out loud for every platform except WordPress, so a
+# connected Shopify integration is honest on its own: "Connected", and
+# nothing pretends to publish through it yet.
+
+SHOPIFY_TOKEN_SCOPE = "read_content,write_content"
+PLATFORM_SHOPIFY = "shopify"
+
+# {store}.myshopify.com only -- Shopify's own recommended validation before
+# ever building a URL from a caller-supplied shop, on both /start (a typed
+# or copy-pasted value) and /callback (echoed back by Shopify, but checked
+# again rather than trusted, since it reaches this handler as a plain query
+# param like anything else).
+SHOPIFY_SHOP_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$")
+
+
+def _valid_shop(shop: str) -> str | None:
+    shop = (shop or "").strip().lower()
+    return shop if SHOPIFY_SHOP_RE.match(shop) else None
+
+
+@router.get("/shopify/start")
+def shopify_start(request: Request, site_id: str = Query(...), shop: str = Query(...),
+                  session: Session = Depends(get_session)):
+    """Redirects to the merchant's own store, not a fixed URL -- Shopify's
+    OAuth authorize endpoint lives on https://{shop}.myshopify.com, so the
+    caller has to say which store, unlike Google's one authorize URL for
+    everyone."""
+    if not config.SHOPIFY_OAUTH_ENABLED:
+        raise HTTPException(503, "Shopify OAuth is not configured on this server "
+                                 "(set SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET)")
+    shop_domain = _valid_shop(shop)
+    if shop_domain is None:
+        raise HTTPException(422, "shop must look like your-store.myshopify.com")
+    site = _owned_site(session, request, site_id)
+
+    state = _serializer().dumps({"site_id": site.id, "account_id": site.account_id,
+                                 "shop": shop_domain})
+    params = {
+        "client_id": config.SHOPIFY_CLIENT_ID,
+        "scope": SHOPIFY_TOKEN_SCOPE,
+        "redirect_uri": config.SHOPIFY_OAUTH_REDIRECT_URI,
+        "state": state,
+    }
+    return RedirectResponse(f"https://{shop_domain}/admin/oauth/authorize?{urlencode(params)}")
+
+
+@router.get("/shopify/callback")
+def shopify_callback(request: Request, code: str = Query(default=""),
+                     shop: str = Query(default=""), hmac: str = Query(default=""),
+                     state: str = Query(default=""), error: str = Query(default=""),
+                     session: Session = Depends(get_session)):
+    """Shopify lands the browser here after the merchant approves the app.
+
+    Two checks Google's callback doesn't need, both required by Shopify's
+    own security guidance for apps using this (non-embedded) OAuth flow:
+    the shop param is re-validated (never trust a query param just because
+    it looks like the one /start sent), and the whole query string's HMAC is
+    verified against the app's client secret, proving the redirect really
+    came from Shopify and was not forged by pointing a browser at this URL
+    directly with a guessed or stolen `code`.
+    """
+    if error:
+        return _return(integration=PLATFORM_SHOPIFY, error=error)
+
+    shop_domain = _valid_shop(shop)
+    if shop_domain is None:
+        return _return(integration=PLATFORM_SHOPIFY, error="invalid_shop")
+
+    # Shopify's documented scheme: every query param except hmac/signature,
+    # sorted, joined as k=v with &, HMAC-SHA256'd with the client secret.
+    # Constant-time compare -- this is exactly the kind of check a timing
+    # side-channel could otherwise weaken.
+    to_verify = {k: v for k, v in request.query_params.items()
+                if k not in ("hmac", "signature")}
+    message = "&".join(f"{k}={v}" for k, v in sorted(to_verify.items()))
+    expected = hmac_module.new(config.SHOPIFY_CLIENT_SECRET.encode(),
+                               message.encode(), hashlib.sha256).hexdigest()
+    if not hmac or not hmac_module.compare_digest(expected, hmac):
+        log.warning("shopify callback HMAC did not verify for shop %s", shop_domain)
+        return _return(integration=PLATFORM_SHOPIFY, error="invalid_hmac")
+
+    try:
+        payload = _serializer().loads(state, max_age=STATE_MAX_AGE)
+    except SignatureExpired:
+        return _return(integration=PLATFORM_SHOPIFY, error="expired_state")
+    except BadSignature:
+        return _return(integration=PLATFORM_SHOPIFY, error="invalid_state")
+
+    if payload.get("shop") != shop_domain:
+        # The store that approved the app isn't the one /start was sent for.
+        return _return(integration=PLATFORM_SHOPIFY, error="shop_mismatch")
+
+    site = session.get(Site, payload.get("site_id"))
+    if site is None or site.account_id != payload.get("account_id"):
+        return _return(integration=PLATFORM_SHOPIFY, error="site_not_found")
+
+    try:
+        resp = httpx.post(f"https://{shop_domain}/admin/oauth/access_token", data={
+            "client_id": config.SHOPIFY_CLIENT_ID,
+            "client_secret": config.SHOPIFY_CLIENT_SECRET,
+            "code": code,
+        }, timeout=15.0)
+    except httpx.HTTPError as exc:
+        log.warning("shopify token exchange request failed: %s", exc)
+        return _return(integration=PLATFORM_SHOPIFY, error="token_request_failed")
+
+    if resp.status_code != 200:
+        log.warning("shopify token exchange rejected: %s %s", resp.status_code, resp.text[:300])
+        return _return(integration=PLATFORM_SHOPIFY, error="token_exchange_failed")
+
+    tokens = resp.json()
+    access_token = tokens.get("access_token", "")
+    if not access_token:
+        return _return(integration=PLATFORM_SHOPIFY, error="no_access_token")
+
+    try:
+        # Offline access tokens (the default here -- no "online" access
+        # requested) don't expire the way Google's do, so there is no
+        # refresh_token or expires_at to carry alongside it.
+        ref = store_secret(session, {"access_token": access_token,
+                                     "shop": shop_domain,
+                                     "scope": tokens.get("scope", "")})
+    except SecretsNotConfigured as exc:
+        log.error("cannot store shopify token for site %s: %s", site.id, exc)
+        return _return(integration=PLATFORM_SHOPIFY, error="secrets_not_configured")
+
+    integ = session.scalars(select(Integration).where(
+        Integration.site_id == site.id, Integration.platform == PLATFORM_SHOPIFY)).first()
+    if integ is None:
+        integ = Integration(site_id=site.id, platform=PLATFORM_SHOPIFY)
+        session.add(integ)
+    if integ.credential_ref and integ.credential_ref != ref:
+        delete_secret(session, integ.credential_ref)
+    integ.endpoint = shop_domain
+    integ.credential_ref = ref
+    integ.credential_hint = shop_domain
+    integ.scopes = tokens.get("scope", "").split(",")
+    integ.connected_at = _now()
+    integ.last_error = None
+    session.commit()
+    return _return(integration=PLATFORM_SHOPIFY, connected="1")

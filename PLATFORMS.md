@@ -139,6 +139,38 @@ Two separate projects, same codebase (`frontend/`), same org (`ducakfaligy`):
 - **Consent screen is in Testing mode** — only test users you've explicitly
   added can complete the OAuth flow until it's submitted for verification.
 
+## Shopify Partners — not set up yet
+
+- **What for:** the OAuth app `/oauth/shopify/start` and `/oauth/shopify/callback`
+  (`app/oauth.py`) need to exist against. Right now `SHOPIFY_CLIENT_ID`/
+  `SHOPIFY_CLIENT_SECRET` are unset everywhere, so `SHOPIFY_OAUTH_ENABLED` is
+  `False` and Settings' "Connect" button for Shopify 503s. Only the connect
+  step is real so far — see CLAUDE.md roadmap item 3b for why the write
+  adapter (title/content fixes, the Shopify equivalent of `app/wordpress.py`)
+  isn't built yet.
+- **To set it up:**
+  1. Create a free account at partners.shopify.com if there isn't one already.
+  2. Apps → Create app → **Custom app** (not "Public app" — this doesn't need
+     Shopify's App Store review, since it's for FIG's own use). Give it any
+     name.
+  3. App setup → **Allowed redirection URL(s)**: add
+     `https://fig-ai-backend.onrender.com/oauth/shopify/callback` and, for
+     local dev, `http://localhost:8000/oauth/shopify/callback`.
+  4. Under scopes, the app will ask what Admin API access to request —
+     `read_content`/`write_content` (Online Store pages and blog articles) is
+     what `app/oauth.py` currently requests; if the dashboard shows different
+     current scope names, tell me and I'll update `SHOPIFY_TOKEN_SCOPE`.
+  5. Copy the **Client ID** and **Client secret** from the app's API
+     credentials page.
+  6. **To actually test a connection**, you also need a store to connect —
+     Partners gives you a free development store for exactly this (Stores →
+     Add store → Development store), no real Shopify subscription needed.
+- **Render env vars once you have them:** `SHOPIFY_CLIENT_ID` and
+  `SHOPIFY_CLIENT_SECRET` — both already declared in `render.yaml`
+  (`sync: false`, blank), so Render will prompt for them the next time it
+  reads the Blueprint. `SHOPIFY_OAUTH_REDIRECT_URI` defaults to the right
+  production URL already; only override it for local dev.
+
 ## Anthropic
 
 - **What for:** the one LLM call in the whole pipeline

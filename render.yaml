@@ -68,6 +68,19 @@ services:
       - key: GOOGLE_OAUTH_REDIRECT_URI
         sync: false
 
+      # Blank until a Shopify Partners app exists -- see PLATFORMS.md. Only
+      # the OAuth connect step is live so far (app/oauth.py); with these
+      # unset, SHOPIFY_OAUTH_ENABLED is False and Settings' Connect button
+      # 503s, same degrade-quietly pattern as every other key here.
+      - key: SHOPIFY_CLIENT_ID
+        sync: false
+      - key: SHOPIFY_CLIENT_SECRET
+        sync: false
+      # Must exactly match an Allowed redirection URL on the Shopify app:
+      # https://<this-service>.onrender.com/oauth/shopify/callback
+      - key: SHOPIFY_OAUTH_REDIRECT_URI
+        sync: false
+
       # Error tracking (app/main.py) -- degrades quietly (no init call at
       # all) with no DSN. Get the DSN from Sentry -> fig-ai org ->
       # fig-ai-backend project -> Settings -> Client Keys (DSN).

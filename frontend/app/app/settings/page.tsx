@@ -166,6 +166,18 @@ export default function SettingsPage() {
     await loadSettings();
   };
 
+  const [shopifyFormOpen, setShopifyFormOpen] = useState(false);
+  const [shopifyShop, setShopifyShop] = useState("");
+  const submitShopify = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!liveProjectId) return;
+    // Accepts "my-store", "my-store.myshopify.com" or a pasted store URL --
+    // normalised to the one shape /oauth/shopify/start actually requires.
+    const raw = shopifyShop.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+    const shop = raw.includes(".") ? raw : `${raw}.myshopify.com`;
+    window.location.href = apiUrl(`/oauth/shopify/start?site_id=${liveProjectId}&shop=${encodeURIComponent(shop)}`);
+  };
+
   const [billingBusy, setBillingBusy] = useState<"checkout" | "portal" | null>(null);
   const [billingError, setBillingError] = useState("");
   const goToCheckout = async () => {
@@ -276,6 +288,7 @@ export default function SettingsPage() {
                 const isGoogleAnalytics = service.name === "Google Analytics";
                 const isGoogleSearchConsole = service.name === "Google Search Console";
                 const isWordPress = service.name === "WordPress";
+                const isShopify = service.name === "Shopify";
                 const remote = liveApi(service.name);
                 const statusText = remote ? remote.state : service.status;
                 const tone = remote ? (remote.ok ? "green" : service.tone) : service.tone;
@@ -289,6 +302,8 @@ export default function SettingsPage() {
                       <a className="settings-row-action button button--small" href={apiUrl(`/oauth/google/start?site_id=${liveProjectId}`)}>{remote?.ok ? "Reconnect" : "Connect"}</a>
                     ) : isWordPress && liveProjectId ? (
                       <button type="button" className="settings-row-action button button--small" onClick={() => setWpFormOpen((open) => !open)}>{remote?.ok ? "Reconnect" : "Connect"}</button>
+                    ) : isShopify && liveProjectId ? (
+                      <button type="button" className="settings-row-action button button--small" onClick={() => setShopifyFormOpen((open) => !open)}>{remote?.ok ? "Reconnect" : "Connect"}</button>
                     ) : (
                       <PreviewInfo className="settings-row-action" label="Setup" message={`${service.name} doesn't have a working connect flow from this page yet.`} />
                     )}
@@ -307,6 +322,16 @@ export default function SettingsPage() {
                   <div style={{ display: "flex", gap: 10 }}>
                     <button className="button button--small" type="submit" disabled={wpBusy}>{wpBusy ? "Connecting…" : "Connect WordPress"}</button>
                     <button className="secondary-button" type="button" onClick={() => setWpFormOpen(false)} disabled={wpBusy}>Cancel</button>
+                  </div>
+                </form>
+              )}
+              {shopifyFormOpen && liveProjectId && (
+                <form onSubmit={submitShopify} className="settings-workspace-profile" style={{ flexDirection: "column", alignItems: "stretch", gap: 12, marginTop: 4 }}>
+                  <label className="auth-field" htmlFor="shopify-store"><span>Store</span><input id="shopify-store" required placeholder="your-store or your-store.myshopify.com" value={shopifyShop} onChange={(event) => setShopifyShop(event.target.value)} /></label>
+                  <p style={{ fontSize: 12.5, opacity: 0.7, margin: 0 }}>Takes you to Shopify to approve the connection. Reading and updating pages/blog content is the only access requested — only the connection step is live so far, so nothing publishes through it yet.</p>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button className="button button--small" type="submit">Continue to Shopify</button>
+                    <button className="secondary-button" type="button" onClick={() => setShopifyFormOpen(false)}>Cancel</button>
                   </div>
                 </form>
               )}

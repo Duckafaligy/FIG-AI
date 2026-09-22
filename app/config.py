@@ -169,6 +169,18 @@ GOOGLE_OAUTH_REDIRECT_URI = os.environ.get(
     "GOOGLE_OAUTH_REDIRECT_URI", "http://localhost:8000/oauth/google/callback")
 GOOGLE_OAUTH_ENABLED = bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
 
+# --- oauth: shopify --------------------------------------------------------
+# A Partner-account app registered at partners.shopify.com. Unlike Google's
+# one fixed authorize URL, Shopify's lives on the merchant's own store
+# (https://{shop}.myshopify.com/admin/oauth/authorize), so /oauth/shopify/start
+# needs a `shop` query param the caller supplies -- see app/oauth.py.
+SHOPIFY_CLIENT_ID = os.environ.get("SHOPIFY_CLIENT_ID", "")
+SHOPIFY_CLIENT_SECRET = os.environ.get("SHOPIFY_CLIENT_SECRET", "")
+# Must exactly match an "Allowed redirection URL" on the app in Partners.
+SHOPIFY_OAUTH_REDIRECT_URI = os.environ.get(
+    "SHOPIFY_OAUTH_REDIRECT_URI", "http://localhost:8000/oauth/shopify/callback")
+SHOPIFY_OAUTH_ENABLED = bool(SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET)
+
 # Where a browser lands after the OAuth round trip finishes, success or not.
 OAUTH_RETURN_URL = os.environ.get("FIG_OAUTH_RETURN_URL", f"{FRONTEND_URL}/app/settings")
 
