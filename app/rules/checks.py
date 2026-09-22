@@ -672,11 +672,28 @@ MULTI_CHECKS = (check_section_order_flags,)
 ALL_CHECKS = SINGLE_CHECKS
 
 
+# A page that opts itself out of search (<meta name="robots" content="noindex">
+# -- a login screen, a password-reset link target, a thank-you page) still
+# deserves the checks that are good practice regardless of indexing (a real
+# title, a lang attribute, alt text, a sensible heading). It doesn't deserve
+# the ones whose entire premise is being found or ranked: a noindexed page's
+# missing canonical, empty meta description, thinness or lack of inbound
+# links are not tells of anything -- they're the point. Found running this
+# scanner on FIG's own /forgot-password (found while tuning against FIG's own
+# pages, same as flat_typography/check_faq earlier).
+NOINDEX_EXEMPT_CHECKS = frozenset({
+    "missing_meta_description", "meta_description_length",
+    "missing_canonical", "few_internal_links", "thin_page",
+})
+
+
 def run_all_checks(signal: PageSignal) -> list[Flag]:
     flags: list[Flag] = []
     for check in SINGLE_CHECKS:
         flag = check(signal)
         if flag is not None:
+            if signal.noindex and flag.check in NOINDEX_EXEMPT_CHECKS:
+                continue
             if not flag.page_url:
                 flag.page_url = signal.url
             flags.append(flag)
@@ -726,22 +743,26 @@ CHECKLIST: list[dict] = [
      "flags": "2 or more places where the heading level jumps more than one step, "
               "such as h2 straight to h4."},
     {"ids": ["thin_page"], "layer": "structure", "title": "Thin page",
-     "flags": "Fewer than 120 words of body copy on the page."},
+     "flags": "Fewer than 120 words of body copy on the page. Not flagged on a page "
+              "marked noindex."},
     # search
     {"ids": ["missing_title", "title_length"], "layer": "search", "title": "Page title",
      "flags": "No <title> tag, or a title over 65 characters that gets truncated in "
               "search results."},
     {"ids": ["missing_meta_description", "meta_description_length"], "layer": "search",
      "title": "Meta description",
-     "flags": "No meta description, or one outside the 60-175 character range."},
+     "flags": "No meta description, or one outside the 60-175 character range. Not "
+              "flagged on a page marked noindex -- it never shows a search snippet."},
     {"ids": ["missing_canonical"], "layer": "search", "title": "Canonical link",
-     "flags": "No <link rel=\"canonical\"> on the page."},
+     "flags": "No <link rel=\"canonical\"> on the page. Not flagged on a page marked "
+              "noindex -- canonical exists to dedupe search results."},
     {"ids": ["missing_lang"], "layer": "search", "title": "Language attribute",
      "flags": "No lang attribute on the <html> element."},
     {"ids": ["missing_alt"], "layer": "search", "title": "Image alt text",
      "flags": "3 or more images on the page, 40% or more missing alt text."},
     {"ids": ["few_internal_links"], "layer": "search", "title": "Orphan pages",
-     "flags": "2 or fewer internal links from a page carrying 150+ words."},
+     "flags": "2 or fewer internal links from a page carrying 150+ words. Not flagged "
+              "on a page marked noindex -- being hard to stumble into is often the point."},
     # answers
     {"ids": ["no_structured_data", "thin_structured_data"], "layer": "answers",
      "title": "Structured data (JSON-LD)",

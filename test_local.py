@@ -501,6 +501,40 @@ def test_js_dependent_pages_are_flagged_without_running_anything():
           "real short content and ordinary pages both left alone")
 
 
+NOINDEX_UTILITY_HTML = """
+<html><head><title>Reset your password</title>
+<meta name="robots" content="noindex">
+</head><body>
+<h1>Choose a new password</h1>
+<p>At least 8 characters.</p>
+</body></html>
+"""
+
+
+def test_noindex_pages_skip_the_findability_checks_but_not_the_rest():
+    """A page that opts itself out of search (a login screen, a
+    password-reset link target) doesn't deserve missing_canonical,
+    missing_meta_description, thin_page or few_internal_links -- their whole
+    premise is being found or ranked, which the page has explicitly declined.
+    It still deserves everything that's good practice regardless of indexing
+    (missing_lang, structured data). Found running this scanner against
+    FIG's own /forgot-password."""
+    noindex = parse_html("https://example.test/reset-password", NOINDEX_UTILITY_HTML)
+    indexed_same_page = parse_html(
+        "https://example.test/reset-password",
+        NOINDEX_UTILITY_HTML.replace('<meta name="robots" content="noindex">\n', ""))
+
+    exempted = _triggered(run_all_checks(noindex))
+    baseline = _triggered(run_all_checks(indexed_same_page))
+
+    still_gone = exempted & {"missing_canonical", "missing_meta_description", "thin_page"}
+    assert not still_gone, f"these should be exempt on a noindex page: {still_gone}"
+    assert baseline & {"missing_canonical", "missing_meta_description", "thin_page"}, \
+        "the same page WITHOUT noindex should trip these -- the fixture isn't testing anything otherwise"
+    assert "missing_lang" in exempted, "missing_lang is accessibility, not search -- must still fire"
+    print(f"[PASS] noindex page: {sorted(exempted)}  |  same page indexed: {sorted(baseline)}")
+
+
 def test_checklist_ids_are_unique_and_cover_observed_flags():
     """CHECKLIST is hand-maintained (see rules/checks.py), so the one thing
     worth guarding automatically is that it does not drift into duplicate or
@@ -538,5 +572,6 @@ if __name__ == "__main__":
     test_flat_typography_spares_a_real_document_but_still_catches_a_thin_template()
     test_faq_check_ignores_short_pages_but_still_catches_long_thin_content()
     test_js_dependent_pages_are_flagged_without_running_anything()
+    test_noindex_pages_skip_the_findability_checks_but_not_the_rest()
     test_checklist_ids_are_unique_and_cover_observed_flags()
     print("\nAll local rule-engine tests passed.")

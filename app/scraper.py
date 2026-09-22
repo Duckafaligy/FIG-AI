@@ -126,6 +126,7 @@ class PageSignal:
     # design tell. See _detect_js_dependency.
     js_dependent: bool = False
     js_dependent_reason: str = ""
+    noindex: bool = False
 
 
 @dataclass
@@ -785,6 +786,13 @@ def parse_html(url: str, html: str) -> PageSignal:
         v if isinstance(v, list) else [v])})
     canonical = (can.get("href") or "").strip() if can else ""
     lang = (soup.html.get("lang") or "").strip() if soup.html else ""
+    # A page that opts itself out of search (a login screen, a password-reset
+    # link target, a thank-you page) shouldn't be dinged for the checks whose
+    # whole premise is being found -- see NOINDEX_EXEMPT_CHECKS in
+    # rules/checks.py. robots meta only, not the X-Robots-Tag header: the
+    # scraper doesn't currently read response headers into PageSignal.
+    robots_meta = soup.find("meta", attrs={"name": "robots"})
+    noindex = bool(robots_meta) and "noindex" in (robots_meta.get("content") or "").lower()
 
     jsonld_types: list[str] = []
     for script in soup.find_all("script", attrs={"type": "application/ld+json"}):
@@ -865,4 +873,5 @@ def parse_html(url: str, html: str) -> PageSignal:
         proper_nouns=len(re.findall(r"\b[A-Z][a-z]{2,}\b", body_text)),
         js_dependent=js_dependent,
         js_dependent_reason=js_dependent_reason,
+        noindex=noindex,
     )
