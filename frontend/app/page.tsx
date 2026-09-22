@@ -26,7 +26,7 @@ import { PlatformLogos } from "@/components/platform-logos";
 import { ProductLaptop } from "@/components/product-laptop";
 import { PublicNav } from "@/components/public-nav";
 import { TRIAL_DAYS } from "@/lib/legal";
-import { PlanCatalogue } from "@/components/plan-catalogue";
+import { AudienceSpotlight } from "@/components/audience-spotlight";
 
 export const metadata: Metadata = {
   title: "FIG — see what makes your site read as generic",
@@ -322,7 +322,7 @@ export default function HomePage() {
             <div><span className="section-kicker">Business & education</span><h2>Find your next step with FIG</h2><p>For business owners improving their websites, and learners discovering how to build better ones.</p></div>
             <Link href="/pricing">View full pricing <MoveRight size={15} /></Link>
           </div>
-          <PlanCatalogue />
+          <AudienceSpotlight />
         </section>
 
         <section className="section page-shell home-faq" id="faq">
@@ -332,7 +332,7 @@ export default function HomePage() {
 
         <section className="page-shell home-cta">
           <div className="home-cta-copy"><span>Ready when you are</span><h2>Understand your website. Build with confidence.</h2><p>Run a free scan or create a workspace to keep your projects together.</p></div>
-          <div className="home-cta-actions"><div><Link className="secondary-button secondary-button--light" href="/#scan">Scan a website</Link><Link className="button button--light" href="/signup">Create account</Link></div><small>A free scan needs no account.</small></div>
+          <div className="home-cta-actions"><div><Link className="secondary-button secondary-button--light" href="/#scan">Scan a website</Link><Link className="button button--light" href="/signup">Create account</Link></div></div>
         </section>
       </main>
       <Footer />
