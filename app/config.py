@@ -195,6 +195,31 @@ WEBFLOW_OAUTH_REDIRECT_URI = os.environ.get(
     "WEBFLOW_OAUTH_REDIRECT_URI", "http://localhost:8000/oauth/webflow/callback")
 WEBFLOW_OAUTH_ENABLED = bool(WEBFLOW_CLIENT_ID and WEBFLOW_CLIENT_SECRET)
 
+# --- oauth: wix --------------------------------------------------------------
+# Not the same shape as the other three. New Wix apps can no longer use a
+# redirect-with-authorization-code flow at all ("custom authentication" was
+# retired for new apps) -- the current model is the "external install flow":
+# FIG sends the browser to a fixed installer URL carrying this app's id, a
+# share-link id (required for a private/unlisted app -- Custom Apps page ->
+# More Actions -> Share Install Link -> the GUID at the end of the resolved
+# https://www.wix.com/app-market/install/<id> URL), and a postInstallationUrl
+# that Wix redirects back to with instanceId + signedInstance once the site
+# owner approves. No token exchange call happens here: Wix's client-credentials
+# model mints access tokens on demand from client_id/client_secret/instance_id,
+# so instance_id is the only thing worth storing per site (still stored via
+# secrets_store, same as everywhere else in this file, since it's the key
+# every future API call needs, not because it's secret on its own).
+WIX_CLIENT_ID = os.environ.get("WIX_CLIENT_ID", "")
+WIX_CLIENT_SECRET = os.environ.get("WIX_CLIENT_SECRET", "")
+WIX_SHARE_URL_ID = os.environ.get("WIX_SHARE_URL_ID", "")
+# This is Wix's postInstallationUrl, not a classic OAuth redirect_uri -- must
+# exactly match nothing on Wix's side (Wix doesn't allowlist it the way
+# Google/Shopify/Webflow do), but it does need to be a real HTTPS route this
+# backend serves once deployed.
+WIX_OAUTH_REDIRECT_URI = os.environ.get(
+    "WIX_OAUTH_REDIRECT_URI", "http://localhost:8000/oauth/wix/callback")
+WIX_OAUTH_ENABLED = bool(WIX_CLIENT_ID and WIX_CLIENT_SECRET and WIX_SHARE_URL_ID)
+
 # Where a browser lands after the OAuth round trip finishes, success or not.
 OAUTH_RETURN_URL = os.environ.get("FIG_OAUTH_RETURN_URL", f"{FRONTEND_URL}/app/settings")
 

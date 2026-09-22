@@ -639,8 +639,8 @@ placeholders** — only email/password goes through Supabase for now.
    connection attempt** — this was flagged as unresolved at the point this
    note was last written and hasn't been re-verified since.
 
-   **Webflow OAuth connect step — coded and tested (2026-09-23), not yet
-   deployed.** `app/oauth.py`'s `/oauth/webflow/start` and
+   **Webflow OAuth connect step — coded, tested and deployed (2026-09-23).**
+   `app/oauth.py`'s `/oauth/webflow/start` and
    `/oauth/webflow/callback` follow the same three-step shape, but Webflow's
    flow needs none of Shopify's extra machinery — it's shaped like Google's:
    one fixed authorize URL (`https://webflow.com/oauth/authorize`), no
@@ -662,6 +662,55 @@ placeholders** — only email/password goes through Supabase for now.
    Webflow app has been created yet (see `PLATFORMS.md` for the exact
    dashboard steps) — so `/health`'s `webflow_oauth` will read `false`
    until that happens.
+
+   **Wix OAuth connect step — coded and tested (2026-09-23), not yet
+   deployed. Genuinely different shape, not a fourth variant of the same
+   pattern:** new Wix apps can no longer use a redirect-with-authorization-
+   code flow at all — Wix retired "custom authentication" for new apps (see
+   `app/oauth.py`'s module docstring and the "wix" section beneath it, and
+   [dev.wix.com's OAuth 2 introduction](https://dev.wix.com/docs/api-reference/app-management/oauth-2/introduction)).
+   The current model is Wix's **external install flow**: `/oauth/wix/start`
+   redirects to a fixed installer URL (`https://www.wix.com/app-installer`)
+   carrying the app id, a `shareUrlId` (required for a private/unlisted app
+   — see `PLATFORMS.md` for exactly where that GUID comes from), and a
+   `postInstallationUrl` with FIG's signed `state` riding along on it,
+   exactly the pattern Wix's own docs recommend for passing state through.
+   The site owner approves the install on Wix's own screen; Wix redirects
+   back to `/oauth/wix/callback` with `instanceId` and `signedInstance` —
+   **not** a `code`, so there is no server-side token exchange call at all
+   here, unlike every other platform in this file. Wix's client-credentials
+   model mints access tokens on demand from `client_id`/`client_secret`/
+   `instance_id` whenever one is actually needed (not built yet — no write
+   adapter exists to need one), so `instance_id` is the only thing worth
+   storing per site, still routed through `app/secrets_store.py` for
+   consistency even though it isn't secret on its own.
+
+   **The raw `instanceId` query param is explicitly documented as
+   untrusted** — Wix's own warning: "Don't trust an instanceId sent to your
+   backend as plain text, as it can be manipulated by an attacker." The
+   trust anchor is `signedInstance`: `_wix_verify_signed_instance` in
+   `app/oauth.py` verifies it locally (HMAC-SHA256 over the still-
+   base64url-encoded, unpadded data string, using the app secret,
+   constant-time compared) per the exact algorithm Wix's docs give across
+   several language examples, and only the verified payload's own
+   `instanceId` is ever stored — the raw query param is never trusted for
+   that, confirmed by a test that sends the two values mismatched on
+   purpose. Covered by 13 fake-network tests in `test_oauth_wix.py`,
+   including one that disables the verification call and confirms the
+   tamper-detection test then fails (not vacuously passing) and one proving
+   a stolen/replayed `state` still resolves to the state's own signed
+   account, mirroring Shopify's and Webflow's equivalent tests. `app/pages.py`'s
+   `_api_rows()` got a `"Wix"` row in the same pass that added the Settings
+   Connect link, both named to match exactly — the Shopify naming mismatch
+   (see above) made this a checked step this time, not an afterthought, and
+   `test_settings_integration_names_match_the_frontends_static_list` was
+   extended to actually check Webflow and Wix (it had silently only ever
+   checked Google/WordPress/Shopify, even after Webflow shipped — found and
+   fixed in the same pass). **Not yet live:** `WIX_CLIENT_ID`/
+   `WIX_CLIENT_SECRET`/`WIX_SHARE_URL_ID` aren't set anywhere — no Wix app
+   has been created yet (see `PLATFORMS.md` for the exact dashboard steps,
+   including where the `shareUrlId` GUID comes from) — so `/health`'s
+   `wix_oauth` will read `false` until that happens.
 4. **Google Analytics OAuth — done (2026-09-17), real credentials
    configured.** `app/oauth.py`, `app/secrets_store.py`, `app/ga.py` (reads
    the stored token, refreshes it, auto-discovers the GA4 property, pulls

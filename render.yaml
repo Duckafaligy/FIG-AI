@@ -92,6 +92,23 @@ services:
       - key: WEBFLOW_OAUTH_REDIRECT_URI
         sync: false
 
+      # Blank until a Wix app exists (manage.wix.com/account/custom-apps).
+      # Same degrade-quietly pattern as Shopify/Webflow above -- but Wix's
+      # flow is not a classic OAuth redirect (see app/oauth.py's "wix"
+      # section and PLATFORMS.md), so WIX_SHARE_URL_ID is required too, not
+      # optional the way it might look next to the other two.
+      - key: WIX_CLIENT_ID
+        sync: false
+      - key: WIX_CLIENT_SECRET
+        sync: false
+      - key: WIX_SHARE_URL_ID
+        sync: false
+      # This is Wix's postInstallationUrl, not an allowlisted redirect_uri --
+      # still needs to be this service's real HTTPS URL once deployed:
+      # https://<this-service>.onrender.com/oauth/wix/callback
+      - key: WIX_OAUTH_REDIRECT_URI
+        sync: false
+
       # Error tracking (app/main.py) -- degrades quietly (no init call at
       # all) with no DSN. Get the DSN from Sentry -> fig-ai org ->
       # fig-ai-backend project -> Settings -> Client Keys (DSN).

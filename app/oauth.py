@@ -7,20 +7,25 @@ FIG_WORKSPACE_API. Session-cookie auth (`current_account`, the same resolver
 `app/webapp.py` uses, FIG_DEV_NO_AUTH fallback included) decides who is
 connecting.
 
-Only Google is wired up, and one consent screen now covers two platforms
-under it: Analytics (read-only) and Search Console (read-only) share the
-same OAuth client -- GOOGLE_SCOPE requests both scopes together, and
-google_callback connects whichever the user's account actually grants,
-as two independent Integration rows (each can be reconnected or fail
-separately later; see app/ga.py and app/search_console.py). Every other
-CMS platform in CLAUDE.md's roadmap follows this same three-step shape
-once it has a client id/secret, except WordPress, which uses Application
-Passwords instead of OAuth and needs no /start or /callback at all:
+One consent screen now covers two Google platforms: Analytics (read-only)
+and Search Console (read-only) share the same OAuth client -- GOOGLE_SCOPE
+requests both scopes together, and google_callback connects whichever the
+user's account actually grants, as two independent Integration rows (each
+can be reconnected or fail separately later; see app/ga.py and
+app/search_console.py). Shopify and Webflow follow this same three-step
+shape once they have a client id/secret, except WordPress, which uses
+Application Passwords instead of OAuth and needs no /start or /callback at
+all:
 
     1. /start   -- build the platform's authorize URL, redirect the browser.
     2. /callback -- verify `state`, exchange `code` for a token server-side
        (never in browser JS), store it via app.secrets_store, upsert
        Integration, send the browser back to the frontend.
+
+Wix does not: new Wix apps can't use a code-exchange flow at all (see the
+"wix" section below for the real one -- an install-approval redirect with
+no code, and no server-side token exchange because Wix mints tokens on
+demand from client credentials).
 
 The access/refresh tokens this writes are read-only for both Google
 platforms -- nothing here can write to a site. A write-capable adapter
@@ -32,13 +37,15 @@ from __future__ import annotations
 
 import logging
 import time
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
+import base64
 import hashlib
 import hmac as hmac_module
+import json
 import re
 
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
@@ -464,3 +471,128 @@ def webflow_callback(request: Request, code: str = Query(default=""),
     integ.last_error = None
     session.commit()
     return _return(integration=PLATFORM_WEBFLOW, connected="1")
+
+
+# --- wix ----------------------------------------------------------------
+# A genuinely different shape from the three above, not just a variant: new
+# Wix apps can no longer use a redirect-with-authorization-code flow at all
+# ("custom authentication" was retired for new apps -- see
+# dev.wix.com/docs/api-reference/app-management/oauth-2/introduction). The
+# current model is Wix's "external install flow": FIG sends the browser to a
+# fixed installer URL, the site owner approves the install on Wix's own
+# screen, and Wix redirects back with `instanceId` + `signedInstance` rather
+# than a `code` -- there is nothing to exchange server-side, because Wix's
+# client-credentials model mints access tokens on demand from
+# client_id/client_secret/instance_id whenever one is actually needed (see
+# app/config.py). `state` still carries site_id/account_id exactly like the
+# other three, appended to postInstallationUrl and echoed back unchanged --
+# Wix's own docs recommend exactly this pattern.
+#
+# `signedInstance` is the only thing standing between "Wix said this
+# instanceId" and "a query string claims this instanceId" -- the raw
+# `instanceId` query param is explicitly documented as untrusted on its own.
+# Verified locally (HMAC-SHA256 over the still-base64url-encoded data string,
+# using the app secret, constant-time compared) per Wix's documented
+# algorithm, same shape as Shopify's callback HMAC check above.
+
+WIX_INSTALLER_URL = "https://www.wix.com/app-installer"
+PLATFORM_WIX = "wix"
+
+
+def _wix_verify_signed_instance(signed_instance: str, secret: str) -> dict:
+    """Raises ValueError if the signature doesn't verify. Returns the decoded
+    payload (has `instanceId`, `siteOwnerId`, ...) on success."""
+    try:
+        signature_b64, data_b64 = signed_instance.split(".", 1)
+    except ValueError:
+        raise ValueError("malformed signedInstance")
+
+    def _b64url_decode(s: str) -> bytes:
+        return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+
+    expected = hmac_module.new(secret.encode(), data_b64.encode(), hashlib.sha256).digest()
+    given = _b64url_decode(signature_b64)
+    if not hmac_module.compare_digest(expected, given):
+        raise ValueError("signedInstance did not verify")
+    return json.loads(_b64url_decode(data_b64))
+
+
+@router.get("/wix/start")
+def wix_start(request: Request, site_id: str = Query(...),
+             session: Session = Depends(get_session)):
+    """Redirects to Wix's fixed app-installer URL. There's no per-merchant
+    domain to pick (unlike Shopify) and no consent-screen redirect_uri to
+    register in advance (unlike Google/Webflow) -- `postInstallationUrl` is
+    just passed as a query param, with FIG's signed `state` riding along on
+    it so /callback can tell which site this install was for."""
+    if not config.WIX_OAUTH_ENABLED:
+        raise HTTPException(503, "Wix is not configured on this server "
+                                 "(set WIX_CLIENT_ID / WIX_CLIENT_SECRET / WIX_SHARE_URL_ID)")
+    site = _owned_site(session, request, site_id)
+
+    state = _serializer().dumps({"site_id": site.id, "account_id": site.account_id})
+    callback_url = f"{config.WIX_OAUTH_REDIRECT_URI}?state={state}"
+    params = {
+        "appId": config.WIX_CLIENT_ID,
+        "shareUrlId": config.WIX_SHARE_URL_ID,
+        "postInstallationUrl": quote(callback_url, safe=""),
+    }
+    # Not urlencode() -- postInstallationUrl is already percent-encoded above
+    # and urlencode() would double-encode it.
+    query = "&".join(f"{k}={v}" for k, v in params.items())
+    return RedirectResponse(f"{WIX_INSTALLER_URL}?{query}")
+
+
+@router.get("/wix/callback")
+def wix_callback(request: Request, instanceId: str = Query(default=""),
+                 signedInstance: str = Query(default=""),
+                 state: str = Query(default=""),
+                 session: Session = Depends(get_session)):
+    """Wix's postInstallationUrl. Missing instanceId/signedInstance means the
+    install failed or was cancelled -- Wix's own docs describe this as the
+    signal, there's no separate `error` param the way the other three have."""
+    if not instanceId or not signedInstance:
+        return _return(integration=PLATFORM_WIX, error="install_failed")
+
+    try:
+        payload = _serializer().loads(state, max_age=STATE_MAX_AGE)
+    except SignatureExpired:
+        return _return(integration=PLATFORM_WIX, error="expired_state")
+    except BadSignature:
+        return _return(integration=PLATFORM_WIX, error="invalid_state")
+
+    site = session.get(Site, payload.get("site_id"))
+    if site is None or site.account_id != payload.get("account_id"):
+        return _return(integration=PLATFORM_WIX, error="site_not_found")
+
+    try:
+        instance_data = _wix_verify_signed_instance(signedInstance, config.WIX_CLIENT_SECRET)
+    except ValueError as exc:
+        log.warning("wix signedInstance did not verify for site %s: %s", site.id, exc)
+        return _return(integration=PLATFORM_WIX, error="invalid_signed_instance")
+
+    # The verified payload's instanceId is the trusted one -- the raw query
+    # param is not (see module docstring above).
+    verified_instance_id = instance_data.get("instanceId", "")
+    if not verified_instance_id:
+        return _return(integration=PLATFORM_WIX, error="no_instance_id")
+
+    try:
+        ref = store_secret(session, {"instance_id": verified_instance_id})
+    except SecretsNotConfigured as exc:
+        log.error("cannot store wix instance id for site %s: %s", site.id, exc)
+        return _return(integration=PLATFORM_WIX, error="secrets_not_configured")
+
+    integ = session.scalars(select(Integration).where(
+        Integration.site_id == site.id, Integration.platform == PLATFORM_WIX)).first()
+    if integ is None:
+        integ = Integration(site_id=site.id, platform=PLATFORM_WIX)
+        session.add(integ)
+    if integ.credential_ref and integ.credential_ref != ref:
+        delete_secret(session, integ.credential_ref)
+    integ.credential_ref = ref
+    integ.credential_hint = "connected"
+    integ.connected_at = _now()
+    integ.last_error = None
+    session.commit()
+    return _return(integration=PLATFORM_WIX, connected="1")

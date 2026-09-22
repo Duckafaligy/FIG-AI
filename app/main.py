@@ -104,6 +104,7 @@ async def lifespan(_app: FastAPI):
             (config.GOOGLE_OAUTH_ENABLED, config.GOOGLE_OAUTH_REDIRECT_URI, "GOOGLE"),
             (config.SHOPIFY_OAUTH_ENABLED, config.SHOPIFY_OAUTH_REDIRECT_URI, "SHOPIFY"),
             (config.WEBFLOW_OAUTH_ENABLED, config.WEBFLOW_OAUTH_REDIRECT_URI, "WEBFLOW"),
+            (config.WIX_OAUTH_ENABLED, config.WIX_OAUTH_REDIRECT_URI, "WIX"),
         ):
             if enabled and uri.startswith("http://localhost"):
                 log.error("%s_OAUTH_REDIRECT_URI is still the localhost default in a "
@@ -198,6 +199,7 @@ def health(session: Session = Depends(get_session)):
         "google_oauth": config.GOOGLE_OAUTH_ENABLED,
         "shopify_oauth": config.SHOPIFY_OAUTH_ENABLED,
         "webflow_oauth": config.WEBFLOW_OAUTH_ENABLED,
+        "wix_oauth": config.WIX_OAUTH_ENABLED,
         "watches": config.WATCH_ENABLED,
         "sentry": bool(config.SENTRY_DSN),
     }

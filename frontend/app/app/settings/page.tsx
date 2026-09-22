@@ -19,6 +19,7 @@ import {
   Globe2,
   KeyRound,
   Layers,
+  LayoutTemplate,
   Link2,
   LockKeyhole,
   PlugZap,
@@ -55,6 +56,7 @@ const services: Service[] = [
   { name: "Shopify", detail: "Publishing destination", permission: "Not connected", status: "Optional", tone: "green", icon: ShoppingBag },
   { name: "WordPress", detail: "Publishing destination", permission: "Read / write", status: "Optional", tone: "blue", icon: Globe2 },
   { name: "Webflow", detail: "Publishing destination", permission: "Not connected", status: "Optional", tone: "purple", icon: Layers },
+  { name: "Wix", detail: "Publishing destination", permission: "Not connected", status: "Optional", tone: "amber", icon: LayoutTemplate },
   { name: "Google Analytics", detail: "Traffic and conversions", permission: "Read", status: "Optional", tone: "amber", icon: BarChart3 },
   { name: "Google Search Console", detail: "Queries and indexing", permission: "Read", status: "Optional", tone: "blue", icon: Search },
   { name: "Webhooks", detail: "Workspace events", permission: "Send / receive", status: "Backend pending", tone: "purple", icon: Webhook }
@@ -292,6 +294,7 @@ export default function SettingsPage() {
                 const isWordPress = service.name === "WordPress";
                 const isShopify = service.name === "Shopify";
                 const isWebflow = service.name === "Webflow";
+                const isWix = service.name === "Wix";
                 const remote = liveApi(service.name);
                 const statusText = remote ? remote.state : service.status;
                 const tone = remote ? (remote.ok ? "green" : service.tone) : service.tone;
@@ -309,6 +312,8 @@ export default function SettingsPage() {
                       <button type="button" className="settings-row-action button button--small" onClick={() => setShopifyFormOpen((open) => !open)}>{remote?.ok ? "Reconnect" : "Connect"}</button>
                     ) : isWebflow && liveProjectId ? (
                       <a className="settings-row-action button button--small" href={apiUrl(`/oauth/webflow/start?site_id=${liveProjectId}`)}>{remote?.ok ? "Reconnect" : "Connect"}</a>
+                    ) : isWix && liveProjectId ? (
+                      <a className="settings-row-action button button--small" href={apiUrl(`/oauth/wix/start?site_id=${liveProjectId}`)}>{remote?.ok ? "Reconnect" : "Connect"}</a>
                     ) : (
                       <PreviewInfo className="settings-row-action" label="Setup" message={`${service.name} doesn't have a working connect flow from this page yet.`} />
                     )}

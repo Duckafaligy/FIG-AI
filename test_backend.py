@@ -556,7 +556,8 @@ def test_settings_integration_names_match_the_frontends_static_list():
 
     backend_names = {row["name"] for row in pages._api_rows(None, [])}
 
-    wired_in_frontend = {"Google Analytics", "Google Search Console", "WordPress", "Shopify"}
+    wired_in_frontend = {"Google Analytics", "Google Search Console", "WordPress", "Shopify",
+                        "Webflow", "Wix"}
     missing_from_frontend = wired_in_frontend - frontend_names
     assert not missing_from_frontend, \
         f"expected a static row for {missing_from_frontend} in settings/page.tsx"
@@ -724,6 +725,21 @@ def test_oauth_redirect_uri_still_localhost_in_production_is_logged_as_an_error(
     assert hit, f"expected an error naming SHOPIFY_OAUTH_REDIRECT_URI, got: {messages}"
 
 
+def test_wix_redirect_uri_still_localhost_in_production_is_also_caught():
+    """Wix's postInstallationUrl isn't allowlisted the way the other three's
+    redirect_uri is, but it's still a real HTTPS route the backend has to
+    serve once deployed -- the same class of mistake is just as possible."""
+    messages = _run_lifespan_and_capture_logs(
+        GOOGLE_OAUTH_ENABLED=False,
+        SHOPIFY_OAUTH_ENABLED=False,
+        WEBFLOW_OAUTH_ENABLED=False,
+        WIX_OAUTH_ENABLED=True,
+        WIX_OAUTH_REDIRECT_URI="http://localhost:8000/oauth/wix/callback",
+    )
+    hit = [m for m in messages if "WIX_OAUTH_REDIRECT_URI" in m]
+    assert hit, f"expected an error naming WIX_OAUTH_REDIRECT_URI, got: {messages}"
+
+
 def test_a_correctly_set_redirect_uri_logs_nothing():
     """The check must not cry wolf on a genuinely correct deployment."""
     messages = _run_lifespan_and_capture_logs(
@@ -733,6 +749,8 @@ def test_a_correctly_set_redirect_uri_logs_nothing():
         SHOPIFY_OAUTH_REDIRECT_URI="https://fig-ai-backend.onrender.com/oauth/shopify/callback",
         WEBFLOW_OAUTH_ENABLED=True,
         WEBFLOW_OAUTH_REDIRECT_URI="https://fig-ai-backend.onrender.com/oauth/webflow/callback",
+        WIX_OAUTH_ENABLED=True,
+        WIX_OAUTH_REDIRECT_URI="https://fig-ai-backend.onrender.com/oauth/wix/callback",
     )
     assert not [m for m in messages if "OAUTH_REDIRECT_URI" in m], messages
 
@@ -744,6 +762,7 @@ def test_a_disabled_platform_is_not_checked_at_all():
         GOOGLE_OAUTH_ENABLED=False,
         SHOPIFY_OAUTH_ENABLED=False,
         WEBFLOW_OAUTH_ENABLED=False,
+        WIX_OAUTH_ENABLED=False,
     )
     assert not [m for m in messages if "OAUTH_REDIRECT_URI" in m], messages
 

@@ -208,6 +208,51 @@ Two separate projects, same codebase (`frontend/`), same org (`ducakfaligy`):
   reads the Blueprint. `WEBFLOW_OAUTH_REDIRECT_URI` defaults to the right
   production URL already; only override it for local dev.
 
+## Wix — not set up yet
+
+- **What for:** `/oauth/wix/start` and `/oauth/wix/callback` (`app/oauth.py`)
+  need a real app to exist against. Right now `WIX_CLIENT_ID`/
+  `WIX_CLIENT_SECRET`/`WIX_SHARE_URL_ID` are unset everywhere, so
+  `WIX_OAUTH_ENABLED` is `False` and Settings' "Connect" button for Wix
+  404s (no href rendered). **Not the same shape as Shopify/Webflow/Google:**
+  Wix retired the classic redirect-with-code flow for new apps, so this is
+  an "external install flow" (a fixed installer URL, an install approval
+  screen, a redirect back with a signed `instanceId` instead of a `code`,
+  no token exchange call). See CLAUDE.md roadmap item 3b for the full
+  reasoning and `app/oauth.py`'s "wix" section for the implementation. Only
+  the connect step is built — same "no write adapter without a real site to
+  verify against" reasoning as Shopify and Webflow.
+- **To set it up:**
+  1. Sign in at manage.wix.com with the account that will own the app (any
+     free Wix account works).
+  2. Go to the [Custom Apps page](https://manage.wix.com/account/custom-apps)
+     → **New App**. Give it any name. This is a private/unlisted app — no
+     Wix App Market submission or review needed.
+  3. **Permissions:** the app dashboard's **Permissions** page → **Add
+     Permissions** → the scopes matching what a future write adapter would
+     need (Wix's own CMS/content-editing category). Nothing here is load-
+     bearing yet since no write adapter exists — connecting only needs the
+     app to exist with *some* permission requested.
+  4. **App ID and secret:** the app's home page → **More Actions** → **View
+     ID & keys**. Copy both.
+  5. **Get the `shareUrlId`** (needed because this is an unlisted app): on
+     the Custom Apps page, open this app's more-actions menu → **Share
+     Install Link** (releases a first version if it doesn't have one yet).
+     Open the resulting short link (`https://wix.to/...`) in a browser — it
+     resolves to `https://www.wix.com/app-market/install/<GUID>`. That GUID
+     is `shareUrlId`.
+  6. **To actually test a connection**, install the app on a real Wix site
+     you own (any free site works) by going through
+     `/oauth/wix/start?site_id=<a FIG project id>` once the env vars below
+     are set — there's no separate "add redirect URI" step the way
+     Shopify/Webflow/Google need, since `postInstallationUrl` is passed as a
+     plain query param on the installer URL rather than pre-registered.
+- **Render env vars once you have them:** `WIX_CLIENT_ID`, `WIX_CLIENT_SECRET`
+  and `WIX_SHARE_URL_ID` — all three already declared in `render.yaml`
+  (`sync: false`, blank), so Render will prompt for them the next time it
+  reads the Blueprint. `WIX_OAUTH_REDIRECT_URI` defaults to the right
+  production URL already; only override it for local dev.
+
 ## Anthropic
 
 - **What for:** the one LLM call in the whole pipeline
