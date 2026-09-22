@@ -2,7 +2,7 @@
 
 import { ServiceUnavailable } from "@/components/service-unavailable";
 
-import { useEffect, useState, type ComponentType, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useId, useState, type ReactNode, type ComponentType, type FormEvent, type KeyboardEvent } from "react";
 import {
   BadgeCheck,
   BarChart3,
@@ -91,6 +91,16 @@ function usagePercent(used: number | null, cap: number): string {
 }
 
 const tabs = allTabs.filter(tab => ["workspace", "team", "integrations", "billing"].includes(tab.id));
+
+function IntegrationDialog({ title, busy = false, onClose, children }: { title: string; busy?: boolean; onClose: () => void; children: ReactNode }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  useEffect(() => { const dialog = ref.current; dialog?.showModal(); return () => dialog?.close(); }, []);
+  return <dialog ref={ref} className="settings-connect-dialog" aria-labelledby={titleId} aria-busy={busy} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
+    <header><div><span>Site connection</span><h2 id={titleId}>{title}</h2></div><button type="button" aria-label="Close connection dialog" disabled={busy} onClick={onClose}>×</button></header>
+    {children}
+  </dialog>;
+}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("workspace");
@@ -300,7 +310,13 @@ export default function SettingsPage() {
 
         {activeTab === "team" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>People & roles</h3><p>{live ? "Everyone signed in to this workspace." : "Sample workspace members with the permissions their roles would carry."}</p></div><PreviewInfo className="button button--small" label="Invite member" message="Team invitations aren't wired up yet. No invitation has been sent." /></div><div className="settings-member-table" role="table" aria-label="Workspace team members"><div className="settings-member-head" role="row"><span>Person</span><span>Role</span><span>Permissions</span><span>Status</span><span>Last active</span><span /></div>{(live ? live.seats.map((s) => [s.initials, s.name, s.role, s.perms, "Active", s.active] as const) : members).map(([initials, name, role, permissions, status, activeAt]) => <div className="settings-member-row" role="row" key={name}><span className="settings-person"><i>{initials}</i><strong>{name}</strong></span><span><b className="settings-role-chip">{role}</b></span><span>{permissions}</span><span><b className="settings-status settings-status--green">{status}</b></span><span>{activeAt}</span><span><PreviewInfo className="settings-row-action" label="Manage" message={`Role changes and access removal for ${name} aren't wired up yet.`} /></span></div>)}</div></section><section className="settings-surface settings-team-note"><Users size={19} /><div><strong>Roles are previewed, not enforced</strong><p>Role changes and invitations aren't wired up yet. {live ? "Names and emails above are real." : "These names and roles are local demo content only."}</p></div></section></div>}
 
-        {activeTab === "integrations" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Connection preparation</h3><p>{live ? "Real connection state, read from this workspace's integrations." : "Services FIG is designed to work with. Statuses are not credential checks."}</p></div><PreviewInfo className="button button--small" label="Connect service" message="Most services here don't have a working connect flow yet — Google Analytics, Google Search Console, and WordPress do." /></div><div className="settings-integration-list">{services.map((service) => {
+        {activeTab === "integrations" && <div className="settings-tab-stack settings-integrations-panel"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Connect your site’s tools</h3><p>Bring site data into FIG and review supported fixes before they’re applied. Connection status comes from your workspace.</p></div></div>
+          {!liveProjectId && <div className="settings-integration-empty"><strong>Add a project to connect a platform</strong><p>CMS and analytics connections belong to a site. Create or select a project first.</p><a href="/projects" className="settings-row-action">Go to projects</a></div>}
+          {[
+            { title: "Publishing & repositories", description: "Connect your CMS or source repository. Available fixes depend on the platform and permissions you grant.", names: ["WordPress", "Shopify", "Webflow", "Wix", "GitHub"] },
+            { title: "Analytics & search", description: "Read-only connections for your traffic and search data.", names: ["Google Analytics", "Google Search Console"] },
+            { title: "Workspace services", description: "Backend-managed services. These are not site connections you can configure here.", names: ["Supabase", "OpenAI", "Anthropic", "Stripe", "Webhooks"] }
+          ].map(group => <section className="settings-integration-group" key={group.title} aria-label={group.title}><h4>{group.title}</h4><p>{group.description}</p><div className="settings-integration-list">{services.filter(service => group.names.includes(service.name)).map((service) => {
                 const ServiceIcon = service.icon;
                 const isGoogleAnalytics = service.name === "Google Analytics";
                 const isGoogleSearchConsole = service.name === "Google Search Console";
@@ -310,14 +326,14 @@ export default function SettingsPage() {
                 const isWix = service.name === "Wix";
                 const isGithub = service.name === "GitHub";
                 const remote = liveApi(service.name);
-                const statusText = remote ? remote.state : service.status;
-                const tone = remote ? (remote.ok ? "green" : service.tone) : service.tone;
+                const statusText = remote?.state || "Unavailable";
+                const tone = remote?.ok ? "green" : "neutral";
                 return (
                   <article key={service.name}>
-                    <span className={`settings-service-icon settings-service-icon--${tone}`}><ServiceIcon size={18} /></span>
-                    <div><strong>{service.name}</strong><small>{service.detail}</small></div>
-                    <span className="settings-service-permission">{remote?.perms ?? service.permission}</span>
-                    <b className={`settings-status settings-status--${tone}`}><CircleDashed size={11} />{statusText}</b>
+                    <span className={`settings-service-icon settings-service-icon--${service.tone}`}><ServiceIcon size={21} /></span>
+                    <div className="settings-integration-identity"><strong>{service.name}</strong><small>{remote?.account || "Account information unavailable"}</small><small>Connected since: {remote?.since && remote.since !== "—" ? remote.since : "Unavailable"}</small></div>
+                    <span className="settings-service-permission"><small>Access</small>{remote?.perms || "Unavailable"}</span>
+                    <b className={`settings-status settings-status--${tone}`}>{remote?.ok ? <Check size={12} /> : <CircleDashed size={12} />}{statusText}</b>
                     {(isGoogleAnalytics || isGoogleSearchConsole) && liveProjectId ? (
                       <a className="settings-row-action button button--small" href={apiUrl(`/oauth/google/start?site_id=${liveProjectId}`)}>{remote?.ok ? "Reconnect" : "Connect"}</a>
                     ) : isWordPress && liveProjectId ? (
@@ -331,47 +347,47 @@ export default function SettingsPage() {
                     ) : isGithub && liveProjectId ? (
                       <button type="button" className="settings-row-action button button--small" onClick={() => setGithubFormOpen((open) => !open)}>{remote?.ok ? "Reconnect" : "Connect"}</button>
                     ) : (
-                      <PreviewInfo className="settings-row-action" label="Setup" message={`${service.name} doesn't have a working connect flow from this page yet.`} />
+                      <span className="settings-integration-managed">{isGoogleAnalytics || isGoogleSearchConsole || isWordPress || isShopify || isWebflow || isWix || isGithub ? "Project required" : "Backend managed"}</span>
                     )}
                   </article>
                 );
-              })}</div>
+              })}</div></section>)}
               {wpFormOpen && liveProjectId && (
-                <form onSubmit={submitWordPress} className="settings-workspace-profile" style={{ flexDirection: "column", alignItems: "stretch", gap: 12, marginTop: 4 }}>
-                  <div className="auth-fields" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <IntegrationDialog title="Connect WordPress" busy={wpBusy} onClose={() => { setWpFormOpen(false); setWpError(""); }}><form onSubmit={submitWordPress} className="settings-connect-form">
+                  <div className="auth-fields">
                     <label className="auth-field" htmlFor="wp-site-url"><span>Site URL</span><input id="wp-site-url" name="site-url" required placeholder="https://yoursite.com" /></label>
                     <label className="auth-field" htmlFor="wp-username"><span>Username</span><input id="wp-username" name="username" required placeholder="your WordPress username" /></label>
-                    <label className="auth-field" htmlFor="wp-app-password"><span>Application password</span><input id="wp-app-password" name="app-password" required placeholder="xxxx xxxx xxxx xxxx xxxx xxxx" /></label>
+                    <label className="auth-field" htmlFor="wp-app-password"><span>Application password</span><input id="wp-app-password" name="app-password" type="password" autoComplete="off" required placeholder="Your WordPress application password" /></label>
                   </div>
-                  <p style={{ fontSize: 12.5, opacity: 0.7, margin: 0 }}>Generate one under your WordPress admin: Users &rarr; Profile &rarr; Application Passwords. This makes a real test call to your site before saving anything.</p>
+                  <p>Use an Application Password, not your login password. Generate one in WordPress under Users → Profile → Application Passwords. FIG tests the connection before saving it.</p>
                   {wpError && <p className="form-message" role="alert">{wpError}</p>}
-                  <div style={{ display: "flex", gap: 10 }}>
+                  <div className="settings-connect-actions">
                     <button className="button button--small" type="submit" disabled={wpBusy}>{wpBusy ? "Connecting…" : "Connect WordPress"}</button>
                     <button className="secondary-button" type="button" onClick={() => setWpFormOpen(false)} disabled={wpBusy}>Cancel</button>
                   </div>
-                </form>
+                </form></IntegrationDialog>
               )}
               {shopifyFormOpen && liveProjectId && (
-                <form onSubmit={submitShopify} className="settings-workspace-profile" style={{ flexDirection: "column", alignItems: "stretch", gap: 12, marginTop: 4 }}>
+                <IntegrationDialog title="Connect Shopify" onClose={() => setShopifyFormOpen(false)}><form onSubmit={submitShopify} className="settings-connect-form">
                   <label className="auth-field" htmlFor="shopify-store"><span>Store</span><input id="shopify-store" required placeholder="your-store or your-store.myshopify.com" value={shopifyShop} onChange={(event) => setShopifyShop(event.target.value)} /></label>
-                  <p style={{ fontSize: 12.5, opacity: 0.7, margin: 0 }}>Takes you to Shopify to approve the connection. Reading and updating pages/blog content is the only access requested — only the connection step is live so far, so nothing publishes through it yet.</p>
-                  <div style={{ display: "flex", gap: 10 }}>
+                  <p>Use your store’s myshopify.com domain. You’ll continue to Shopify to review the requested access and approve the connection. Supported fixes require your approval in FIG.</p>
+                  <div className="settings-connect-actions">
                     <button className="button button--small" type="submit">Continue to Shopify</button>
                     <button className="secondary-button" type="button" onClick={() => setShopifyFormOpen(false)}>Cancel</button>
                   </div>
-                </form>
+                </form></IntegrationDialog>
               )}
               {githubFormOpen && liveProjectId && (
-                <form onSubmit={submitGithub} className="settings-workspace-profile" style={{ flexDirection: "column", alignItems: "stretch", gap: 12, marginTop: 4 }}>
+                <IntegrationDialog title="Connect GitHub" onClose={() => setGithubFormOpen(false)}><form onSubmit={submitGithub} className="settings-connect-form">
                   <label className="auth-field" htmlFor="github-repo"><span>Repository</span><input id="github-repo" required placeholder="owner/repo or a github.com URL" value={githubRepo} onChange={(event) => setGithubRepo(event.target.value)} /></label>
-                  <p style={{ fontSize: 12.5, opacity: 0.7, margin: 0 }}>Takes you to GitHub to approve the connection. Fixes are opened as pull requests for your review — nothing is ever committed directly to this repo.</p>
-                  <div style={{ display: "flex", gap: 10 }}>
+                  <p>Continue to GitHub to authorize access. Supported fixes open pull requests for your review rather than changing your default branch directly.</p><p className="settings-connect-warning">GitHub’s OAuth repo permission can cover all repositories your account can access—not only the repository entered here. Review the consent screen before continuing.</p>
+                  <div className="settings-connect-actions">
                     <button className="button button--small" type="submit">Continue to GitHub</button>
                     <button className="secondary-button" type="button" onClick={() => setGithubFormOpen(false)}>Cancel</button>
                   </div>
-                </form>
+                </form></IntegrationDialog>
               )}
-              </section><section className="settings-surface settings-integration-note"><LockKeyhole size={19} /><div><strong>Credentials belong in the backend</strong><p>When integrations are connected, encrypted configuration and verification happen server-side — never in this frontend page.</p></div></section></div>}
+              </section><section className="settings-surface settings-integration-note"><LockKeyhole size={19} /><div><strong>You review access before connecting</strong><p>OAuth authorization happens on the provider’s site. WordPress uses an Application Password sent to FIG’s backend for verification and encrypted storage. Reconnect repeats authorization; connection status is not a last-sync report.</p></div></section></div>}
 
         {activeTab === "billing" && <div className="settings-tab-stack"><section className="settings-surface settings-billing-feature"><div><span className="settings-kicker">{live ? "Billing" : "Billing preview"}</span><h3>{live ? `${live.plan.name} plan for ${live.profile.name}` : "Pro plan for LaunchVault.ca"}</h3><p>{live ? `Billed ${live.plan.unit}. Monthly total: ${live.plan.monthly}.` : "Use the workspace freely as a visual prototype. Stripe billing, metering, and plan enforcement are not connected yet."}</p>{live ? (
           <button type="button" className="settings-link-button" onClick={live.plan.subscribed ? goToPortal : goToCheckout} disabled={billingBusy !== null}>
