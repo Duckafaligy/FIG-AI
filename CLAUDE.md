@@ -148,7 +148,8 @@ a real competitor's site, Citalis, to understand its design).
 - **Hosting:** Render (backend, free tier, `render.yaml`) + Vercel (frontend).
   Railway and Fly.io no longer have free tiers. UptimeRobot pings `/health`
   every 5 minutes so Render's free tier doesn't sleep. See `PLATFORMS.md`.
-- **Error tracking:** Sentry (not yet added)
+- **Error tracking:** Sentry — wired 2026-09-22 for the backend, gated on
+  `SENTRY_DSN` (unset = off). See roadmap item 9 and `PLATFORMS.md`.
 
 ## Current state — what's actually built and tested
 
@@ -809,9 +810,30 @@ placeholders** — only email/password goes through Supabase for now.
    recovery emails need real SMTP (which needs a domain to send from) and the
    dashboard **Site URL / Redirect URLs** still point at localhost; (3) the
    Google consent screen is published but **unverified** (100-user cap, warning
-   screen) until there is a custom domain and a logo; (4) `PLATFORMS.md`'s
-   Sentry is still not added; (5) the Watch scheduler is off by default
-   (`FIG_WATCH_ENABLED=0`), so nothing may claim daily monitoring.
+   screen) until there is a custom domain and a logo; (4) ~~`PLATFORMS.md`'s
+   Sentry is still not added~~ done 2026-09-22, see below; (5) the Watch
+   scheduler is off by default (`FIG_WATCH_ENABLED=0`), so nothing may claim
+   daily monitoring.
+9. **Sentry — wired 2026-09-22.** `app/main.py` calls `sentry_sdk.init()`
+   before the FastAPI app is built, gated entirely on `SENTRY_DSN` (unset =
+   no call at all, same degrade-quietly pattern as Stripe/Anthropic/every
+   other key here). `send_default_pii=False` on purpose — Sentry isn't in
+   `frontend/lib/legal.ts`'s `SERVICE_PROVIDERS` list, and this keeps it that
+   way. Traces are off (`SENTRY_TRACES_SAMPLE_RATE=0.0`, error tracking only —
+   traces are a separate, smaller free quota). Org and project (`fig-ai` /
+   `fig-ai-backend`) were created via Sentry's own Claude Code plugin
+   (`npx @sentry/agent-plugin install`), which installs at the user level and
+   needs a session restart before its skills/MCP connection are usable — see
+   PLATFORMS.md. **Verified for real**, not just wired: booted the backend
+   locally with a live DSN, hit a temporary route that deliberately raised,
+   and confirmed the exact event landed in Sentry
+   (`FIG-AI-BACKEND-1` — environment tagged `development`, release
+   auto-detected from the local git SHA with zero config), then resolved the
+   issue and removed the route before committing. **Still open:** Render
+   doesn't have `SENTRY_DSN` set yet, so production hasn't reported anything;
+   `GET /health`'s new `sentry` field will read `true` once it does. Not
+   wired into the frontend (Next.js) — a separate Sentry project if that ever
+   matters.
 
 **Design tool:** the UI is being replicated into Paper (`FIG AI Frontend UI`,
 `PLATFORMS.md`) so it can be restyled visually and ported back to the Next.js

@@ -38,17 +38,34 @@ logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("fig")
 
+# Before the FastAPI app is created, so the FastAPI/Starlette integrations
+# instrument it from the start. No-op with no SENTRY_DSN -- same
+# degrade-quietly pattern as Stripe, Anthropic and everything else here.
+# send_default_pii stays off on purpose: FIG's own privacy policy accounts
+# for exactly which services see personal data, and this keeps Sentry out of
+# that list rather than silently starting to collect IPs and user emails.
+if config.SENTRY_DSN:
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn=config.SENTRY_DSN,
+        environment=config.SENTRY_ENVIRONMENT,
+        traces_sample_rate=config.SENTRY_TRACES_SAMPLE_RATE,
+        send_default_pii=False,
+    )
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
     start_workers()
     scheduler.start()
-    log.info("FIG API up - db %s, ai_explain %s, workspace API %s, watches %s",
+    log.info("FIG API up - db %s, ai_explain %s, workspace API %s, watches %s, sentry %s",
              "sqlite" if IS_SQLITE else "postgres",
              config.AI_MODEL if config.AI_EXPLAIN_ENABLED else "off",
              "on" if config.WORKSPACE_API_ENABLED else "off (disconnected from the frontend)",
-             "on" if config.WATCH_ENABLED else "off")
+             "on" if config.WATCH_ENABLED else "off",
+             config.SENTRY_ENVIRONMENT if config.SENTRY_DSN else "off")
     if config.DEV_NO_AUTH:
         log.warning("FIG_DEV_NO_AUTH=1 - the workspace API is open with no sign-in")
     if config.WORKSPACE_API_ENABLED:
@@ -145,4 +162,5 @@ def health(session: Session = Depends(get_session)):
         "secrets_configured": bool(config.SECRET_ENCRYPTION_KEY),
         "google_oauth": config.GOOGLE_OAUTH_ENABLED,
         "watches": config.WATCH_ENABLED,
+        "sentry": bool(config.SENTRY_DSN),
     }

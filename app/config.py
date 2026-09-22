@@ -171,3 +171,19 @@ GOOGLE_OAUTH_ENABLED = bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
 
 # Where a browser lands after the OAuth round trip finishes, success or not.
 OAUTH_RETURN_URL = os.environ.get("FIG_OAUTH_RETURN_URL", f"{FRONTEND_URL}/app/settings")
+
+# --- error tracking -------------------------------------------------------
+# Unset means sentry_sdk.init() is never called (app/main.py) -- same
+# degrade-quietly pattern as everything else here. The DSN is not a secret
+# (Sentry's own docs say so; it is what a public JS SDK embeds too), but it
+# still lives in an env var, not source, like every other piece of config.
+SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
+# "development" by default so a local run or a test never reports itself
+# into the same issue stream as real production incidents. Render's env sets
+# this to "production" explicitly.
+SENTRY_ENVIRONMENT = os.environ.get("SENTRY_ENVIRONMENT", "development")
+# Off (0.0) by default: this is error tracking, not APM. Performance
+# transactions count against Sentry's separate, smaller free quota, and
+# nothing here needs latency tracing yet. Set to sample a fraction (e.g.
+# "0.1") once that becomes worth paying for.
+SENTRY_TRACES_SAMPLE_RATE = float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.0"))

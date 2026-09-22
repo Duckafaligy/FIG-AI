@@ -134,6 +134,34 @@ Two separate projects, same codebase (`frontend/`), same org (`ducakfaligy`):
   the product is deterministic code, on purpose (see `CLAUDE.md`).
 - **Dashboard:** console.anthropic.com — API keys and usage.
 
+## Sentry
+
+- **What for:** backend error tracking (`app/main.py`). Off entirely with no
+  `SENTRY_DSN` set — `sentry_sdk.init()` is never called, same degrade-
+  quietly pattern as everything else here. `send_default_pii=False` on
+  purpose: Sentry isn't in `frontend/lib/legal.ts`'s `SERVICE_PROVIDERS`
+  list yet, and this keeps it that way until it needs to be.
+- **Org / project:** `fig-ai` org, `fig-ai-backend` project (Python/FastAPI
+  platform), both created via Sentry's Claude Code plugin
+  (`npx @sentry/agent-plugin install`, installed at the user level —
+  restart Claude Code to (re)gain its skills and the `mcp.sentry.dev` MCP
+  connection).
+- **Dashboard:** fig-ai.sentry.io.
+- **Render env vars:** `SENTRY_DSN` (Settings → Client Keys (DSN) on the
+  project) and `SENTRY_ENVIRONMENT=production` (committed directly in
+  `render.yaml` — not a secret, and it's what keeps production events out of
+  the same stream as a local `development`-tagged run).
+- **Verified (2026-09-22):** booted the backend locally with a real DSN, hit
+  a temporary route that deliberately raised, and confirmed the event landed
+  in Sentry (`FIG-AI-BACKEND-1`) with `environment=development` and the
+  release auto-detected from the local git SHA. Resolved and the route
+  removed before committing. **Not yet confirmed against the live Render
+  deployment** — once `SENTRY_DSN` is set there, `GET /health`'s `sentry`
+  field should read `true`.
+- **Traces:** off by default (`SENTRY_TRACES_SAMPLE_RATE=0.0`) — this is
+  error tracking, not performance monitoring, and traces count against a
+  separate, smaller free quota.
+
 ## Quick sanity checks
 
 - Backend alive: `curl https://fig-ai-backend.onrender.com/health`

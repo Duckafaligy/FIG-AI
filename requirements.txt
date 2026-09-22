@@ -15,6 +15,7 @@ dnspython
 stripe               # billing; the app boots and runs without it
 cryptography         # encrypts OAuth/CMS secrets at rest — app/secrets_store.py
 apscheduler          # scheduled Watch jobs — app/scheduler.py
+sentry-sdk>=2.0      # error tracking — app/main.py; degrades quietly with no SENTRY_DSN
 
 # Planned per the tech stack in CLAUDE.md, not yet imported by any module:
 # resend        # verification instructions + Watch alert emails

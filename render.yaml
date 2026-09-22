@@ -67,3 +67,14 @@ services:
       # https://<this-service>.onrender.com/oauth/google/callback
       - key: GOOGLE_OAUTH_REDIRECT_URI
         sync: false
+
+      # Error tracking (app/main.py) -- degrades quietly (no init call at
+      # all) with no DSN. Get the DSN from Sentry -> fig-ai org ->
+      # fig-ai-backend project -> Settings -> Client Keys (DSN).
+      - key: SENTRY_DSN
+        sync: false
+      # A real value, not a secret, committed directly so this service is
+      # never accidentally tagged "development" (the app/config.py default)
+      # in the same issue stream as a local run.
+      - key: SENTRY_ENVIRONMENT
+        value: production
