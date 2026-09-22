@@ -4,6 +4,20 @@ import { PLANS, planContact } from "@/lib/plans";
 import styles from "./pricing-visuals.module.css";
 import { PricingBudgetChart } from "./pricing-budget-chart";
 
+const fitRows = [
+  { label: "Who it’s for", values: ["Business owners", "Businesses focused on ongoing improvement", "Organizations with a tailored scope", "Students & independent learners", "Registered schools & classrooms"] },
+  { label: "Suggested focus", values: ["Understand your site and prioritize fixes", "Make review and improvement part of your routine", "Discuss your website portfolio and workflow", "Learn design, structure, search, and content fundamentals", "Explore website analysis as a learning activity"] },
+  { label: "Example use case", values: ["Review your business homepage before a refresh", "Re-check pages as your website evolves", "Plan an approach across organizational websites", "Analyze your own project and explain your design decisions", "Discuss page patterns using examples students choose to share"] },
+];
+const capabilities = [
+  ["Website analysis", "Craft, structure, search, and answer-readiness checks", "Locates patterns in public HTML and explains what to improve."],
+  ["Finding explanations", "Evidence, context, and a suggested fix", "Signals to evaluate—not proof of AI authorship or guaranteed results."],
+  ["Content library", "Saved drafts, rule-based scoring, and review stages", "Automatic article generation and new-post publishing are not available yet."],
+  ["WordPress changes", "Supported title and heading fixes", "Requires a connected site and approval; supported changes can be reverted."],
+  ["Analytics context", "Read-only Analytics and Search Console connections", "Requires your authorized Google properties; no invented traffic or ranking data."],
+  ["Re-checking your work", "On-demand re-scans and stored history", "Helps you review changes; scheduled daily monitoring is not active."],
+];
+
 export function PricingPhotography() {
   return <div className={`page-shell ${styles.photos}`}>
     <a href="#business" className={styles.photo}>
@@ -24,15 +38,22 @@ export function PricingComparison() {
     <div className={styles.heading}><span>THE BIG PICTURE</span><h2 id="comparison-title">Your options, side by side.</h2><p>A clear view of who each plan is for and what it costs.</p></div>
     <div className={styles.overview}>
       <PricingBudgetChart />
-      <aside className={styles.custom}><span className={styles.customIcon}><BriefcaseBusiness size={23} /><GraduationCap size={23} /></span><span className={styles.eyebrow}>ORGANIZATIONS & SCHOOLS</span><h3>Not every team<br />fits a price tag.</h3><p>Talk to us about Enterprise or School Registered. Start with your goals, your people, and what you need from FIG.</p><a href={planContact("Enterprise or School Registered")}>Let’s talk<ArrowUpRight size={17} /></a></aside>
+      <aside className={styles.custom}><span className={styles.customIcon}><BriefcaseBusiness size={23} /><GraduationCap size={23} /></span><span className={styles.eyebrow}>ORGANIZATIONS & SCHOOLS</span><h3>Start with your needs.<br />Build the right scope.</h3><p>Enterprise and School Registered begin with a conversation, not an automatic checkout.</p><dl className={styles.enquiryList}><div><dt>Enterprise</dt><dd>Tell us about your websites, who will use FIG, and how you review and make changes.</dd></div><div><dt>School Registered</dt><dd>Share your learning goals, expected group size, and how students would choose to share their work.</dd></div><div><dt>What we’ll clarify</dt><dd>Plan inclusions, usage allowances, access requirements, and pricing before you commit.</dd></div></dl><a href={planContact("Enterprise or School Registered")}>Discuss your requirements<ArrowUpRight size={17} /></a></aside>
     </div>
     <div className={styles.tableWrap} tabIndex={0} role="region" aria-label="Plan comparison table; scroll horizontally on smaller screens">
       <table className={styles.table}><caption>Compare FIG Business and Education plans</caption><thead><tr><th scope="col">At a glance</th>{PLANS.map(p => <th scope="col" key={p.name}><small>{p.audience}</small>{p.name}</th>)}</tr></thead><tbody>
         <tr><th scope="row">Monthly price</th>{PLANS.map(p => <td key={p.name} className={styles.tablePrice}>{p.price === null ? "Contact Us" : `$${p.price} USD`}</td>)}</tr>
-        <tr><th scope="row">Designed for</th>{PLANS.map(p => <td key={p.name}>{p.description.replace(/^For /, "")}</td>)}</tr>
+        <tr><th scope="row">12-month budget<small className={styles.rowHint}>Monthly rate × 12; not annual billing</small></th>{PLANS.map(p => <td key={p.name}>{p.price === null ? "Quoted to your scope" : `$${(p.price * 12).toLocaleString()} USD`}</td>)}</tr>
+        <tr className={styles.groupRow}><th colSpan={6}>Find your fit · suggested uses, not different feature entitlements</th></tr>
+        {fitRows.map(row => <tr key={row.label}><th scope="row">{row.label}</th>{row.values.map((value, i) => <td key={PLANS[i].name}>{value}</td>)}</tr>)}
         <tr><th scope="row">Plan category</th>{PLANS.map(p => <td key={p.name}><span className={p.audience === "Education" ? styles.eduPill : styles.bizPill}>{p.audience}</span></td>)}</tr>
+        <tr className={styles.groupRow}><th colSpan={6}>Before subscribing</th></tr>
+        <tr><th scope="row">Sites, scans & usage</th><td colSpan={5}>Plan-specific limits have not been finalized. Confirm the number of sites, scans, and any usage allowances with our team.</td></tr>
+        <tr><th scope="row">Members & support</th><td colSpan={5}>Seat counts, support commitments, and organization access are agreed before purchase. No unlimited seats or service-level guarantee is implied.</td></tr>
         <tr><th scope="row">Next step</th>{PLANS.map(p => <td key={p.name}><a href={planContact(p.name)} aria-label={`Ask about ${p.name}`}>Ask about this plan <ArrowUpRight size={13} /></a></td>)}</tr>
       </tbody></table>
-    </div><p className={styles.tableNote}>Detailed feature inclusions and usage limits are confirmed with our team before purchase.</p>
+    </div><p className={styles.tableNote}>All amounts exclude applicable taxes. Standard and Premium feature differences still need to be finalized; the use cases above describe fit, not promised extra features.</p>
+    <div className={styles.capabilityHeading}><span className={styles.eyebrow}>UNDERSTAND THE PRODUCT</span><h3>What’s built—and what it means for you.</h3><p>Current capabilities across FIG. Availability within each commercial plan is confirmed before purchase.</p></div>
+    <div className={styles.tableWrap} tabIndex={0} role="region" aria-label="Current FIG capabilities"><table className={`${styles.table} ${styles.capabilityTable}`}><caption>Current product capabilities</caption><thead><tr><th scope="col">Area</th><th scope="col">What you can work with</th><th scope="col">Requirements & boundaries</th></tr></thead><tbody>{capabilities.map(([name, feature, detail]) => <tr key={name}><th scope="row">{name}</th><td>{feature}</td><td>{detail}</td></tr>)}</tbody></table></div>
   </section>;
 }

@@ -79,6 +79,19 @@
 .bizPill,.eduPill { display:inline-block; border-radius:5px; padding:3px 8px; font-size:10px; background:#f0ecfb; color:#755db4; }
 .eduPill { background:#e9f4ec; color:#537d65; }
 .tableNote { text-align:center; margin-top:14px; }
+.enquiryList { margin:18px 0 24px; }
+.enquiryList > div { border-top:1px solid #d9e6dc; padding:13px 0; }
+.enquiryList dt { color:#3c654f; font-size:12px; font-weight:650; }
+.enquiryList dd { margin:6px 0 0; color:#6b8273; font-size:12px; line-height:1.75; }
+.rowHint { display:block; font-size:10px; font-weight:400; line-height:1.6; margin-top:5px; color:#929cac; }
+.table .groupRow th { background:#f1f3f8; color:#53617b; font-size:11px; font-weight:650; padding:12px 16px; }
+.capabilityHeading { margin:38px 0 20px; }
+.capabilityHeading h3 { font-size:23px; letter-spacing:-.5px; margin:12px 0; }
+.capabilityHeading p { color:#7b879b; font-size:13px; line-height:1.7; }
+.capabilityTable { min-width:650px; }
+.capabilityTable th,.capabilityTable td { width:auto; }
+.capabilityTable tbody th { width:22%; }
+.capabilityTable td { width:39%; }
 .photo:focus-visible,.custom a:focus-visible,.tableWrap:focus-visible,.table a:focus-visible { outline:3px solid #aa92ea; outline-offset:3px; }
 @media(hover:hover) { .photo:hover img { transform:scale(1.035); } }
 @media(max-width:850px) { .overview { grid-template-columns:1fr; } .photo strong { font-size:22px; } }
