@@ -46,12 +46,26 @@ log = logging.getLogger("fig")
 # that list rather than silently starting to collect IPs and user emails.
 if config.SENTRY_DSN:
     import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.starlette import StarletteIntegration
 
+    # Both integrations default to reporting every 5xx response as an issue.
+    # 501 is excluded on purpose: app/webapp.py:content_draft raises it
+    # deliberately, every time, for a feature CLAUDE.md documents as not
+    # built ("FIG does not write the copy yet") -- not a bug, so hitting it
+    # (including the real end-to-end test script's own check that it still
+    # correctly refuses) shouldn't page anyone or pile up as an "issue".
+    # A genuine 500/502/503/504 still gets reported.
+    _reported_5xx = frozenset(range(500, 600)) - {501}
     sentry_sdk.init(
         dsn=config.SENTRY_DSN,
         environment=config.SENTRY_ENVIRONMENT,
         traces_sample_rate=config.SENTRY_TRACES_SAMPLE_RATE,
         send_default_pii=False,
+        integrations=[
+            StarletteIntegration(failed_request_status_codes=_reported_5xx),
+            FastApiIntegration(failed_request_status_codes=_reported_5xx),
+        ],
     )
 
 
@@ -75,6 +89,27 @@ async def lifespan(_app: FastAPI):
         if config.SESSION_EPHEMERAL:
             log.warning("FIG_SESSION_SECRET is unset - sessions are signed with a "
                         "per-process key, so a restart signs everyone out")
+    # A real bug this caught: SHOPIFY_CLIENT_ID/SECRET were set on Render
+    # (so SHOPIFY_OAUTH_ENABLED read True, and /health looked fine) but
+    # SHOPIFY_OAUTH_REDIRECT_URI was never set alongside them, so the
+    # redirect Shopify actually received was still the localhost default --
+    # a real connection attempt would have been rejected outright. "A key is
+    # set" and "the request is correctly formed" are different claims; this
+    # only re-checks the second one when the first is already true, and only
+    # once, here, not on every request.
+    if not _https:
+        pass          # a localhost redirect URI is correct in local dev
+    else:
+        for enabled, uri, name in (
+            (config.GOOGLE_OAUTH_ENABLED, config.GOOGLE_OAUTH_REDIRECT_URI, "GOOGLE"),
+            (config.SHOPIFY_OAUTH_ENABLED, config.SHOPIFY_OAUTH_REDIRECT_URI, "SHOPIFY"),
+            (config.WEBFLOW_OAUTH_ENABLED, config.WEBFLOW_OAUTH_REDIRECT_URI, "WEBFLOW"),
+        ):
+            if enabled and uri.startswith("http://localhost"):
+                log.error("%s_OAUTH_REDIRECT_URI is still the localhost default in a "
+                         "deployed (https) environment - a real connection attempt "
+                         "will be rejected. Set %s_OAUTH_REDIRECT_URI on Render.",
+                         name, name)
     yield
     scheduler.stop()
     stop_workers()
@@ -162,6 +197,7 @@ def health(session: Session = Depends(get_session)):
         "secrets_configured": bool(config.SECRET_ENCRYPTION_KEY),
         "google_oauth": config.GOOGLE_OAUTH_ENABLED,
         "shopify_oauth": config.SHOPIFY_OAUTH_ENABLED,
+        "webflow_oauth": config.WEBFLOW_OAUTH_ENABLED,
         "watches": config.WATCH_ENABLED,
         "sentry": bool(config.SENTRY_DSN),
     }

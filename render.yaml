@@ -81,6 +81,17 @@ services:
       - key: SHOPIFY_OAUTH_REDIRECT_URI
         sync: false
 
+      # Blank until a Webflow app exists (webflow.com/dashboard -> Apps &
+      # Integrations). Same degrade-quietly pattern as Shopify above.
+      - key: WEBFLOW_CLIENT_ID
+        sync: false
+      - key: WEBFLOW_CLIENT_SECRET
+        sync: false
+      # Must exactly match a Redirect URI on the Webflow app:
+      # https://<this-service>.onrender.com/oauth/webflow/callback
+      - key: WEBFLOW_OAUTH_REDIRECT_URI
+        sync: false
+
       # Error tracking (app/main.py) -- degrades quietly (no init call at
       # all) with no DSN. Get the DSN from Sentry -> fig-ai org ->
       # fig-ai-backend project -> Settings -> Client Keys (DSN).

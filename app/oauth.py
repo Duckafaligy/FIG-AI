@@ -362,3 +362,105 @@ def shopify_callback(request: Request, code: str = Query(default=""),
     integ.last_error = None
     session.commit()
     return _return(integration=PLATFORM_SHOPIFY, connected="1")
+
+
+# --- webflow ----------------------------------------------------------------
+# Same limitation as Shopify: the CONNECT step is real, the write adapter is
+# not. No live Webflow site to verify CMS collection field names or API
+# behavior against yet -- app/publishing.py:publish() already refuses out
+# loud for any platform but WordPress, so this is honest on its own.
+#
+# Shaped like Google, not Shopify: one fixed authorize URL (the person picks
+# which of their own Webflow sites to authorize on Webflow's own consent
+# screen -- /start doesn't need to know that in advance), offline-style
+# tokens with no refresh dance, and state is the only CSRF check needed
+# (no extra callback signature the way Shopify's HMAC is).
+
+WEBFLOW_AUTH_URL = "https://webflow.com/oauth/authorize"
+WEBFLOW_TOKEN_URL = "https://api.webflow.com/oauth/access_token"
+# CMS (Webflow's blog/collection items) and Pages -- the closest match to
+# what the WordPress adapter actually does (post/page content). Verify
+# against the live app registration screen before relying on these exact
+# names; Webflow's Data API scope names have shifted before.
+WEBFLOW_SCOPE = "cms:read cms:write pages:read pages:write sites:read"
+PLATFORM_WEBFLOW = "webflow"
+
+
+@router.get("/webflow/start")
+def webflow_start(request: Request, site_id: str = Query(...),
+                  session: Session = Depends(get_session)):
+    if not config.WEBFLOW_OAUTH_ENABLED:
+        raise HTTPException(503, "Webflow OAuth is not configured on this server "
+                                 "(set WEBFLOW_CLIENT_ID / WEBFLOW_CLIENT_SECRET)")
+    site = _owned_site(session, request, site_id)
+
+    state = _serializer().dumps({"site_id": site.id, "account_id": site.account_id})
+    params = {
+        "response_type": "code",
+        "client_id": config.WEBFLOW_CLIENT_ID,
+        "redirect_uri": config.WEBFLOW_OAUTH_REDIRECT_URI,
+        "scope": WEBFLOW_SCOPE,
+        "state": state,
+    }
+    return RedirectResponse(f"{WEBFLOW_AUTH_URL}?{urlencode(params)}")
+
+
+@router.get("/webflow/callback")
+def webflow_callback(request: Request, code: str = Query(default=""),
+                     state: str = Query(default=""), error: str = Query(default=""),
+                     session: Session = Depends(get_session)):
+    if error:
+        return _return(integration=PLATFORM_WEBFLOW, error=error)
+
+    try:
+        payload = _serializer().loads(state, max_age=STATE_MAX_AGE)
+    except SignatureExpired:
+        return _return(integration=PLATFORM_WEBFLOW, error="expired_state")
+    except BadSignature:
+        return _return(integration=PLATFORM_WEBFLOW, error="invalid_state")
+
+    site = session.get(Site, payload.get("site_id"))
+    if site is None or site.account_id != payload.get("account_id"):
+        return _return(integration=PLATFORM_WEBFLOW, error="site_not_found")
+
+    try:
+        resp = httpx.post(WEBFLOW_TOKEN_URL, data={
+            "client_id": config.WEBFLOW_CLIENT_ID,
+            "client_secret": config.WEBFLOW_CLIENT_SECRET,
+            "code": code,
+            "grant_type": "authorization_code",
+        }, timeout=15.0)
+    except httpx.HTTPError as exc:
+        log.warning("webflow token exchange request failed: %s", exc)
+        return _return(integration=PLATFORM_WEBFLOW, error="token_request_failed")
+
+    if resp.status_code != 200:
+        log.warning("webflow token exchange rejected: %s %s", resp.status_code, resp.text[:300])
+        return _return(integration=PLATFORM_WEBFLOW, error="token_exchange_failed")
+
+    tokens = resp.json()
+    access_token = tokens.get("access_token", "")
+    if not access_token:
+        return _return(integration=PLATFORM_WEBFLOW, error="no_access_token")
+
+    try:
+        ref = store_secret(session, {"access_token": access_token,
+                                     "scope": tokens.get("scope", WEBFLOW_SCOPE)})
+    except SecretsNotConfigured as exc:
+        log.error("cannot store webflow token for site %s: %s", site.id, exc)
+        return _return(integration=PLATFORM_WEBFLOW, error="secrets_not_configured")
+
+    integ = session.scalars(select(Integration).where(
+        Integration.site_id == site.id, Integration.platform == PLATFORM_WEBFLOW)).first()
+    if integ is None:
+        integ = Integration(site_id=site.id, platform=PLATFORM_WEBFLOW)
+        session.add(integ)
+    if integ.credential_ref and integ.credential_ref != ref:
+        delete_secret(session, integ.credential_ref)
+    integ.credential_ref = ref
+    integ.credential_hint = "connected"
+    integ.scopes = tokens.get("scope", WEBFLOW_SCOPE).split(" ")
+    integ.connected_at = _now()
+    integ.last_error = None
+    session.commit()
+    return _return(integration=PLATFORM_WEBFLOW, connected="1")

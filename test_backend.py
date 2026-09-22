@@ -16,6 +16,17 @@ on read-through.
 """
 from __future__ import annotations
 
+import os
+
+# Must happen before any `from app import ...` below: sentry_sdk.init() runs
+# at app/main.py's *import* time, once, and reads this value right then --
+# patching config.SENTRY_DSN afterward cannot undo an init() that already
+# ran. Without this, the startup-check tests further down (which deliberately
+# log real ERROR-level messages) would have those messages captured and sent
+# to the real Sentry project, using whatever real DSN is sitting in .env.
+# Found by running these tests once and watching two real events land there.
+os.environ["SENTRY_DSN"] = ""
+
 import gzip
 import json
 import re
@@ -649,6 +660,132 @@ def test_search_console_picks_the_matching_verified_property():
     assert search_console._pick_site_url(urls3, "launchvault.ca") == "https://first-seen.com/"
 
     assert search_console._pick_site_url([], "launchvault.ca") is None
+
+
+def _run_lifespan_and_capture_logs(*, https=True, **config_overrides):
+    """Drives app.main.lifespan() with everything that touches a real DB,
+    the job queue or the scheduler mocked out, and returns every record the
+    "fig" logger emitted. Isolated enough to run with no network, no DB.
+
+    `_https` is computed once at import time from PUBLIC_URL, not
+    re-evaluated per request, so it has to be patched directly rather than
+    through a config override -- this test suite's own PUBLIC_URL is the
+    local default, so without this every "production" case here would
+    silently take the "local dev, no check needed" branch instead."""
+    import asyncio
+    import logging
+    from contextlib import ExitStack
+    from unittest.mock import patch
+
+    from app import config as app_config, main as app_main
+
+    records: list[logging.LogRecord] = []
+
+    class Capture(logging.Handler):
+        def emit(self, record):
+            records.append(record)
+
+    async def run():
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(app_main, "init_db"))
+            stack.enter_context(patch.object(app_main, "start_workers"))
+            stack.enter_context(patch.object(app_main, "stop_workers"))
+            stack.enter_context(patch.object(app_main.scheduler, "start"))
+            stack.enter_context(patch.object(app_main.scheduler, "stop"))
+            stack.enter_context(patch.object(app_main, "_https", https))
+            for key, value in config_overrides.items():
+                stack.enter_context(patch.object(app_config, key, value))
+            handler = Capture()
+            logging.getLogger("fig").addHandler(handler)
+            try:
+                async with app_main.lifespan(object()):
+                    pass
+            finally:
+                logging.getLogger("fig").removeHandler(handler)
+    asyncio.run(run())
+    return [r.getMessage() for r in records]
+
+
+def test_oauth_redirect_uri_still_localhost_in_production_is_logged_as_an_error():
+    """Exactly the bug that shipped once already: SHOPIFY_CLIENT_ID/SECRET
+    were live on Render (so SHOPIFY_OAUTH_ENABLED read True and /health
+    looked fine) but SHOPIFY_OAUTH_REDIRECT_URI was never set alongside
+    them, so the redirect Shopify actually received was still the localhost
+    default -- a real connection attempt would have been rejected outright.
+    This is the startup check that catches it for any of the three OAuth
+    platforms, the next time it happens."""
+    messages = _run_lifespan_and_capture_logs(
+        GOOGLE_OAUTH_ENABLED=False,
+        SHOPIFY_OAUTH_ENABLED=True,
+        SHOPIFY_OAUTH_REDIRECT_URI="http://localhost:8000/oauth/shopify/callback",
+        WEBFLOW_OAUTH_ENABLED=False,
+    )
+    hit = [m for m in messages if "SHOPIFY_OAUTH_REDIRECT_URI" in m]
+    assert hit, f"expected an error naming SHOPIFY_OAUTH_REDIRECT_URI, got: {messages}"
+
+
+def test_a_correctly_set_redirect_uri_logs_nothing():
+    """The check must not cry wolf on a genuinely correct deployment."""
+    messages = _run_lifespan_and_capture_logs(
+        GOOGLE_OAUTH_ENABLED=True,
+        GOOGLE_OAUTH_REDIRECT_URI="https://fig-ai-backend.onrender.com/oauth/google/callback",
+        SHOPIFY_OAUTH_ENABLED=True,
+        SHOPIFY_OAUTH_REDIRECT_URI="https://fig-ai-backend.onrender.com/oauth/shopify/callback",
+        WEBFLOW_OAUTH_ENABLED=True,
+        WEBFLOW_OAUTH_REDIRECT_URI="https://fig-ai-backend.onrender.com/oauth/webflow/callback",
+    )
+    assert not [m for m in messages if "OAUTH_REDIRECT_URI" in m], messages
+
+
+def test_a_disabled_platform_is_not_checked_at_all():
+    """An unconfigured platform's URI is still the localhost default --
+    that's expected and must not be flagged."""
+    messages = _run_lifespan_and_capture_logs(
+        GOOGLE_OAUTH_ENABLED=False,
+        SHOPIFY_OAUTH_ENABLED=False,
+        WEBFLOW_OAUTH_ENABLED=False,
+    )
+    assert not [m for m in messages if "OAUTH_REDIRECT_URI" in m], messages
+
+
+def test_a_localhost_redirect_uri_is_correct_in_local_dev_and_not_flagged():
+    """The same localhost URI that's an error in production is exactly
+    right when the backend itself is running locally (PUBLIC_URL is http)."""
+    messages = _run_lifespan_and_capture_logs(
+        https=False,
+        SHOPIFY_OAUTH_ENABLED=True,
+        SHOPIFY_OAUTH_REDIRECT_URI="http://localhost:8000/oauth/shopify/callback",
+    )
+    assert not [m for m in messages if "OAUTH_REDIRECT_URI" in m], messages
+
+
+def test_sentry_excludes_the_deliberate_501_from_error_reporting():
+    """app/content.py:draft() deliberately returns 501 for a feature that
+    isn't built yet (CLAUDE.md: "FIG does not write the copy yet"). Sentry's
+    FastAPI/Starlette integrations report every 5xx as an issue by default,
+    which turned that expected, permanent refusal into a Sentry issue every
+    time anything -- including the real end-to-end test script's own check
+    that it still correctly refuses -- hit it (this really happened: issue
+    FIG-AI-BACKEND-2). A real 500/502/503 must still be reported."""
+    import importlib
+    from unittest.mock import MagicMock, patch
+
+    from app import config as app_config, main as app_main
+
+    fake_init = MagicMock()
+    try:
+        with patch.object(app_config, "SENTRY_DSN", "https://fake@fake.ingest.sentry.io/1"), \
+             patch("sentry_sdk.init", fake_init):
+            importlib.reload(app_main)
+        assert fake_init.called, "sentry_sdk.init() should run when SENTRY_DSN is set"
+        integrations = fake_init.call_args.kwargs["integrations"]
+        assert len(integrations) == 2
+        for integ in integrations:
+            codes = integ.failed_request_status_codes
+            assert 501 not in codes, "the deliberate 'not built yet' refusal must not be reported"
+            assert 500 in codes and 503 in codes, "real server errors must still be reported"
+    finally:
+        importlib.reload(app_main)  # restore real state: SENTRY_DSN="" again
 
 
 TESTS = [fn for name, fn in list(globals().items()) if name.startswith("test_") and callable(fn)]

@@ -618,7 +618,50 @@ placeholders** — only email/password goes through Supabase for now.
    a second copy of either list, so it can't itself drift out of sync.
    Settings' Integrations tab has a real "Connect" flow for it now (a small
    store-domain form, since Shopify has no one fixed authorize URL to link
-   straight to). **Webflow is next, same three-step shape** — not started.
+   straight to).
+   **Pre-launch checklist for Shopify:** a real app logo/icon (cosmetic for
+   the private Custom app this is today, but worth doing before launch
+   regardless); the "convert to a Public app on the Shopify App Store"
+   question stays parked on purpose (2026-09-23 decision) — it's a separate
+   business decision (Shopify's own billing, its own App Store review, a
+   second revenue relationship that doesn't automatically tie to FIG's own
+   Stripe subscriptions), not something to do because Shopify's dashboard
+   nudges toward it. **Found live on Render (2026-09-23):** `SHOPIFY_CLIENT_ID`/
+   `SHOPIFY_CLIENT_SECRET` were added, but not `SHOPIFY_OAUTH_REDIRECT_URI` —
+   `SHOPIFY_OAUTH_ENABLED` only checks the first two, so `/health` correctly
+   read `true` while the actual authorize redirect being sent was still
+   `http://localhost:8000/...`, which Shopify would have rejected outright on
+   a real attempt. Proven with a real request through the live proxy (a
+   disposable account, `/api/projects`, then `/oauth/shopify/start`), not
+   assumed from `/health` alone — worth remembering for the next platform
+   too: a "some keys are set" boolean is not the same claim as "the actual
+   request is correctly formed." **Re-check before trusting a live
+   connection attempt** — this was flagged as unresolved at the point this
+   note was last written and hasn't been re-verified since.
+
+   **Webflow OAuth connect step — coded and tested (2026-09-23), not yet
+   deployed.** `app/oauth.py`'s `/oauth/webflow/start` and
+   `/oauth/webflow/callback` follow the same three-step shape, but Webflow's
+   flow needs none of Shopify's extra machinery — it's shaped like Google's:
+   one fixed authorize URL (`https://webflow.com/oauth/authorize`), no
+   per-merchant shop domain, no HMAC-signed callback, just the signed
+   `state` token every platform here already carries. Scope requested:
+   `cms:read cms:write pages:read pages:write sites:read`
+   (`WEBFLOW_SCOPE`). Same honesty pattern as Shopify: `publish()` in
+   `app/publishing.py` still refuses out loud for any platform but
+   WordPress, so a connected Webflow integration says "Connected" and
+   writes nothing through it — no real Webflow site exists yet to verify a
+   write adapter's field names or API shape against, so none is built.
+   Covered by 13 fake-network tests in `test_oauth_webflow.py`, including
+   one proving a stolen/replayed `state` still resolves to the state's own
+   signed account rather than whichever account presents it (mirrors
+   Shopify's equivalent test). Settings shows a Webflow row with a plain
+   Connect link once a real site exists to connect
+   (`frontend/app/app/settings/page.tsx`). **Not yet live:**
+   `WEBFLOW_CLIENT_ID`/`WEBFLOW_CLIENT_SECRET` aren't set anywhere — no
+   Webflow app has been created yet (see `PLATFORMS.md` for the exact
+   dashboard steps) — so `/health`'s `webflow_oauth` will read `false`
+   until that happens.
 4. **Google Analytics OAuth — done (2026-09-17), real credentials
    configured.** `app/oauth.py`, `app/secrets_store.py`, `app/ga.py` (reads
    the stored token, refreshes it, auto-discovers the GA4 property, pulls
@@ -917,11 +960,31 @@ placeholders** — only email/password goes through Supabase for now.
    and confirmed the exact event landed in Sentry
    (`FIG-AI-BACKEND-1` — environment tagged `development`, release
    auto-detected from the local git SHA with zero config), then resolved the
-   issue and removed the route before committing. **Still open:** Render
-   doesn't have `SENTRY_DSN` set yet, so production hasn't reported anything;
-   `GET /health`'s new `sentry` field will read `true` once it does. Not
-   wired into the frontend (Next.js) — a separate Sentry project if that ever
-   matters.
+   issue and removed the route before committing. **Live in production
+   (2026-09-23)**, after finding and fixing a real typo — the Render env var
+   had been saved as `SENTRY_DNS`, so `config.SENTRY_DSN` read `None` and
+   `/health`'s `sentry` field stayed `false` despite the dashboard looking
+   configured. Fixed via the Render API, then a second issue: the fix's
+   redeploy raced a concurrent push from another tool and booted with a
+   stale env snapshot — confirmed only by triggering an explicit manual
+   deploy and reading *that* deploy's own boot log line, not by trusting
+   `/health` alone.
+
+   **Excludes its own deliberate 501s (2026-09-23).** Both Sentry's
+   Starlette and FastAPI integrations report every 5xx response as an issue
+   by default, which includes `POST /api/content/{post_id}/draft`'s
+   permanent, on-purpose refusal (`app/content.py:draft()` — "FIG does not
+   write the copy yet") — every legitimate hit of it, including
+   `scripts/e2e_signed_in.py`'s own check that it still correctly refuses,
+   was piling up as a Sentry issue. `sentry_sdk.init()` now passes both
+   integrations `failed_request_status_codes=range(500,600) minus {501}`
+   explicitly, so a real 500/502/503/504 is still reported but this one
+   isn't. Two issues that had already leaked from a local test run
+   (`FIG-AI-BACKEND-2`, this one; `FIG-AI-BACKEND-3`, a redirect-URI test
+   message that predates `test_backend.py` zeroing `SENTRY_DSN` before
+   importing `app.main` — see that file's top) were found via
+   `search_issues` and resolved with an explanation on each. Not wired into
+   the frontend (Next.js) — a separate Sentry project if that ever matters.
 
 **Design tool:** the UI is being replicated into Paper (`FIG AI Frontend UI`,
 `PLATFORMS.md`) so it can be restyled visually and ported back to the Next.js

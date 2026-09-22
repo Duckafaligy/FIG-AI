@@ -181,6 +181,20 @@ SHOPIFY_OAUTH_REDIRECT_URI = os.environ.get(
     "SHOPIFY_OAUTH_REDIRECT_URI", "http://localhost:8000/oauth/shopify/callback")
 SHOPIFY_OAUTH_ENABLED = bool(SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET)
 
+# --- oauth: webflow ---------------------------------------------------------
+# An app registered at webflow.com/dashboard/... -> Apps & Integrations.
+# Closer to Google's shape than Shopify's: one fixed authorize URL for
+# everyone (the person picks which of their sites to authorize on Webflow's
+# own screen, not something /start has to know in advance), and no extra
+# callback signature check the way Shopify's HMAC is -- state is the only
+# CSRF protection needed, same as Google.
+WEBFLOW_CLIENT_ID = os.environ.get("WEBFLOW_CLIENT_ID", "")
+WEBFLOW_CLIENT_SECRET = os.environ.get("WEBFLOW_CLIENT_SECRET", "")
+# Must exactly match a Redirect URI registered on the app.
+WEBFLOW_OAUTH_REDIRECT_URI = os.environ.get(
+    "WEBFLOW_OAUTH_REDIRECT_URI", "http://localhost:8000/oauth/webflow/callback")
+WEBFLOW_OAUTH_ENABLED = bool(WEBFLOW_CLIENT_ID and WEBFLOW_CLIENT_SECRET)
+
 # Where a browser lands after the OAuth round trip finishes, success or not.
 OAUTH_RETURN_URL = os.environ.get("FIG_OAUTH_RETURN_URL", f"{FRONTEND_URL}/app/settings")
 

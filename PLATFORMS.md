@@ -139,15 +139,20 @@ Two separate projects, same codebase (`frontend/`), same org (`ducakfaligy`):
 - **Consent screen is in Testing mode** — only test users you've explicitly
   added can complete the OAuth flow until it's submitted for verification.
 
-## Shopify Partners — not set up yet
+## Shopify Partners — app created, client ID/secret live (2026-09-23)
 
 - **What for:** the OAuth app `/oauth/shopify/start` and `/oauth/shopify/callback`
-  (`app/oauth.py`) need to exist against. Right now `SHOPIFY_CLIENT_ID`/
-  `SHOPIFY_CLIENT_SECRET` are unset everywhere, so `SHOPIFY_OAUTH_ENABLED` is
-  `False` and Settings' "Connect" button for Shopify 503s. Only the connect
-  step is real so far — see CLAUDE.md roadmap item 3b for why the write
-  adapter (title/content fixes, the Shopify equivalent of `app/wordpress.py`)
-  isn't built yet.
+  (`app/oauth.py`) run against. Only the connect step is real — see CLAUDE.md
+  roadmap item 3b for why the write adapter (title/content fixes, the
+  Shopify equivalent of `app/wordpress.py`) isn't built yet.
+- **Status:** `SHOPIFY_CLIENT_ID`/`SHOPIFY_CLIENT_SECRET` are set on Render —
+  a Custom app, embed disabled, legacy install flow enabled, scopes
+  `read_content,write_content`. **`SHOPIFY_OAUTH_REDIRECT_URI` was found
+  still missing on Render on 2026-09-23** (`SHOPIFY_OAUTH_ENABLED` only
+  checks the first two vars, so `/health` read `true` while the real
+  redirect sent to Shopify was still the localhost default) — confirm this
+  got added before trusting a real connection attempt to work; `app/main.py`'s
+  startup check now logs an error on boot if it's still wrong.
 - **To set it up:**
   1. Create a free account at partners.shopify.com if there isn't one already.
   2. Apps → Create app → **Custom app** (not "Public app" — this doesn't need
@@ -169,6 +174,38 @@ Two separate projects, same codebase (`frontend/`), same org (`ducakfaligy`):
   `SHOPIFY_CLIENT_SECRET` — both already declared in `render.yaml`
   (`sync: false`, blank), so Render will prompt for them the next time it
   reads the Blueprint. `SHOPIFY_OAUTH_REDIRECT_URI` defaults to the right
+  production URL already; only override it for local dev.
+
+## Webflow — not set up yet
+
+- **What for:** `/oauth/webflow/start` and `/oauth/webflow/callback`
+  (`app/oauth.py`) need a real app to exist against. Right now
+  `WEBFLOW_CLIENT_ID`/`WEBFLOW_CLIENT_SECRET` are unset everywhere, so
+  `WEBFLOW_OAUTH_ENABLED` is `False` and Settings' "Connect" button for
+  Webflow 404s (no href rendered). Shaped closer to Google than Shopify: one
+  fixed authorize URL, no per-merchant shop domain and no extra callback
+  signature check beyond `state` — only the connect step is built; same
+  "no write adapter without a real site to verify against" reasoning as
+  Shopify (CLAUDE.md roadmap item 3b).
+- **To set it up:**
+  1. Sign in at webflow.com with the account that will own the app (a free
+     Workspace is enough — Apps & Integrations doesn't require a paid site).
+  2. Workspace settings → **Apps & Integrations** → Manage App Development
+     → **Build an App**. Give it any name.
+  3. **Redirect URI(s):** add
+     `https://fig-ai-backend.onrender.com/oauth/webflow/callback` and, for
+     local dev, `http://localhost:8000/oauth/webflow/callback`.
+  4. **Scopes:** `cms:read`, `cms:write`, `pages:read`, `pages:write`,
+     `sites:read` — matches `WEBFLOW_SCOPE` in `app/oauth.py`; if Webflow's
+     dashboard shows different current scope names, tell me and I'll update it.
+  5. Copy the **Client ID** and **Client Secret** from the app's building
+     blocks / API access page.
+  6. **To actually test a connection**, install the app on a real Webflow
+     site (even a free "Starter" site works — Sites → Add site).
+- **Render env vars once you have them:** `WEBFLOW_CLIENT_ID` and
+  `WEBFLOW_CLIENT_SECRET` — both already declared in `render.yaml`
+  (`sync: false`, blank), so Render will prompt for them the next time it
+  reads the Blueprint. `WEBFLOW_OAUTH_REDIRECT_URI` defaults to the right
   production URL already; only override it for local dev.
 
 ## Anthropic
