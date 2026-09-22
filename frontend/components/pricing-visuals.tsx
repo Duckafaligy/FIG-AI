@@ -2,6 +2,7 @@ import Image from "next/image";
 import { ArrowUpRight, BriefcaseBusiness, GraduationCap } from "lucide-react";
 import { PLANS, planContact } from "@/lib/plans";
 import styles from "./pricing-visuals.module.css";
+import { PricingBudgetChart } from "./pricing-budget-chart";
 
 export function PricingPhotography() {
   return <div className={`page-shell ${styles.photos}`}>
@@ -19,16 +20,10 @@ export function PricingPhotography() {
 }
 
 export function PricingComparison() {
-  const monthly = PLANS.filter(plan => plan.price !== null).sort((a, b) => a.price! - b.price!);
   return <section className={`page-shell ${styles.comparison}`} aria-labelledby="comparison-title">
     <div className={styles.heading}><span>THE BIG PICTURE</span><h2 id="comparison-title">Your options, side by side.</h2><p>A clear view of who each plan is for and what it costs.</p></div>
     <div className={styles.overview}>
-      <div className={styles.chart}>
-        <div className={styles.chartHeading}><h3>Monthly plans at a glance</h3><span>USD / month</span></div>
-        <div className={styles.bars} role="img" aria-label="Monthly price comparison: Education 19 dollars, Standard 49 dollars, Premium 99 dollars.">
-          {monthly.map(plan => <div className={styles.barRow} key={plan.name}><span>{plan.name}</span><div className={styles.track}><div className={`${styles.bar} ${plan.audience === "Education" ? styles.green : ""}`} style={{ width: `${plan.price! / 99 * 100}%` }} /></div><strong>${plan.price}</strong></div>)}
-        </div><p className={styles.chartNote}>Price comparison only. Plans serve different needs; price is not a measure of performance. Taxes excluded.</p>
-      </div>
+      <PricingBudgetChart />
       <aside className={styles.custom}><span className={styles.customIcon}><BriefcaseBusiness size={23} /><GraduationCap size={23} /></span><span className={styles.eyebrow}>ORGANIZATIONS & SCHOOLS</span><h3>Not every team<br />fits a price tag.</h3><p>Talk to us about Enterprise or School Registered. Start with your goals, your people, and what you need from FIG.</p><a href={planContact("Enterprise or School Registered")}>Let’s talk<ArrowUpRight size={17} /></a></aside>
     </div>
     <div className={styles.tableWrap} tabIndex={0} role="region" aria-label="Plan comparison table; scroll horizontally on smaller screens">
