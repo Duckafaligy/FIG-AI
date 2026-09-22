@@ -208,20 +208,27 @@ Two separate projects, same codebase (`frontend/`), same org (`ducakfaligy`):
   reads the Blueprint. `WEBFLOW_OAUTH_REDIRECT_URI` defaults to the right
   production URL already; only override it for local dev.
 
-## Wix — not set up yet
+## Wix — live (2026-09-22), but writes will 403 until a permission is added
 
 - **What for:** `/oauth/wix/start` and `/oauth/wix/callback` (`app/oauth.py`)
-  need a real app to exist against. Right now `WIX_CLIENT_ID`/
-  `WIX_CLIENT_SECRET`/`WIX_SHARE_URL_ID` are unset everywhere, so
-  `WIX_OAUTH_ENABLED` is `False` and Settings' "Connect" button for Wix
-  404s (no href rendered). **Not the same shape as Shopify/Webflow/Google:**
-  Wix retired the classic redirect-with-code flow for new apps, so this is
-  an "external install flow" (a fixed installer URL, an install approval
+  run against a real private/unlisted app. `WIX_CLIENT_ID`/
+  `WIX_CLIENT_SECRET`/`WIX_SHARE_URL_ID`/`WIX_OAUTH_REDIRECT_URI` are all
+  set on Render. **Not the same shape as Shopify/Webflow/Google:** Wix
+  retired the classic redirect-with-code flow for new apps, so this is an
+  "external install flow" (a fixed installer URL, an install approval
   screen, a redirect back with a signed `instanceId` instead of a `code`,
   no token exchange call). See CLAUDE.md roadmap item 3b for the full
-  reasoning and `app/oauth.py`'s "wix" section for the implementation. Only
-  the connect step is built — same "no write adapter without a real site to
-  verify against" reasoning as Shopify and Webflow.
+  reasoning and `app/oauth.py`'s "wix" section for the implementation.
+- **The write adapter (`app/wix.py`) is built but will fail for real right
+  now:** the app's granted permissions are Read Accessibility Scans, Read
+  Blog, Manage llm.txt, Read Site Documents, and Manage Accessibility
+  Scans — none of which is `SCOPE.DC-BLOG.MANAGE-BLOG`, the permission
+  `UpdateDraftPost` actually requires. **To fix:** app dashboard →
+  Permissions → Add Permissions → add "Manage Blog" (or whatever the
+  dashboard currently labels the `SCOPE.DC-BLOG.MANAGE-BLOG` scope as —
+  Wix's permission names have already drifted from docs once this session,
+  worth checking what's actually shown rather than assuming) → the site
+  owner needs to reconnect afterward for the new grant to take effect.
 - **To set it up:**
   1. Sign in at manage.wix.com with the account that will own the app (any
      free Wix account works).
@@ -229,10 +236,10 @@ Two separate projects, same codebase (`frontend/`), same org (`ducakfaligy`):
      → **New App**. Give it any name. This is a private/unlisted app — no
      Wix App Market submission or review needed.
   3. **Permissions:** the app dashboard's **Permissions** page → **Add
-     Permissions** → the scopes matching what a future write adapter would
-     need (Wix's own CMS/content-editing category). Nothing here is load-
-     bearing yet since no write adapter exists — connecting only needs the
-     app to exist with *some* permission requested.
+     Permissions**. Connecting only needs *some* permission requested, but
+     the write adapter (`app/wix.py`) specifically needs "Manage Blog"
+     (`SCOPE.DC-BLOG.MANAGE-BLOG`) to actually write anything — see above,
+     this was missed the first time through and is the one open item left.
   4. **App ID and secret:** the app's home page → **More Actions** → **View
      ID & keys**. Copy both.
   5. **Get the `shareUrlId`** (needed because this is an unlisted app): on

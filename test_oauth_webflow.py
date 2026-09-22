@@ -114,8 +114,9 @@ class WebflowOAuthTests(unittest.TestCase):
 
     def test_a_successful_callback_connects_and_stores_the_token(self):
         state = self.state_from(self.start())
-        with patch("app.oauth.httpx.post") as post:
+        with patch("app.oauth.httpx.post") as post, patch("app.oauth.httpx.get") as get:
             post.return_value = FakeResp(200, {"access_token": "wf_real_token", "scope": "cms:read cms:write"})
+            get.return_value = FakeResp(200, {"sites": [{"id": "wf-site-123", "displayName": "My Site"}]})
             r = self.client.get("/oauth/webflow/callback", params={"code": "a-real-looking-code", "state": state})
         self.assertEqual(r.status_code, 307)
         self.assertIn("connected=1", r.headers["location"])
@@ -123,8 +124,24 @@ class WebflowOAuthTests(unittest.TestCase):
             integ = db.scalars(select(Integration).where(Integration.site_id == "site-a")).one()
             self.assertEqual(integ.platform, "webflow")
             self.assertIsNotNone(integ.connected_at)
+            self.assertEqual(integ.endpoint, "wf-site-123")
             creds = read_secret(db, integ.credential_ref)
             self.assertEqual(creds["access_token"], "wf_real_token")
+
+    def test_site_discovery_failing_does_not_block_the_connection(self):
+        """A real access token was still granted; not knowing which site it
+        reaches yet shouldn't undo that -- the write adapter refuses on its
+        own later if endpoint never gets filled in, same as any other
+        not-fully-configured integration."""
+        state = self.state_from(self.start())
+        with patch("app.oauth.httpx.post") as post, patch("app.oauth.httpx.get") as get:
+            post.return_value = FakeResp(200, {"access_token": "wf_real_token", "scope": "cms:read"})
+            get.return_value = FakeResp(500, {})
+            r = self.client.get("/oauth/webflow/callback", params={"code": "c", "state": state})
+        self.assertIn("connected=1", r.headers["location"])
+        with Session(self.engine) as db:
+            integ = db.scalars(select(Integration).where(Integration.site_id == "site-a")).one()
+            self.assertIsNone(integ.endpoint)
 
     def test_the_provider_denying_consent_is_reported_not_hidden(self):
         r = self.client.get("/oauth/webflow/callback", params={"error": "access_denied", "state": "irrelevant"})
@@ -175,12 +192,14 @@ class WebflowOAuthTests(unittest.TestCase):
 
     def test_reconnecting_replaces_rather_than_accumulates_secrets(self):
         state1 = self.state_from(self.start())
-        with patch("app.oauth.httpx.post") as post:
+        with patch("app.oauth.httpx.post") as post, patch("app.oauth.httpx.get") as get:
             post.return_value = FakeResp(200, {"access_token": "wf_first", "scope": "cms:read"})
+            get.return_value = FakeResp(200, {"sites": [{"id": "wf-site-123"}]})
             self.client.get("/oauth/webflow/callback", params={"code": "code-1", "state": state1})
         state2 = self.state_from(self.start())
-        with patch("app.oauth.httpx.post") as post:
+        with patch("app.oauth.httpx.post") as post, patch("app.oauth.httpx.get") as get:
             post.return_value = FakeResp(200, {"access_token": "wf_second", "scope": "cms:read cms:write"})
+            get.return_value = FakeResp(200, {"sites": [{"id": "wf-site-123"}]})
             self.client.get("/oauth/webflow/callback", params={"code": "code-2", "state": state2})
         with Session(self.engine) as db:
             self.assertEqual(db.scalar(select(__import__("sqlalchemy").func.count()).select_from(Secret)), 1)
@@ -191,8 +210,9 @@ class WebflowOAuthTests(unittest.TestCase):
         """The state a site's real owner receives from /start must not work
         if handed to (or stolen by) a different account."""
         state = self.state_from(self.start(account="a"))
-        with patch("app.oauth.httpx.post") as post:
+        with patch("app.oauth.httpx.post") as post, patch("app.oauth.httpx.get") as get:
             post.return_value = FakeResp(200, {"access_token": "wf_stolen", "scope": "cms:read"})
+            get.return_value = FakeResp(200, {"sites": [{"id": "wf-site-123"}]})
             # /callback trusts the signed state's own account_id, not the
             # caller's session -- this proves the state itself, not just the
             # session, is what's checked against the site's real owner.

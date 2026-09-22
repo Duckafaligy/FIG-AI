@@ -38,7 +38,8 @@ from pathlib import Path
 
 import requests as real_requests
 
-from app import ai_explain, html_headings, pages, scraper, search_console, shopify, validation, wordpress
+from app import (ai_explain, html_headings, pages, scraper, search_console, shopify, validation,
+                webflow, wix, wordpress)
 from app.pipeline import explanation_payload, group_flags
 from app.rules.checks import Flag
 from app.validation import ValidationError, check_url, normalise_target, validate_target
@@ -782,6 +783,303 @@ def test_shopify_surfaces_a_top_level_graphql_error_such_as_a_bad_token():
             check="missing_title", page_url="https://shop.myshopify.com/pages/guide", after="New")
         assert not ok and applied is None
         assert "rejected" in message.lower() or "invalid" in message.lower(), message
+
+
+# --- the Webflow adapter, against a fake Webflow Data API v2 -------------
+# Real capability shape, not a copy of WordPress/Shopify's: Pages have a
+# real seo.description field (meta description fixes work there, unlike
+# everywhere else in this codebase) but no body-content field at all
+# (heading fixes refuse there); Collection Items have a reserved `name`
+# field (title fixes work) but no reserved body field (heading fixes refuse
+# there too) and no seo field at all (meta description refuses there too).
+# See app/webflow.py's docstring.
+
+
+class FakeWebflowResponse:
+    def __init__(self, status: int = 200, body=None):
+        self.status_code = status
+        self._body = body if body is not None else {}
+        self.text = json.dumps(self._body)
+
+    def json(self):
+        return self._body
+
+
+class FakeWebflow:
+    def __init__(self):
+        self.calls: list[tuple[str, str]] = []
+        self.pages: list[dict] = []
+        self.collections: list[dict] = []          # [{"id": ..., "items": [...]}]
+        self.page_updates: dict[str, dict] = {}
+        self.item_updates: dict[str, dict] = {}
+
+    def _path(self, url: str) -> str:
+        return url.split("api.webflow.com/v2/", 1)[-1]
+
+    def get(self, url, headers=None, timeout=None):
+        path = self._path(url)
+        self.calls.append(("GET", path))
+        if path.endswith("/pages"):
+            return FakeWebflowResponse(200, {"pages": self.pages})
+        if path.endswith("/collections"):
+            return FakeWebflowResponse(200, {"collections": [{"id": c["id"]} for c in self.collections]})
+        if path.startswith("collections/") and path.endswith("/items"):
+            coll_id = path[len("collections/"):].split("/items")[0]
+            coll = next((c for c in self.collections if c["id"] == coll_id), None)
+            return FakeWebflowResponse(200, {"items": coll["items"] if coll else []})
+        return FakeWebflowResponse(404, {})
+
+    def put(self, url, headers=None, json=None, timeout=None):
+        path = self._path(url)
+        self.calls.append(("PUT", path))
+        page_id = path.rsplit("/", 1)[-1]
+        self.page_updates[page_id] = json
+        return FakeWebflowResponse(200, {"id": page_id, **(json or {})})
+
+    def patch(self, url, headers=None, json=None, timeout=None):
+        path = self._path(url)
+        self.calls.append(("PATCH", path))
+        for item in (json or {}).get("items", []):
+            self.item_updates[item["id"]] = item.get("fieldData", {})
+        return FakeWebflowResponse(200, json or {})
+
+
+@contextmanager
+def fake_webflow():
+    wf = FakeWebflow()
+    saved = webflow.httpx
+    webflow.httpx = types.SimpleNamespace(get=wf.get, put=wf.put, patch=wf.patch,
+                                          HTTPError=real_requests.RequestException)
+    try:
+        yield wf
+    finally:
+        webflow.httpx = saved
+
+
+def test_webflow_title_fix_writes_the_drafted_title():
+    with fake_webflow() as wf:
+        wf.pages = [{"id": "page-1", "slug": "about", "title": "Old"}]
+        ok, message, applied = webflow.apply_change(
+            "site-1", "wf_token", check="title_length",
+            page_url="https://example.com/about", after="A properly short title")
+        assert ok, message
+        assert applied == "A properly short title"
+        assert wf.page_updates["page-1"] == {"title": "A properly short title"}
+
+
+def test_webflow_title_fix_refuses_without_drafted_text():
+    with fake_webflow() as wf:
+        wf.pages = [{"id": "page-1", "slug": "about", "title": "Old"}]
+        ok, message, applied = webflow.apply_change(
+            "site-1", "wf_token", check="missing_title",
+            page_url="https://example.com/about", after=None)
+        assert not ok and applied is None
+        assert not wf.page_updates
+
+
+def test_webflow_meta_description_fix_writes_via_the_real_seo_field():
+    """The one platform here where this isn't a refusal -- Pages have a
+    genuine, checked seo.description field."""
+    with fake_webflow() as wf:
+        wf.pages = [{"id": "page-1", "slug": "about", "title": "About"}]
+        ok, message, applied = webflow.apply_change(
+            "site-1", "wf_token", check="missing_meta_description",
+            page_url="https://example.com/about", after="A real meta description.")
+        assert ok, message
+        assert wf.page_updates["page-1"] == {"seo": {"description": "A real meta description."}}
+
+
+def test_webflow_refuses_heading_structure_fixes_on_a_page():
+    """Pages have no body-content field to fix a heading in at all."""
+    with fake_webflow() as wf:
+        wf.pages = [{"id": "page-1", "slug": "about", "title": "About"}]
+        ok, message, applied = webflow.apply_change(
+            "site-1", "wf_token", check="missing_h1",
+            page_url="https://example.com/about", after=None)
+        assert not ok and applied is None
+        assert not wf.page_updates and not wf.item_updates
+
+
+def test_webflow_title_fix_on_a_collection_item_uses_the_reserved_name_field():
+    with fake_webflow() as wf:
+        wf.collections = [{"id": "coll-1", "items": [
+            {"id": "item-1", "fieldData": {"name": "Old Post", "slug": "old-post"}}]}]
+        ok, message, applied = webflow.apply_change(
+            "site-1", "wf_token", check="missing_title",
+            page_url="https://example.com/blog/old-post", after="New Post Title")
+        assert ok, message
+        assert wf.item_updates["item-1"] == {"name": "New Post Title"}
+
+
+def test_webflow_refuses_meta_description_on_a_collection_item():
+    """No seo field exists on a Collection Item -- Page-only capability."""
+    with fake_webflow() as wf:
+        wf.collections = [{"id": "coll-1", "items": [
+            {"id": "item-1", "fieldData": {"name": "A Post", "slug": "a-post"}}]}]
+        ok, message, applied = webflow.apply_change(
+            "site-1", "wf_token", check="missing_meta_description",
+            page_url="https://example.com/blog/a-post", after="Some description")
+        assert not ok and applied is None
+        assert not wf.item_updates
+
+
+def test_webflow_refuses_when_no_matching_page_or_item_is_found():
+    with fake_webflow() as wf:
+        ok, message, applied = webflow.apply_change(
+            "site-1", "wf_token", check="missing_title",
+            page_url="https://example.com/nowhere", after="New title")
+        assert not ok and "couldn't find" in message
+
+
+def test_webflow_refuses_without_a_known_site_id():
+    """oauth.py's site-discovery step can fail softly (a real token, but no
+    site id) -- the adapter must refuse clearly rather than call an API
+    with an empty site id in the URL."""
+    with fake_webflow() as wf:
+        ok, message, applied = webflow.apply_change(
+            "", "wf_token", check="missing_title",
+            page_url="https://example.com/about", after="New title")
+        assert not ok and applied is None
+        assert wf.calls == [], "should never touch the network with no site id"
+
+
+# --- the Wix adapter, against a fake Wix Blog API + token mint -----------
+# Title-only on purpose (see app/wix.py's docstring): Wix stores post bodies
+# as richContent, a JSON node tree, not HTML -- html_headings.py cannot be
+# reused without separately verifying that schema, which hasn't happened.
+# This adapter also mints its own access token per call (client_credentials
+# + instance_id, since app/oauth.py's Wix connect step never receives a
+# ready-to-use token the way the other three platforms do) -- the fake
+# covers that request too, not just the eventual Blog API calls.
+
+
+class FakeWixResponse:
+    def __init__(self, status: int = 200, body=None):
+        self.status_code = status
+        self._body = body if body is not None else {}
+        self.text = json.dumps(self._body)
+
+    def json(self):
+        return self._body
+
+
+class FakeWix:
+    def __init__(self):
+        self.calls: list[tuple[str, str]] = []
+        self.posts_by_slug: dict[str, dict] = {}
+        self.updates: dict[str, dict] = {}
+        self.reject_token = False
+        self.reject_write = False   # simulates the real missing MANAGE-BLOG gap
+
+    def post(self, url, json=None, timeout=None):
+        self.calls.append(("POST", url))
+        if self.reject_token:
+            return FakeWixResponse(401, {"error": "invalid_client"})
+        return FakeWixResponse(200, {"access_token": "wix_minted_token"})
+
+    def get(self, url, headers=None, timeout=None):
+        self.calls.append(("GET", url))
+        slug = url.rsplit("/", 1)[-1]
+        post = self.posts_by_slug.get(slug)
+        if not post:
+            return FakeWixResponse(404, {})
+        return FakeWixResponse(200, {"post": post})
+
+    def patch(self, url, headers=None, json=None, timeout=None):
+        self.calls.append(("PATCH", url))
+        if self.reject_write:
+            return FakeWixResponse(403, {"error": "insufficient_scope",
+                                         "message": "SCOPE.DC-BLOG.MANAGE-BLOG is required"})
+        post_id = url.rsplit("/", 1)[-1]
+        self.updates[post_id] = (json or {}).get("draftPost", {})
+        return FakeWixResponse(200, {"draftPost": self.updates[post_id]})
+
+
+@contextmanager
+def fake_wix():
+    fw = FakeWix()
+    saved = wix.httpx
+    wix.httpx = types.SimpleNamespace(post=fw.post, get=fw.get, patch=fw.patch,
+                                      HTTPError=real_requests.RequestException)
+    try:
+        yield fw
+    finally:
+        wix.httpx = saved
+
+
+def test_wix_title_fix_writes_the_drafted_title():
+    with fake_wix() as fw:
+        fw.posts_by_slug["old-title"] = {"id": "post-1", "title": "Old"}
+        ok, message, applied = wix.apply_change(
+            "wix-instance-1", "client-id", "client-secret",
+            check="title_length", page_url="https://mysite.com/post/old-title",
+            after="A properly short title")
+        assert ok, message
+        assert applied == "A properly short title"
+        assert fw.updates["post-1"] == {"id": "post-1", "title": "A properly short title"}
+
+
+def test_wix_title_fix_refuses_without_drafted_text():
+    with fake_wix() as fw:
+        fw.posts_by_slug["old-title"] = {"id": "post-1", "title": "Old"}
+        ok, message, applied = wix.apply_change(
+            "wix-instance-1", "client-id", "client-secret",
+            check="missing_title", page_url="https://mysite.com/post/old-title", after=None)
+        assert not ok and applied is None
+        assert not fw.updates
+        assert fw.calls == [], "should never mint a token without drafted text to write"
+
+
+def test_wix_refuses_finding_types_not_exposed_here():
+    with fake_wix() as fw:
+        for check in wix.NOT_EXPOSED_HERE:
+            ok, message, applied = wix.apply_change(
+                "wix-instance-1", "client-id", "client-secret",
+                check=check, page_url="https://mysite.com/post/any", after="ignored")
+            assert not ok and applied is None, (check, message)
+        assert fw.calls == [], f"a refusal should never touch the network: {fw.calls}"
+
+
+def test_wix_refuses_when_no_matching_post_is_found():
+    with fake_wix():
+        ok, message, applied = wix.apply_change(
+            "wix-instance-1", "client-id", "client-secret",
+            check="missing_title", page_url="https://mysite.com/post/nowhere", after="New title")
+        assert not ok and "couldn't find" in message
+
+
+def test_wix_refuses_without_a_known_instance_id():
+    with fake_wix() as fw:
+        ok, message, applied = wix.apply_change(
+            "", "client-id", "client-secret",
+            check="missing_title", page_url="https://mysite.com/post/old-title", after="New")
+        assert not ok and applied is None
+        assert fw.calls == [], "should never touch the network with no instance id"
+
+
+def test_wix_surfaces_a_token_minting_failure():
+    with fake_wix() as fw:
+        fw.reject_token = True
+        ok, message, applied = wix.apply_change(
+            "wix-instance-1", "client-id", "wrong-secret",
+            check="missing_title", page_url="https://mysite.com/post/old-title", after="New")
+        assert not ok and applied is None
+        assert "rejected" in message.lower()
+
+
+def test_wix_surfaces_the_real_missing_manage_blog_scope_case():
+    """The actual current state of FIG's own Wix app: only Read Blog is
+    granted, not Manage Blog -- every write attempt gets a real 403 until
+    that's added. Proves the adapter reports it rather than claiming
+    success."""
+    with fake_wix() as fw:
+        fw.posts_by_slug["old-title"] = {"id": "post-1", "title": "Old"}
+        fw.reject_write = True
+        ok, message, applied = wix.apply_change(
+            "wix-instance-1", "client-id", "client-secret",
+            check="missing_title", page_url="https://mysite.com/post/old-title", after="New")
+        assert not ok and applied is None
+        assert "403" in message
 
 
 # --- Search Console's pure response-shaping and site-matching ------------

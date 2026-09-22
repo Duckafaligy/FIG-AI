@@ -385,6 +385,7 @@ def shopify_callback(request: Request, code: str = Query(default=""),
 
 WEBFLOW_AUTH_URL = "https://webflow.com/oauth/authorize"
 WEBFLOW_TOKEN_URL = "https://api.webflow.com/oauth/access_token"
+WEBFLOW_SITES_URL = "https://api.webflow.com/v2/sites"
 # CMS (Webflow's blog/collection items) and Pages -- the closest match to
 # what the WordPress adapter actually does (post/page content). Verify
 # against the live app registration screen before relying on these exact
@@ -450,6 +451,20 @@ def webflow_callback(request: Request, code: str = Query(default=""),
     if not access_token:
         return _return(integration=PLATFORM_WEBFLOW, error="no_access_token")
 
+    # Webflow's consent screen is where the site gets picked, not /start --
+    # the token itself doesn't say which site(s) it can reach, so a write
+    # adapter needs this to know what to call GET/PATCH against. No picker
+    # yet if more than one was granted: first one wins, same limitation
+    # app/ga.py and app/search_console.py already document for Google.
+    try:
+        sites_resp = httpx.get(WEBFLOW_SITES_URL,
+                               headers={"Authorization": f"Bearer {access_token}"}, timeout=15.0)
+        webflow_site_id = (sites_resp.json().get("sites") or [{}])[0].get("id", "") \
+            if sites_resp.status_code == 200 else ""
+    except httpx.HTTPError as exc:
+        log.warning("webflow site discovery failed for site %s: %s", site.id, exc)
+        webflow_site_id = ""
+
     try:
         ref = store_secret(session, {"access_token": access_token,
                                      "scope": tokens.get("scope", WEBFLOW_SCOPE)})
@@ -466,6 +481,7 @@ def webflow_callback(request: Request, code: str = Query(default=""),
         delete_secret(session, integ.credential_ref)
     integ.credential_ref = ref
     integ.credential_hint = "connected"
+    integ.endpoint = webflow_site_id or None
     integ.scopes = tokens.get("scope", WEBFLOW_SCOPE).split(" ")
     integ.connected_at = _now()
     integ.last_error = None

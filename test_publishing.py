@@ -119,20 +119,61 @@ class PublishDispatchTests(unittest.TestCase):
         self.assertEqual(change.state, "failed")
         self.assertIn("Title can't be blank", change.error)
 
+    def test_a_connected_webflow_integration_dispatches_to_the_webflow_adapter(self):
+        self._connected("webflow", "wf-site-123", {"access_token": "wf_real"})
+        change = self._approved_change(check="missing_meta_description", kind="meta")
+
+        with patch("app.publishing.webflow.apply_change") as fake:
+            fake.return_value = (True, "meta description updated", "A real description.")
+            result = publishing.publish(self.db, self.account, change.id)
+
+        self.assertTrue(result["ok"], result)
+        fake.assert_called_once()
+        args, kwargs = fake.call_args
+        self.assertEqual(args[0], "wf-site-123")
+        self.assertEqual(args[1], "wf_real")
+        self.assertEqual(kwargs["check"], "missing_meta_description")
+        self.db.refresh(change)
+        self.assertEqual(change.state, "published")
+
+    def test_a_connected_wix_integration_dispatches_to_the_wix_adapter(self):
+        self._connected("wix", None, {"instance_id": "wix-instance-1"})
+        change = self._approved_change(check="missing_title", kind="meta")
+
+        with patch.object(config, "WIX_CLIENT_ID", "cid"), \
+             patch.object(config, "WIX_CLIENT_SECRET", "csecret"), \
+             patch("app.publishing.wix.apply_change") as fake:
+            fake.return_value = (True, "title updated", "New Title")
+            result = publishing.publish(self.db, self.account, change.id)
+
+        self.assertTrue(result["ok"], result)
+        fake.assert_called_once()
+        args, kwargs = fake.call_args
+        self.assertEqual(args[0], "wix-instance-1")
+        self.assertEqual(args[1], "cid")
+        self.assertEqual(args[2], "csecret")
+        self.assertEqual(kwargs["check"], "missing_title")
+        self.db.refresh(change)
+        self.assertEqual(change.state, "published")
+
     def test_an_unwired_platform_refuses_without_touching_any_adapter(self):
-        self._connected("webflow", "site.webflow.io", {"access_token": "x"})
+        self._connected("wordpress_multisite_alias", "x", {"access_token": "x"})
         change = self._approved_change(check="missing_title")
 
         with patch("app.publishing.wordpress.apply_change") as wp, \
-             patch("app.publishing.shopify.apply_change") as sp:
+             patch("app.publishing.shopify.apply_change") as sp, \
+             patch("app.publishing.webflow.apply_change") as wf, \
+             patch("app.publishing.wix.apply_change") as wx:
             result = publishing.publish(self.db, self.account, change.id)
 
         self.assertFalse(result["ok"])
         wp.assert_not_called()
         sp.assert_not_called()
+        wf.assert_not_called()
+        wx.assert_not_called()
         self.db.refresh(change)
         self.assertEqual(change.state, "failed")
-        self.assertIn("webflow", change.error)
+        self.assertIn("wordpress_multisite_alias", change.error)
         self.assertIn("not implemented yet", change.error)
 
     def test_no_integration_at_all_refuses_before_reading_any_credential(self):

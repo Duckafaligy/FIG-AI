@@ -708,24 +708,62 @@ placeholders** — only email/password goes through Supabase for now.
    per-merchant shop domain, no HMAC-signed callback, just the signed
    `state` token every platform here already carries. Scope requested:
    `cms:read cms:write pages:read pages:write sites:read`
-   (`WEBFLOW_SCOPE`). Same honesty pattern as Shopify: `publish()` in
-   `app/publishing.py` still refuses out loud for any platform but
-   WordPress, so a connected Webflow integration says "Connected" and
-   writes nothing through it — no real Webflow site exists yet to verify a
-   write adapter's field names or API shape against, so none is built.
-   Covered by 13 fake-network tests in `test_oauth_webflow.py`, including
-   one proving a stolen/replayed `state` still resolves to the state's own
-   signed account rather than whichever account presents it (mirrors
-   Shopify's equivalent test). Settings shows a Webflow row with a plain
-   Connect link once a real site exists to connect
-   (`frontend/app/app/settings/page.tsx`). **Not yet live:**
-   `WEBFLOW_CLIENT_ID`/`WEBFLOW_CLIENT_SECRET` aren't set anywhere — no
-   Webflow app has been created yet (see `PLATFORMS.md` for the exact
-   dashboard steps) — so `/health`'s `webflow_oauth` will read `false`
-   until that happens.
+   (`WEBFLOW_SCOPE`). Covered by 14 fake-network tests in
+   `test_oauth_webflow.py`, including one proving a stolen/replayed `state`
+   still resolves to the state's own signed account rather than whichever
+   account presents it (mirrors Shopify's equivalent test). Settings shows
+   a Webflow row with a plain Connect link
+   (`frontend/app/app/settings/page.tsx`). **Live in production
+   (2026-09-22)** — app created via webflow.com's Apps & Integrations, real
+   `WEBFLOW_CLIENT_ID`/`WEBFLOW_CLIENT_SECRET`/`WEBFLOW_OAUTH_REDIRECT_URI`
+   on Render, confirmed with the same live-redirect check as Shopify/Wix (a
+   disposable account through the real proxy, inspecting the actual
+   `redirect_uri` Webflow would receive) — caught and fixed the exact same
+   missing-`WEBFLOW_OAUTH_REDIRECT_URI` bug Shopify and Wix each hit first.
+   **A real gap found while building the write adapter below, fixed in the
+   same pass:** `webflow_callback` never stored *which* Webflow site was
+   authorized — Webflow's consent screen is where the site gets picked, not
+   `/start`, so the access token alone doesn't say what it can reach.
+   `Integration.endpoint` now gets filled from a `GET /v2/sites` call right
+   after the token exchange (first site wins, no picker yet — same
+   documented limitation as `app/ga.py`'s GA4 property discovery); a failed
+   discovery call doesn't undo the connection, it just leaves `endpoint`
+   unset, and the write adapter refuses clearly if it's ever called with
+   one missing rather than requesting `/v2/.../` with an empty site id.
 
-   **Wix OAuth connect step — coded and tested (2026-09-23), not yet
-   deployed. Genuinely different shape, not a fourth variant of the same
+   **Webflow write adapter — built and fake-network tested (2026-09-22),
+   not yet verified against a real site.** `app/webflow.py` has a
+   genuinely different capability shape from WordPress/Shopify, not a copy
+   with different endpoint names — checked against developers.webflow.com's
+   live docs field by field: static Pages (`PUT /v2/pages/{id}`) expose a
+   real `seo.title`/`seo.description` pair, so **meta description fixes
+   work here** — the first (and so far only) platform in this file where
+   that's a genuine checked capability rather than a refusal (WordPress:
+   theme/plugin-rendered, no stable field; Shopify: unverified metafield
+   convention, refused on purpose). The trade-off runs the other way for
+   heading fixes: Pages expose **no body-content field at all** (built
+   visually in Webflow's Designer, nothing to regex an `<h1>` out of), so
+   `missing_h1`/`multiple_h1` refuse there, honestly, not as a stub. CMS
+   Collection Items (blog posts, `PATCH /v2/collections/{id}/items`) are
+   the mirror image: `fieldData.name` is a reserved field on every
+   collection regardless of custom schema (title fixes work), but a
+   collection's rich-text body field name is whatever the site owner
+   called it — not discoverable yet, so heading fixes refuse there too, and
+   so does meta description (no `seo` concept exists on an Item at all).
+   Wired into `app/publishing.py`'s `_ADAPTERS` table, same one-line
+   pattern Shopify used. Covered by 8 fake-network tests in
+   `test_backend.py`, including two that specifically prove the
+   Page-vs-Item capability split is real (meta description works on a Page,
+   refuses on an Item) rather than assumed, and 1 more in
+   `test_publishing.py` proving the dispatch wiring. **A real bug in the
+   test fake itself was caught while building this** (not the adapter): the
+   fake's own URL-path matching for `/collections/{id}/items` required a
+   leading slash that the parsed path never had, so the Collection Item
+   title-fix test failed for the wrong reason (a broken fake, not a broken
+   adapter) until traced and fixed.
+
+   **Wix OAuth connect step — coded, tested, and live in production
+   (2026-09-22). Genuinely different shape, not a fourth variant of the same
    pattern:** new Wix apps can no longer use a redirect-with-authorization-
    code flow at all — Wix retired "custom authentication" for new apps (see
    `app/oauth.py`'s module docstring and the "wix" section beneath it, and
@@ -767,11 +805,49 @@ placeholders** — only email/password goes through Supabase for now.
    `test_settings_integration_names_match_the_frontends_static_list` was
    extended to actually check Webflow and Wix (it had silently only ever
    checked Google/WordPress/Shopify, even after Webflow shipped — found and
-   fixed in the same pass). **Not yet live:** `WIX_CLIENT_ID`/
-   `WIX_CLIENT_SECRET`/`WIX_SHARE_URL_ID` aren't set anywhere — no Wix app
-   has been created yet (see `PLATFORMS.md` for the exact dashboard steps,
-   including where the `shareUrlId` GUID comes from) — so `/health`'s
-   `wix_oauth` will read `false` until that happens.
+   fixed in the same pass). **Live in production (2026-09-22)** — a
+   private/unlisted app created via `manage.wix.com/account/custom-apps`
+   (scaffolded through `npm create @wix/new@latest`, which creates the
+   dashboard entry automatically but generates a whole Wix-hosted app
+   project FIG doesn't use — only the App ID/Secret/shareUrlId from the
+   resulting dashboard entry matter here), `WIX_CLIENT_ID`/
+   `WIX_CLIENT_SECRET`/`WIX_SHARE_URL_ID`/`WIX_OAUTH_REDIRECT_URI` all set
+   on Render, confirmed with the same live-redirect check as Shopify —
+   caught and fixed two real mistakes along the way: `WIX_SHARE_URL_ID` was
+   first set to the raw `wix.to/...` short link instead of the GUID it
+   resolves to, and `WIX_OAUTH_REDIRECT_URI` was missing entirely (same bug
+   Shopify hit first). Both confirmed fixed via a disposable account
+   through the real proxy.
+
+   **The granted permissions only allow reading, not writing** — worth
+   knowing before trusting the write adapter below. When the app was set up,
+   the permissions added were Read Accessibility Scans, Read Blog
+   (`SCOPE.DC-BLOG.READ-BLOGS`), Manage llm.txt, Read Site Documents, and
+   Manage Accessibility Scans — none of which is `SCOPE.DC-BLOG.MANAGE-BLOG`,
+   the actual permission `UpdateDraftPost` requires (checked against
+   dev.wix.com's own docs). Every write attempt will 403 until "Manage
+   Blog" is added on the app's Permissions page and the site owner
+   reconnects to grant it — a real, open item, not a hypothetical.
+
+   **Wix write adapter — built and fake-network tested (2026-09-22),
+   title-only on purpose.** `app/wix.py` doesn't share WordPress/Shopify's
+   scope by accident: Wix stores a post's body as `richContent`, a
+   structured JSON node tree, not an HTML string, so
+   `app/html_headings.py`'s promote/demote transforms can't be reused
+   without separately verifying that schema — not done, so heading-
+   structure and meta-description fixes both refuse honestly. `title` is
+   confirmed as a plain top-level string field on the draft-post object
+   (`PATCH /blog/v3/draft-posts/{id}`), safe to touch without going near
+   `richContent`. Auth is different too: `app/oauth.py`'s Wix connect step
+   only ever stores an `instance_id` (Wix's install-flow model has no
+   code-exchange step to hand back a ready-to-use token), so this adapter
+   mints its own short-lived access token on every call via the
+   client-credentials grant, using `WIX_CLIENT_ID`/`WIX_CLIENT_SECRET` plus
+   the stored `instance_id`. Wired into `app/publishing.py`'s `_ADAPTERS`
+   table. Covered by 7 fake-network tests, including one that fakes the
+   *exact* real 403 this app will actually get today (missing Manage Blog)
+   to prove the adapter reports it rather than claiming success, and 1 more
+   in `test_publishing.py` for the dispatch wiring.
 4. **Google Analytics OAuth — done (2026-09-17), real credentials
    configured.** `app/oauth.py`, `app/secrets_store.py`, `app/ga.py` (reads
    the stored token, refreshes it, auto-discovers the GA4 property, pulls
