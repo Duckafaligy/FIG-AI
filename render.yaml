@@ -109,6 +109,20 @@ services:
       - key: WIX_OAUTH_REDIRECT_URI
         sync: false
 
+      # Blank until a GitHub OAuth App exists (github.com/settings/developers
+      # -> OAuth Apps -> New OAuth App). Same degrade-quietly pattern as
+      # every other platform above. For a self-hosted / Git-deployed site
+      # with no CMS API to write through -- see app/oauth.py's "github"
+      # section and app/github_repo.py.
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      # Must exactly match an "Authorization callback URL" on the OAuth App:
+      # https://<this-service>.onrender.com/oauth/github/callback
+      - key: GITHUB_OAUTH_REDIRECT_URI
+        sync: false
+
       # Error tracking (app/main.py) -- degrades quietly (no init call at
       # all) with no DSN. Get the DSN from Sentry -> fig-ai org ->
       # fig-ai-backend project -> Settings -> Client Keys (DSN).

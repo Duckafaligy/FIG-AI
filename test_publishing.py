@@ -156,6 +156,25 @@ class PublishDispatchTests(unittest.TestCase):
         self.db.refresh(change)
         self.assertEqual(change.state, "published")
 
+    def test_a_connected_github_integration_dispatches_to_the_github_adapter(self):
+        self._connected("github", "octocat/hello-world", {"access_token": "gho_real"})
+        change = self._approved_change(check="title_length", kind="meta")
+
+        with patch("app.publishing.github_repo.apply_change") as fake:
+            fake.return_value = (True, "opened a pull request for review: https://github.com/octocat/hello-world/pull/1",
+                                 "A New Title")
+            result = publishing.publish(self.db, self.account, change.id)
+
+        self.assertTrue(result["ok"], result)
+        fake.assert_called_once()
+        args, kwargs = fake.call_args
+        self.assertEqual(args[0], "octocat/hello-world")
+        self.assertEqual(args[1], "gho_real")
+        self.assertEqual(kwargs["check"], "title_length")
+        self.db.refresh(change)
+        self.assertEqual(change.state, "published")
+        self.assertEqual(change.after, "A New Title")
+
     def test_an_unwired_platform_refuses_without_touching_any_adapter(self):
         self._connected("wordpress_multisite_alias", "x", {"access_token": "x"})
         change = self._approved_change(check="missing_title")
@@ -163,7 +182,8 @@ class PublishDispatchTests(unittest.TestCase):
         with patch("app.publishing.wordpress.apply_change") as wp, \
              patch("app.publishing.shopify.apply_change") as sp, \
              patch("app.publishing.webflow.apply_change") as wf, \
-             patch("app.publishing.wix.apply_change") as wx:
+             patch("app.publishing.wix.apply_change") as wx, \
+             patch("app.publishing.github_repo.apply_change") as gh:
             result = publishing.publish(self.db, self.account, change.id)
 
         self.assertFalse(result["ok"])
@@ -171,6 +191,7 @@ class PublishDispatchTests(unittest.TestCase):
         sp.assert_not_called()
         wf.assert_not_called()
         wx.assert_not_called()
+        gh.assert_not_called()
         self.db.refresh(change)
         self.assertEqual(change.state, "failed")
         self.assertIn("wordpress_multisite_alias", change.error)

@@ -956,6 +956,65 @@ placeholders** — only email/password goes through Supabase for now.
    *exact* real 403 this app will actually get today (missing Manage Blog)
    to prove the adapter reports it rather than claiming success, and 1 more
    in `test_publishing.py` for the dispatch wiring.
+
+   **GitHub repo adapter — built and fake-network tested (2026-09-22), for
+   self-hosted / Git-deployed sites with no CMS API at all.** The gap this
+   closes: a site like launchvault.ca (FIG's own reference site, static/
+   Cloudflare-hosted, deployed from a Git repo — this is what prompted
+   building it) had no write path whatsoever, on any of the four CMS
+   adapters, because there's no CMS. `app/github_repo.py`'s strategy is
+   different in kind from every adapter above it, not just in scope: a git
+   repo has no "get post by slug" API, and guessing at a framework's file
+   layout (Next.js vs Hugo vs Astro vs plain HTML export all differ)
+   isn't reliable — so instead, at publish time, it **re-reads the live
+   page right now** (`app.scraper.scrape()`, the same pure fetch-and-parse
+   the crawler already trusts), takes the exact current text a check's
+   evidence is about, and searches the connected repo for a file
+   containing that literal text via GitHub's code search API
+   (`GET /search/code`). Exactly one file match is required — zero or
+   several both refuse rather than guess which file is really the source.
+   This is also why scope here is narrower than WordPress/Shopify on
+   purpose, not by oversight: `missing_title`/`missing_h1`/
+   `missing_meta_description` have nothing to search for (the finding *is*
+   that nothing exists), so only `title_length`, `meta_description_length`,
+   and `multiple_h1` — the "something exists but is wrong" cases — are
+   real here.
+
+   **Writes go through a Pull Request, never a direct commit** — the one
+   adapter here that doesn't write to the live site at all when it
+   "succeeds." A PR is itself a review gate the site owner already
+   controls in their normal workflow, which fits a source-controlled site
+   better than a silent write would, and a real correctness question this
+   surfaced: `apply_change()`'s returned "applied" value has to mean the
+   drafted replacement text for a title/meta fix (matching every other
+   adapter's convention) but the *whole transformed file* for a heading
+   fix (there's no separate "new text" for a demotion) — a real bug where
+   both cases returned the same thing was caught by the test suite itself,
+   not written correctly on the first pass.
+
+   Auth is a classic OAuth App (`app/oauth.py`'s "github" section), not a
+   GitHub App — simpler, matches every other platform's connect shape
+   here, at a real cost: `repo` scope grants access to *every* repository
+   the connecting account can reach, not the one being connected, so
+   `/oauth/github/start` requires a caller-supplied `repo` (owner/name)
+   the same way Shopify's needs `shop`. A GitHub App (installable on one
+   repo only) is the real fix if this ever needs to be tighter — a
+   genuinely bigger integration shape (JWT-based app auth, installation
+   tokens), not built. **A real GitHub quirk found and handled:** the
+   token exchange endpoint answers a bad/expired code with HTTP 200 and an
+   error field in the body, not a 4xx status — checking the status code
+   alone would have silently connected nothing while claiming success;
+   caught by a dedicated test before it could ship broken. Covered by 15
+   fake-network OAuth tests (`test_oauth_github.py`) and 8 more for the
+   adapter itself in `test_backend.py`, including one proving a title
+   containing a literal quote mark doesn't break GitHub's `"..."` search
+   syntax (stripped from the *query* only — the actual find-and-replace
+   still uses the real, unmodified text) and one proving the fake network
+   really exercises the whole chain (page re-scrape -> search -> fetch ->
+   branch -> commit -> PR), not a shortcut. **Frontend intentionally not
+   built yet** — no Settings connect form, no repo input, per an explicit
+   instruction this session to finish backend work first and verify it
+   actually does what's wanted before touching UI.
 4. **Google Analytics OAuth — done (2026-09-17), real credentials
    configured.** `app/oauth.py`, `app/secrets_store.py`, `app/ga.py` (reads
    the stored token, refreshes it, auto-discovers the GA4 property, pulls

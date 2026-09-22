@@ -260,6 +260,40 @@ Two separate projects, same codebase (`frontend/`), same org (`ducakfaligy`):
   reads the Blueprint. `WIX_OAUTH_REDIRECT_URI` defaults to the right
   production URL already; only override it for local dev.
 
+## GitHub — not set up yet
+
+- **What for:** `/oauth/github/start` and `/oauth/github/callback`
+  (`app/oauth.py`) need a real OAuth App to exist against. Right now
+  `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` are unset everywhere, so
+  `GITHUB_OAUTH_ENABLED` is `False`. For a self-hosted / Git-deployed site
+  with no CMS API at all — see CLAUDE.md roadmap item 3b and
+  `app/github_repo.py` for the write adapter (re-scrapes the live page,
+  searches the connected repo for the current text, opens a Pull Request —
+  never commits directly).
+- **To set it up:**
+  1. Sign in at github.com with the account (or organization) that should
+     own the app.
+  2. **Settings → Developer settings → OAuth Apps → New OAuth App**
+     (`github.com/settings/developers`). Give it any name and homepage URL
+     (FIG's own frontend URL is fine).
+  3. **Authorization callback URL:** set to
+     `https://fig-ai-backend.onrender.com/oauth/github/callback` and, for
+     local dev, `http://localhost:8000/oauth/github/callback` — unlike
+     Google/Shopify/Webflow, a classic GitHub OAuth App only allows **one**
+     callback URL per app, so local dev needs its own separate app
+     registered rather than a second callback added to this one.
+  4. **Client ID** is shown immediately; click **Generate a new client
+     secret** for the secret. Copy both.
+  5. **To actually test a connection**, you need a real repo the
+     connecting account can push to — a throwaway test repo works fine,
+     since every write here is a Pull Request, never a direct commit, so
+     nothing is destructive to try.
+- **Render env vars once you have them:** `GITHUB_CLIENT_ID` and
+  `GITHUB_CLIENT_SECRET` — both already declared in `render.yaml`
+  (`sync: false`, blank), so Render will prompt for them the next time it
+  reads the Blueprint. `GITHUB_OAUTH_REDIRECT_URI` defaults to the right
+  production URL already; only override it for local dev.
+
 ## Anthropic
 
 - **What for:** the one LLM call in the whole pipeline

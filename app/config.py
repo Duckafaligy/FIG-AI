@@ -220,6 +220,24 @@ WIX_OAUTH_REDIRECT_URI = os.environ.get(
     "WIX_OAUTH_REDIRECT_URI", "http://localhost:8000/oauth/wix/callback")
 WIX_OAUTH_ENABLED = bool(WIX_CLIENT_ID and WIX_CLIENT_SECRET and WIX_SHARE_URL_ID)
 
+# --- oauth: github -------------------------------------------------------
+# For a self-hosted / Git-deployed site (Cloudflare Pages, Netlify, Vercel,
+# a plain static export -- no CMS API to write through at all). A classic
+# OAuth App, not a GitHub App: simpler, matches every other platform's
+# shape here, at the cost of the `repo` scope granting access to every repo
+# the connecting account can reach, not just the one site being connected --
+# /start requires a `repo` (owner/name) param the caller supplies, same
+# reason Shopify's /start needs `shop`; app/oauth.py's callback stores it,
+# it doesn't come from the grant itself. A GitHub App (installable on one
+# repo only, its own JWT-based auth) is the real fix for that scope
+# mismatch if this ever needs to be tighter -- not built, since it's a
+# genuinely bigger integration shape, not a tweak to this one.
+GITHUB_CLIENT_ID = os.environ.get("GITHUB_CLIENT_ID", "")
+GITHUB_CLIENT_SECRET = os.environ.get("GITHUB_CLIENT_SECRET", "")
+GITHUB_OAUTH_REDIRECT_URI = os.environ.get(
+    "GITHUB_OAUTH_REDIRECT_URI", "http://localhost:8000/oauth/github/callback")
+GITHUB_OAUTH_ENABLED = bool(GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET)
+
 # Where a browser lands after the OAuth round trip finishes, success or not.
 OAUTH_RETURN_URL = os.environ.get("FIG_OAUTH_RETURN_URL", f"{FRONTEND_URL}/app/settings")
 

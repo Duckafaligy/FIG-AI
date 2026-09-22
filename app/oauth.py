@@ -612,3 +612,119 @@ def wix_callback(request: Request, instanceId: str = Query(default=""),
     integ.last_error = None
     session.commit()
     return _return(integration=PLATFORM_WIX, connected="1")
+
+
+# --- github ----------------------------------------------------------------
+# For a self-hosted / Git-deployed site with no CMS API at all -- see
+# app/config.py's GITHUB_* block for why this is a classic OAuth App, not a
+# GitHub App, and app/github_repo.py for the write adapter this connects to.
+# Otherwise the standard three-step shape, plus one thing Shopify's /start
+# also needs that Google/Webflow's doesn't: a caller-supplied value the
+# OAuth grant itself doesn't carry -- there it's `shop`, here it's `repo`
+# (owner/name), carried in `state` and stored on Integration.endpoint at
+# callback, the same place Shopify stores its shop domain.
+
+GITHUB_AUTH_URL = "https://github.com/login/oauth/authorize"
+GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
+GITHUB_SCOPE = "repo"
+PLATFORM_GITHUB = "github"
+
+GITHUB_REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+
+
+def _valid_repo(repo: str) -> str | None:
+    repo = (repo or "").strip()
+    return repo if GITHUB_REPO_RE.match(repo) else None
+
+
+@router.get("/github/start")
+def github_start(request: Request, site_id: str = Query(...), repo: str = Query(...),
+                 session: Session = Depends(get_session)):
+    if not config.GITHUB_OAUTH_ENABLED:
+        raise HTTPException(503, "GitHub OAuth is not configured on this server "
+                                 "(set GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET)")
+    repo_name = _valid_repo(repo)
+    if repo_name is None:
+        raise HTTPException(422, "repo must look like owner/name")
+    site = _owned_site(session, request, site_id)
+
+    state = _serializer().dumps({"site_id": site.id, "account_id": site.account_id,
+                                 "repo": repo_name})
+    params = {
+        "client_id": config.GITHUB_CLIENT_ID,
+        "redirect_uri": config.GITHUB_OAUTH_REDIRECT_URI,
+        "scope": GITHUB_SCOPE,
+        "state": state,
+    }
+    return RedirectResponse(f"{GITHUB_AUTH_URL}?{urlencode(params)}")
+
+
+@router.get("/github/callback")
+def github_callback(request: Request, code: str = Query(default=""),
+                    state: str = Query(default=""), error: str = Query(default=""),
+                    session: Session = Depends(get_session)):
+    if error:
+        return _return(integration=PLATFORM_GITHUB, error=error)
+
+    try:
+        payload = _serializer().loads(state, max_age=STATE_MAX_AGE)
+    except SignatureExpired:
+        return _return(integration=PLATFORM_GITHUB, error="expired_state")
+    except BadSignature:
+        return _return(integration=PLATFORM_GITHUB, error="invalid_state")
+
+    site = session.get(Site, payload.get("site_id"))
+    if site is None or site.account_id != payload.get("account_id"):
+        return _return(integration=PLATFORM_GITHUB, error="site_not_found")
+    repo_name = payload.get("repo", "")
+
+    try:
+        # GitHub's token endpoint defaults to form-urlencoded; without this
+        # header it returns access_token=...&scope=...&token_type=bearer,
+        # which .json() below would choke on.
+        resp = httpx.post(GITHUB_TOKEN_URL, headers={"Accept": "application/json"}, data={
+            "client_id": config.GITHUB_CLIENT_ID,
+            "client_secret": config.GITHUB_CLIENT_SECRET,
+            "code": code,
+            "redirect_uri": config.GITHUB_OAUTH_REDIRECT_URI,
+        }, timeout=15.0)
+    except httpx.HTTPError as exc:
+        log.warning("github token exchange request failed: %s", exc)
+        return _return(integration=PLATFORM_GITHUB, error="token_request_failed")
+
+    if resp.status_code != 200:
+        log.warning("github token exchange rejected: %s %s", resp.status_code, resp.text[:300])
+        return _return(integration=PLATFORM_GITHUB, error="token_exchange_failed")
+
+    tokens = resp.json()
+    if tokens.get("error"):
+        # GitHub answers a bad/expired code with HTTP 200 and an error body,
+        # not a non-200 status -- checked separately from the request itself.
+        log.warning("github token exchange returned an error body: %s", tokens.get("error"))
+        return _return(integration=PLATFORM_GITHUB, error="token_exchange_failed")
+    access_token = tokens.get("access_token", "")
+    if not access_token:
+        return _return(integration=PLATFORM_GITHUB, error="no_access_token")
+
+    try:
+        ref = store_secret(session, {"access_token": access_token,
+                                     "scope": tokens.get("scope", GITHUB_SCOPE)})
+    except SecretsNotConfigured as exc:
+        log.error("cannot store github token for site %s: %s", site.id, exc)
+        return _return(integration=PLATFORM_GITHUB, error="secrets_not_configured")
+
+    integ = session.scalars(select(Integration).where(
+        Integration.site_id == site.id, Integration.platform == PLATFORM_GITHUB)).first()
+    if integ is None:
+        integ = Integration(site_id=site.id, platform=PLATFORM_GITHUB)
+        session.add(integ)
+    if integ.credential_ref and integ.credential_ref != ref:
+        delete_secret(session, integ.credential_ref)
+    integ.endpoint = repo_name
+    integ.credential_ref = ref
+    integ.credential_hint = repo_name
+    integ.scopes = tokens.get("scope", GITHUB_SCOPE).split(",")
+    integ.connected_at = _now()
+    integ.last_error = None
+    session.commit()
+    return _return(integration=PLATFORM_GITHUB, connected="1")

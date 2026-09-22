@@ -27,6 +27,7 @@ import os
 # Found by running these tests once and watching two real events land there.
 os.environ["SENTRY_DSN"] = ""
 
+import base64
 import gzip
 import json
 import re
@@ -38,8 +39,8 @@ from pathlib import Path
 
 import requests as real_requests
 
-from app import (ai_explain, html_headings, pages, scraper, search_console, shopify, validation,
-                webflow, wix, wordpress)
+from app import (ai_explain, github_repo, html_headings, pages, scraper, search_console, shopify,
+                validation, webflow, wix, wordpress)
 from app.pipeline import explanation_payload, group_flags
 from app.rules.checks import Flag
 from app.validation import ValidationError, check_url, normalise_target, validate_target
@@ -1117,6 +1118,219 @@ def test_wix_surfaces_the_real_missing_manage_blog_scope_case():
         assert "403" in message
 
 
+# --- the GitHub repo adapter, against a real scrape + a fake GitHub API --
+# The one adapter here that calls back into this codebase's own crawler
+# (app.scraper.scrape()) rather than only a platform's API -- both the page
+# fetch (faked via the existing fake_network(), same as every crawler test
+# above) and the GitHub calls (faked separately, below) have to be active
+# together for apply_change() to run end to end.
+
+
+class FakeGithubResponse:
+    def __init__(self, status: int = 200, body=None):
+        self.status_code = status
+        self._body = body if body is not None else {}
+        self.text = json.dumps(self._body)
+
+    def json(self):
+        return self._body
+
+
+class FakeGithub:
+    def __init__(self):
+        self.calls: list[tuple] = []
+        self.default_branch = "main"
+        self.files: dict[str, dict] = {}          # path -> {"content", "sha"}
+        self.search_results: dict[str, list[str]] = {}   # anchor text -> [path, ...]
+        self.head_sha = "base-commit-sha"
+        self.created_branches: dict[str, str] = {}
+        self.updates: dict[str, dict] = {}         # path -> the PUT body
+        self.prs: list[dict] = []
+
+    def get(self, url, headers=None, params=None, timeout=None):
+        self.calls.append(("GET", url, params))
+        if url.endswith("/search/code"):
+            q = (params or {}).get("q", "")
+            m = re.search(r'"([^"]*)"', q)
+            text = m.group(1) if m else ""
+            items = [{"path": p} for p in self.search_results.get(text, [])]
+            return FakeGithubResponse(200, {"items": items})
+        if "/contents/" in url:
+            path = url.split("/contents/", 1)[1]
+            path = __import__("urllib.parse", fromlist=["unquote"]).unquote(path)
+            f = self.files.get(path)
+            if not f:
+                return FakeGithubResponse(404, {})
+            return FakeGithubResponse(200, {
+                "content": base64.b64encode(f["content"].encode()).decode(), "sha": f["sha"]})
+        if "/git/ref/heads/" in url:
+            return FakeGithubResponse(200, {"object": {"sha": self.head_sha}})
+        if re.search(r"/repos/[^/]+/[^/]+$", url):
+            return FakeGithubResponse(200, {"default_branch": self.default_branch})
+        return FakeGithubResponse(404, {})
+
+    def post(self, url, headers=None, json=None, timeout=None):
+        self.calls.append(("POST", url, json))
+        if url.endswith("/git/refs"):
+            self.created_branches[json["ref"]] = json["sha"]
+            return FakeGithubResponse(201, {})
+        if url.endswith("/pulls"):
+            number = len(self.prs) + 1
+            pr_url = f"https://github.com/owner/repo/pull/{number}"
+            self.prs.append({**json, "url": pr_url})
+            return FakeGithubResponse(201, {"html_url": pr_url, "number": number})
+        return FakeGithubResponse(404, {})
+
+    def put(self, url, headers=None, json=None, timeout=None):
+        self.calls.append(("PUT", url, json))
+        path = url.split("/contents/", 1)[1]
+        path = __import__("urllib.parse", fromlist=["unquote"]).unquote(path)
+        self.updates[path] = json
+        return FakeGithubResponse(201, {})
+
+
+@contextmanager
+def fake_github():
+    gh = FakeGithub()
+    saved = github_repo.httpx
+    github_repo.httpx = types.SimpleNamespace(get=gh.get, post=gh.post, put=gh.put,
+                                               HTTPError=real_requests.RequestException)
+    try:
+        yield gh
+    finally:
+        github_repo.httpx = saved
+
+
+def test_github_title_fix_opens_a_pull_request_not_a_direct_write():
+    home = (b'<html><head><title>Old short title</title></head>'
+            b'<body><h1>Hi</h1></body></html>')
+    routes = {
+        "https://shop.testsite.com/robots.txt": FakeResponse(404, b"", TEXT),
+        "https://shop.testsite.com/about": FakeResponse(200, home, HTML),
+    }
+    with fake_network(routes), fake_github() as gh:
+        gh.search_results["Old short title"] = ["src/pages/about.html"]
+        gh.files["src/pages/about.html"] = {"content": "<title>Old short title</title>", "sha": "file-sha-1"}
+        ok, message, applied = github_repo.apply_change(
+            "owner/repo", "gho_token", check="title_length",
+            page_url="https://shop.testsite.com/about", after="A better, more specific title")
+    assert ok, message
+    assert applied == "A better, more specific title"
+    assert "pull request" in message.lower()
+    assert gh.updates["src/pages/about.html"]["content"] == base64.b64encode(
+        b"<title>A better, more specific title</title>").decode()
+    assert gh.updates["src/pages/about.html"]["sha"] == "file-sha-1"
+    assert len(gh.prs) == 1 and gh.prs[0]["base"] == "main"
+    assert gh.created_branches, "should have created a branch, never committed straight to main"
+
+
+def test_github_refuses_missing_title_because_theres_nothing_to_search_for():
+    """The real scope boundary: unlike WordPress/Shopify (which locate a
+    post independently of the finding), a git repo has no queryable
+    location for "add a title that doesn't exist yet" -- refuses honestly,
+    never touching the network."""
+    with fake_github() as gh:
+        ok, message, applied = github_repo.apply_change(
+            "owner/repo", "gho_token", check="missing_title",
+            page_url="https://shop.testsite.com/about", after="A new title")
+    assert not ok and applied is None
+    assert gh.calls == [], f"a refusal should never touch GitHub: {gh.calls}"
+
+
+def test_github_refuses_when_the_repo_search_is_ambiguous():
+    home = b'<html><head><title>Common Title</title></head><body><h1>Hi</h1></body></html>'
+    routes = {
+        "https://shop.testsite.com/robots.txt": FakeResponse(404, b"", TEXT),
+        "https://shop.testsite.com/about": FakeResponse(200, home, HTML),
+    }
+    with fake_network(routes), fake_github() as gh:
+        gh.search_results["Common Title"] = ["src/a.html", "src/b.html"]
+        ok, message, applied = github_repo.apply_change(
+            "owner/repo", "gho_token", check="title_length",
+            page_url="https://shop.testsite.com/about", after="Fixed")
+    assert not ok and applied is None
+    assert "ambiguous" in message
+    assert not any(c[0] in ("PUT", "POST") for c in gh.calls), \
+        "an ambiguous match must never write anything"
+
+
+def test_github_refuses_when_no_file_contains_the_current_text():
+    home = b'<html><head><title>Not In Any File</title></head><body><h1>Hi</h1></body></html>'
+    routes = {
+        "https://shop.testsite.com/robots.txt": FakeResponse(404, b"", TEXT),
+        "https://shop.testsite.com/about": FakeResponse(200, home, HTML),
+    }
+    with fake_network(routes), fake_github():
+        ok, message, applied = github_repo.apply_change(
+            "owner/repo", "gho_token", check="title_length",
+            page_url="https://shop.testsite.com/about", after="Fixed")
+    assert not ok and applied is None
+    assert "couldn't find" in message
+
+
+def test_github_multiple_h1_fix_demotes_the_extra_heading_in_the_located_file():
+    home = (b"<html><head><title>Guide</title></head>"
+            b"<body><h1>Real Title</h1><h1>Duplicate Heading</h1></body></html>")
+    routes = {
+        "https://shop.testsite.com/robots.txt": FakeResponse(404, b"", TEXT),
+        "https://shop.testsite.com/guide": FakeResponse(200, home, HTML),
+    }
+    with fake_network(routes), fake_github() as gh:
+        gh.search_results["Duplicate Heading"] = ["content/guide.html"]
+        gh.files["content/guide.html"] = {
+            "content": "<h1>Real Title</h1>\n<h1>Duplicate Heading</h1>", "sha": "sha-guide"}
+        ok, message, applied = github_repo.apply_change(
+            "owner/repo", "gho_token", check="multiple_h1",
+            page_url="https://shop.testsite.com/guide", after=None)
+    assert ok, message
+    assert applied == "<h1>Real Title</h1>\n<h2>Duplicate Heading</h2>"
+
+
+def test_github_refuses_finding_types_it_cant_locate_at_all():
+    with fake_github() as gh:
+        for check in github_repo.NOT_EXPOSED_HERE:
+            ok, message, applied = github_repo.apply_change(
+                "owner/repo", "gho_token", check=check,
+                page_url="https://shop.testsite.com/any", after="ignored")
+            assert not ok and applied is None, (check, message)
+        assert gh.calls == [], f"a refusal should never touch the network: {gh.calls}"
+
+
+def test_github_refuses_without_a_connected_repo():
+    with fake_github() as gh:
+        ok, message, applied = github_repo.apply_change(
+            "", "gho_token", check="title_length",
+            page_url="https://shop.testsite.com/about", after="Fixed")
+    assert not ok and applied is None
+    assert gh.calls == [], "should never touch the network with no repo"
+
+
+def test_github_search_strips_quotes_from_the_query_but_replaces_the_real_text():
+    """A title containing a literal quote mark would otherwise break
+    GitHub's "..." phrase search syntax -- the query is sanitized, but the
+    actual find-and-replace in the file still uses the real, unmodified
+    title, quote mark included."""
+    home = ('<html><head><title>Say "Hello" to Guests</title></head>'
+           '<body><h1>Hi</h1></body></html>').encode()
+    routes = {
+        "https://shop.testsite.com/robots.txt": FakeResponse(404, b"", TEXT),
+        "https://shop.testsite.com/about": FakeResponse(200, home, HTML),
+    }
+    with fake_network(routes), fake_github() as gh:
+        # The fake's own query parser extracts whatever's inside the
+        # quotes it's sent -- since the real code strips embedded quotes
+        # before building the query, this is the quote-free version.
+        gh.search_results["Say Hello to Guests"] = ["src/about.html"]
+        gh.files["src/about.html"] = {
+            "content": '<title>Say "Hello" to Guests</title>', "sha": "sha-1"}
+        ok, message, applied = github_repo.apply_change(
+            "owner/repo", "gho_token", check="title_length",
+            page_url="https://shop.testsite.com/about", after="A New Welcome")
+    assert ok, message
+    assert gh.updates["src/about.html"]["content"] == base64.b64encode(
+        b"<title>A New Welcome</title>").decode()
+
+
 # --- Search Console's pure response-shaping and site-matching ------------
 
 
@@ -1234,6 +1448,19 @@ def test_wix_redirect_uri_still_localhost_in_production_is_also_caught():
     assert hit, f"expected an error naming WIX_OAUTH_REDIRECT_URI, got: {messages}"
 
 
+def test_github_redirect_uri_still_localhost_in_production_is_also_caught():
+    messages = _run_lifespan_and_capture_logs(
+        GOOGLE_OAUTH_ENABLED=False,
+        SHOPIFY_OAUTH_ENABLED=False,
+        WEBFLOW_OAUTH_ENABLED=False,
+        WIX_OAUTH_ENABLED=False,
+        GITHUB_OAUTH_ENABLED=True,
+        GITHUB_OAUTH_REDIRECT_URI="http://localhost:8000/oauth/github/callback",
+    )
+    hit = [m for m in messages if "GITHUB_OAUTH_REDIRECT_URI" in m]
+    assert hit, f"expected an error naming GITHUB_OAUTH_REDIRECT_URI, got: {messages}"
+
+
 def test_a_correctly_set_redirect_uri_logs_nothing():
     """The check must not cry wolf on a genuinely correct deployment."""
     messages = _run_lifespan_and_capture_logs(
@@ -1245,6 +1472,8 @@ def test_a_correctly_set_redirect_uri_logs_nothing():
         WEBFLOW_OAUTH_REDIRECT_URI="https://fig-ai-backend.onrender.com/oauth/webflow/callback",
         WIX_OAUTH_ENABLED=True,
         WIX_OAUTH_REDIRECT_URI="https://fig-ai-backend.onrender.com/oauth/wix/callback",
+        GITHUB_OAUTH_ENABLED=True,
+        GITHUB_OAUTH_REDIRECT_URI="https://fig-ai-backend.onrender.com/oauth/github/callback",
     )
     assert not [m for m in messages if "OAUTH_REDIRECT_URI" in m], messages
 
@@ -1257,6 +1486,7 @@ def test_a_disabled_platform_is_not_checked_at_all():
         SHOPIFY_OAUTH_ENABLED=False,
         WEBFLOW_OAUTH_ENABLED=False,
         WIX_OAUTH_ENABLED=False,
+        GITHUB_OAUTH_ENABLED=False,
     )
     assert not [m for m in messages if "OAUTH_REDIRECT_URI" in m], messages
 

@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import config, shopify, webflow, wix, wordpress
+from app import config, github_repo, shopify, webflow, wix, wordpress
 from app.models import Account, Change, Finding, Integration, Site
 from app.secrets_store import SecretsNotConfigured, delete_secret, read_secret, store_secret
 
@@ -46,6 +46,8 @@ _ADAPTERS = {
         integ.endpoint or "", creds.get("access_token", ""), **kw),
     wix.PLATFORM: lambda integ, creds, **kw: wix.apply_change(
         creds.get("instance_id", ""), config.WIX_CLIENT_ID, config.WIX_CLIENT_SECRET, **kw),
+    github_repo.PLATFORM: lambda integ, creds, **kw: github_repo.apply_change(
+        integ.endpoint or "", creds.get("access_token", ""), **kw),
 }
 
 
