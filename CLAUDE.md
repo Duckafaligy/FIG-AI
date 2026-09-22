@@ -193,11 +193,37 @@ again (unmounts `/api`, allows no browser origin); `/v1`, `/scan` and
   scraper's real ceiling, not the page-count or robots limits: a client-rendered
   route (content that only appears after a client component mounts/fetches)
   reads as thin or empty rather than erroring loudly, so a scan can quietly
-  under-report a JS-heavy site instead of failing on it. Worth a "this page
-  may need JS to render" signal before Playwright is worth adding for it.
-- `app/rules/checks.py` — **18** deterministic checks across four layers:
+  under-report a JS-heavy site instead of failing on it. **The "this page may
+  need JS" signal this section used to call for is built (2026-09-22):**
+  `_detect_js_dependency` catches the two real patterns that need no browser —
+  an "enable JavaScript" `<noscript>` block (what create-react-app/Vue-CLI/
+  Angular-CLI ship almost universally) and a known framework mount point
+  (`#root`, `#app`, `#__next`, `#__nuxt`, `#___gatsby`, `#svelte-app`) still
+  empty on an otherwise-thin page. It is stored per page
+  (`Page.js_dependent`/`js_dependent_reason`, exposed at
+  `GET /v1/scans/{id}/pages`) and is deliberately **not** a `Flag` — it costs
+  no score, because it isn't a design tell, it's a caveat that the page's
+  *other* findings may be incomplete. Not yet surfaced in the frontend.
+  `parse_html` also strips React/Next's streaming-SSR Suspense fallback
+  markup (`<!--$?-->...<!--/$-->`) before extracting anything — found because
+  it put a phantom "Loading your page" `<h2>` on every route of FIG's own
+  site; this is a React 18+ wire-format thing, not Next-specific, so it will
+  show up on any site built with streaming SSR, not just ours.
+- `app/rules/checks.py` — **19** deterministic checks across four layers:
   craft (the original six), structure, search, answers. Every `Flag` carries
-  its own `why` and `fix`.
+  its own `why` and `fix`. **Tuned against FIG's own dogfooded pages
+  (2026-09-22), the first real accuracy pass since launch (see CLAUDE.md's
+  "tuning is a standing task" note):** `flat_typography` no longer fires on a
+  genuine long-form document (one h1, flat h2 sections, real prose under
+  each) — only on a page that also fails a words-per-heading-of-60 density
+  check, so a thin row of templated cards at the same heading level still
+  fires. `check_faq`'s word-count floor moved from 250 to 400
+  (`FAQ_MIN_WORDS`): a sub-400-word page reads as a utility page (sign-in,
+  contact) far more often than content actually competing to be quoted.
+  Running FIG's own rules against FIG's own rendered pages went from 37
+  findings to 4 (all `no_answerable_questions` on the two genuinely long
+  legal pages, which is a real, if low-priority, finding — adding a short
+  Q&A section there would resolve it honestly rather than tuning it away).
 - `app/rules/sections.py` — section role classification and the order check.
   This is the one the product leads with: it reports things like pricing
   sitting above the section that justifies it.

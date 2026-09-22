@@ -377,6 +377,31 @@ class MigrationTests(unittest.TestCase):
             self.assertEqual(user.session_epoch, 0)             # the ORM reads the old row fine
         engine.dispose()
 
+    def test_the_js_dependent_columns_are_added_to_an_existing_database(self):
+        """Same story for `pages`: production predates js_dependent/
+        js_dependent_reason, added when the JS-dependency signal was built."""
+        from sqlalchemy import inspect, text
+        from app import db as app_db
+        from app.models import Page
+        engine = create_engine("sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False})
+        with engine.begin() as conn:
+            conn.execute(text("CREATE TABLE pages (id VARCHAR PRIMARY KEY, scan_id VARCHAR NOT NULL, "
+                              "url VARCHAR NOT NULL, path VARCHAR NOT NULL DEFAULT '/', title VARCHAR, "
+                              "status_code INTEGER, word_count INTEGER NOT NULL DEFAULT 0, "
+                              "section_roles JSON, fetched_at DATETIME)"))
+            conn.execute(text("INSERT INTO pages (id, scan_id, url) VALUES ('existing', 'scan-1', 'https://a.example/')"))
+        with patch.object(app_db, "engine", engine):
+            app_db._add_missing_columns()
+            app_db._add_missing_columns()
+        columns = {c["name"] for c in inspect(engine).get_columns("pages")}
+        self.assertIn("js_dependent", columns)
+        self.assertIn("js_dependent_reason", columns)
+        with Session(engine) as session:
+            page = session.get(Page, "existing")
+            self.assertFalse(page.js_dependent)
+            self.assertIsNone(page.js_dependent_reason)
+        engine.dispose()
+
 
 if __name__ == "__main__":
     unittest.main()

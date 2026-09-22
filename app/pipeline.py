@@ -171,6 +171,8 @@ def run_scan(session: Session, scan_id: str, max_pages: int = MAX_PAGES_PER_SCAN
             status_code=sig.status_code,
             word_count=sig.word_count,
             section_roles=roles_for(sig),
+            js_dependent=sig.js_dependent,
+            js_dependent_reason=sig.js_dependent_reason or None,
         ))
         all_flags.extend(run_all_checks(sig))
     trace.add("rules", "ok", started, pages=len(signals), flags=len(all_flags),

@@ -10,7 +10,7 @@ expecting silence across the board.
 """
 from app.rules.checks import CHECKLIST, checklist, run_all_checks
 from app.rules.sections import roles_for
-from app.scraper import parse_html
+from app.scraper import parse_html, _strip_suspense_fallbacks
 
 GENERIC_HTML = """
 <html>
@@ -239,6 +239,268 @@ def test_a_card_grids_first_article_title_does_not_relabel_the_whole_section():
     print(f"[PASS] card grid with a pricing-sounding article title classified as: {roles}")
 
 
+STREAMED_LOADING_HTML = """
+<html><head><title>Northwind</title></head>
+<body>
+<!--$?--><template id="B:0"></template><div class="route-feedback" role="status"><span aria-hidden="true"></span><h2>Loading your page</h2><p>Getting everything ready…</p></div><!--/$-->
+<script>requestAnimationFrame(function(){$RT=performance.now()});</script>
+<div hidden id="S:0">
+  <h1>Northwind</h1>
+  <p>Scheduling software for small clinics, built by a team of two people
+  who got tired of the front desk double-booking the same afternoon slot.</p>
+  <h2>Pricing</h2>
+  <p>Nineteen dollars a month for a solo provider, forty-nine for a clinic
+  with more than one person on the schedule at the same time.</p>
+</div>
+</body></html>
+"""
+
+
+def test_a_react_streaming_loading_fallback_is_not_read_as_page_content():
+    """React/Next's streaming SSR flushes a route's loading.tsx fallback
+    wrapped in <!--$?-->...<!--/$--> markers, with the real content placed
+    separately in a hidden container a client script swaps in once JS runs.
+    A plain HTTP fetch -- this scraper, same as any crawler or answer engine
+    that doesn't execute JavaScript -- used to read the fallback as if it
+    were the page, putting a phantom "Loading your page" <h2> and its
+    "Getting everything ready…" paragraph on every single route of FIG's own
+    site (found while tuning these checks against FIG's own pages)."""
+    signal = parse_html("https://northwind.test/", STREAMED_LOADING_HTML)
+    assert "Loading your page" not in signal.headings, signal.headings
+    assert "Getting everything ready…" not in signal.paragraphs, signal.paragraphs
+    assert signal.headings == ["Northwind", "Pricing"], signal.headings
+    assert signal.word_count > 25, f"expected the real hidden content to still be read, got {signal.word_count} words"
+    print(f"[PASS] streaming fallback stripped, real content kept: "
+          f"{signal.headings}, {signal.word_count} words")
+
+
+def test_strip_suspense_fallbacks_leaves_ordinary_html_and_unterminated_markers_alone():
+    """Guards the helper directly: nested boundaries collapse to one removal,
+    two separate boundaries both go, and a truncated/malformed document (no
+    matching close) is returned untouched rather than risking real content."""
+    nested = "X<!--$?--><!--$?-->inner<!--/$--><!--/$-->Y"
+    assert _strip_suspense_fallbacks(nested) == "XY", _strip_suspense_fallbacks(nested)
+
+    two_pairs = "A<!--$?-->f1<!--/$-->B<!--$?-->f2<!--/$-->C"
+    assert _strip_suspense_fallbacks(two_pairs) == "ABC", _strip_suspense_fallbacks(two_pairs)
+
+    unterminated = "A<!--$?-->never closes"
+    assert _strip_suspense_fallbacks(unterminated) == unterminated
+
+    plain = "<html><body>hello</body></html>"
+    assert _strip_suspense_fallbacks(plain) == plain
+    print("[PASS] suspense-fallback stripping: nested, sequential, unterminated and plain HTML")
+
+
+LONG_POLICY_HTML = """
+<html>
+<head><title>Terms of Service</title></head>
+<body>
+  <h1>Terms of Service</h1>
+  <h2>Who this agreement is with</h2>
+  <p>These terms are an agreement between you and the company that runs this
+  service. By creating an account or otherwise using the service, you agree
+  to them. If you do not agree, you should not use the service at all, and
+  should tell us so we can close any account you may have opened already.
+  This section also explains who counts as an authorized user of an account
+  opened on behalf of an organization rather than an individual person.</p>
+  <h2>What the service does</h2>
+  <p>The service reads the public pages of a website you point it at and
+  reports back a set of patterns it found there, along with a plain
+  explanation of why each pattern was flagged and a specific suggestion for
+  how you might change it if you choose to make that change yourself. It
+  does not write new copy for you, and it does not publish anything to your
+  site without you reviewing and approving the specific change first.</p>
+  <h2>Paying for the service</h2>
+  <p>New accounts start with a free trial that does not require a card.
+  Once the trial ends, continuing to use the paid parts of the service
+  requires an active subscription, billed monthly in advance to whatever
+  payment method you provide when you decide to subscribe for real. Prices
+  are shown before you pay, and you can cancel the subscription at any time
+  from your account settings without needing to contact anyone by email.</p>
+  <h2>Ending your use of the service</h2>
+  <p>You may stop using the service and cancel your subscription at any
+  time, and we may suspend or end an account that breaks these terms,
+  after making a reasonable effort to tell you why and give you a chance
+  to fix it first wherever doing so is practical for everyone involved. An
+  account that is ended this way keeps no special claim to a refund beyond
+  whatever the separate refund policy already promises to every customer.</p>
+  <h2>Which law applies</h2>
+  <p>This agreement is governed by the law of the place stated in the
+  full published terms, without regard to that place's conflict-of-laws
+  rules, and any dispute is heard in the courts of that same place unless
+  a mandatory consumer-protection law where you live says otherwise applies.
+  Nothing here limits a right that the law in your own country will not
+  allow a company to sign away, whatever this document otherwise says.</p>
+</body>
+</html>
+"""
+
+THIN_FLAT_SECTIONS_HTML = """
+<html><head><title>Product</title></head><body>
+<h1>Product</h1>
+<h2>Fast</h2><p>It loads quickly every time you open it.</p>
+<h2>Secure</h2><p>Your data stays protected, always and everywhere.</p>
+<h2>Simple</h2><p>Anyone on the team can pick it up fast.</p>
+<h2>Flexible</h2><p>Works however your team already operates today.</p>
+</body></html>
+"""
+
+
+def test_flat_typography_spares_a_real_document_but_still_catches_a_thin_template():
+    """A single-topic reference document -- one h1, a flat run of h2 clauses,
+    each carrying a real paragraph -- reads as one h1 + mostly-h2 the same way
+    a templated row of thin cards does, but it isn't the same pattern: there
+    is real, substantial, differentiated content under every heading. FIG's
+    own privacy and terms pages were tripping this before the words-per-
+    heading exemption. A page that is genuinely just short, near-identical
+    blurbs under a repeated heading level -- no real content, nothing to
+    differentiate -- still has to fire, or the check is pointless."""
+    document = parse_html("https://example.test/terms", LONG_POLICY_HTML)
+    assert "flat_typography" not in _triggered(run_all_checks(document)), \
+        "a real long-form document with one h1 and substantial h2 sections should not be flagged"
+
+    template = parse_html("https://example.test/product", THIN_FLAT_SECTIONS_HTML)
+    assert "flat_typography" in _triggered(run_all_checks(template)), \
+        "a thin row of near-identical h2 blurbs should still be flagged"
+    print("[PASS] flat_typography: quiet on a real document, still fires on thin template sections")
+
+
+SHORT_UTILITY_HTML = """
+<html><head><title>Sign in</title></head><body>
+<h1>Pick up where you left off</h1>
+<p>Sign in to see your sites, findings and scan history in one place, kept
+exactly where you left them the last time you visited this workspace, so
+nothing has to be reconstructed from memory or dug up out of an old email
+thread that has since been buried under a hundred other unrelated messages.</p>
+<h3>A fix for every finding</h3>
+<p>Each one says where it is, why it matters and what to change about it,
+written in plain language rather than a raw rule name or an error code that
+would mean nothing to someone reading it for the first time on a Monday
+morning before the rest of the team has even had a chance to log in yet.</p>
+<h3>Reads any public site</h3>
+<p>Whatever the site is built with, the service checks the pages a real
+visitor can actually see when they load the page in an ordinary browser,
+not a hidden admin view or a staging environment nobody else can reach,
+because a finding that nobody outside the company can see is not useful.</p>
+<h3>History and re-scans</h3>
+<p>Run a check again after making a change and see exactly what moved, and
+by how much, compared with the version you started from a week earlier, so
+progress is something you can point at in a meeting rather than something
+you have to take somebody's word for because nobody wrote the old numbers down.</p>
+<h3>Built for people, not committees</h3>
+<p>One person can sign up, connect a site, and see something useful within
+a couple of minutes, without first having to invite a team or fill out a
+form describing what department they work in or who their manager happens
+to be this quarter, because most of the people who try this are working alone.</p>
+</body></html>
+"""
+
+LONG_CONTENT_HTML = """
+<html><head><title>Guide</title></head><body>
+<h1>Choosing a scheduling tool for a small clinic</h1>
+<p>Most small clinics start with a paper calendar and a phone line, and that
+works fine right up until two people try to book the same slot on the same
+afternoon. The first real sign a clinic has outgrown that setup is not lost
+revenue, it is the fifteen minutes at the front desk every morning spent
+untangling who was actually supposed to be seen first, and in what order,
+before the first patient of the day has even had a chance to sit down and
+take off their coat, let alone explain what they are actually there for.</p>
+<p>A scheduling tool solves that specific problem, and not much else, so it
+is worth being honest about what it will and will not fix. It will stop the
+double-booking. It will not fix a clinic that is chronically understaffed
+for the number of patients it is trying to see, and it will not make a slow
+intake process faster on its own, though a good one can shorten the wait by
+cutting down on the paperwork a patient has to fill out while they sit there.</p>
+<p>The things worth checking before picking one are boring on purpose: does
+it handle recurring appointments cleanly, does it send reminders without
+needing a staff member to trigger them by hand every single day, and does
+it let a patient reschedule themselves without a phone call in the middle
+of a shift. Most tools claim all three. Fewer of them are pleasant to use
+once the trial period ends and the staff using it every day stop noticing
+the marketing screenshots and start noticing the five extra clicks it takes
+to do the one thing they do fifty times before lunch, and that is where the
+real difference between one tool and the next actually shows up in practice,
+long after the sales call that convinced someone to sign the contract.</p>
+<p>None of this is a reason to avoid switching. It is a reason to trial two
+tools for a real week rather than a demo afternoon, with the actual front
+desk staff typing into it between real patients, because that is the only
+way anyone finds out whether the five extra clicks are really there at all,
+and whether the people doing the work every day would actually pick it
+themselves if nobody from management was in the room watching them decide.</p>
+</body></html>
+"""
+
+
+def test_faq_check_ignores_short_pages_but_still_catches_long_thin_content():
+    """A page under ~400 words is far more likely a utility page (sign-in,
+    contact, a settings screen) than content competing to be found or quoted
+    -- FIG's own 264-word sign-in and 380-word sign-up pages were both
+    tripping this at the old 250-word threshold. A genuinely long page
+    (400+ words) with real prose and still no FAQ or question heading has to
+    keep firing, or the check stops meaning anything on content that matters."""
+    short = parse_html("https://example.test/signin", SHORT_UTILITY_HTML)
+    assert 250 <= short.word_count < 400, f"fixture drifted out of range: {short.word_count} words"
+    assert "no_answerable_questions" not in _triggered(run_all_checks(short)), \
+        f"a {short.word_count}-word utility page should not be flagged"
+
+    long_ = parse_html("https://example.test/guide", LONG_CONTENT_HTML)
+    assert long_.word_count >= 400, f"fixture drifted out of range: {long_.word_count} words"
+    assert "no_answerable_questions" in _triggered(run_all_checks(long_)), \
+        f"a {long_.word_count}-word content page with no Q&A should still be flagged"
+    print(f"[PASS] no_answerable_questions: quiet at {short.word_count} words, "
+          f"fires at {long_.word_count} words")
+
+
+NOSCRIPT_APP_HTML = """
+<html><head><title>App</title></head><body>
+<noscript>You need to enable JavaScript to run this app.</noscript>
+<div id="root"></div>
+<script src="/static/js/main.abc123.js"></script>
+</body></html>
+"""
+
+EMPTY_MOUNT_HTML = """
+<html><head><title>App</title></head><body>
+<div id="app"></div>
+<script src="/assets/index-9f8e7d.js"></script>
+</body></html>
+"""
+
+REAL_SHORT_PAGE_WITH_ROOT_ID_HTML = """
+<html><head><title>Contact</title></head><body>
+<div id="root"><h1>Contact us</h1><p>Call us at 555-0100 or email hello@example.test
+if you would rather write than dial, and someone will get back to you soon.</p></div>
+</body></html>
+"""
+
+
+def test_js_dependent_pages_are_flagged_without_running_anything():
+    """The scraper never executes JavaScript (CLAUDE.md's stated ceiling), so
+    a client-only route -- content that only appears once a bundle mounts and
+    fetches -- used to just read as thin or empty with no explanation. Two
+    cheap, real signals catch most of it: the "enable JavaScript" <noscript>
+    block create-react-app/Vue-CLI/Angular-CLI apps ship almost universally,
+    and a known framework mount point (#root, #app, #__next, ...) still empty
+    on an otherwise-thin page. Neither is scored as a finding -- it's a
+    caveat about the page's other signals, not a design tell."""
+    noscript = parse_html("https://example.test/app", NOSCRIPT_APP_HTML)
+    assert noscript.js_dependent and "noscript" in noscript.js_dependent_reason, noscript.js_dependent_reason
+
+    empty_mount = parse_html("https://example.test/app2", EMPTY_MOUNT_HTML)
+    assert empty_mount.js_dependent and "#app" in empty_mount.js_dependent_reason, empty_mount.js_dependent_reason
+
+    real_short = parse_html("https://example.test/contact", REAL_SHORT_PAGE_WITH_ROOT_ID_HTML)
+    assert not real_short.js_dependent, \
+        f"a short but genuinely server-rendered page should not be flagged ({real_short.js_dependent_reason!r})"
+
+    ordinary = parse_html("https://example.test/plain", HANDCRAFTED_HTML)
+    assert not ordinary.js_dependent, "an ordinary page with no framework mount ids at all should not be flagged"
+
+    print("[PASS] js_dependent: noscript and empty-mount both caught, "
+          "real short content and ordinary pages both left alone")
+
+
 def test_checklist_ids_are_unique_and_cover_observed_flags():
     """CHECKLIST is hand-maintained (see rules/checks.py), so the one thing
     worth guarding automatically is that it does not drift into duplicate or
@@ -271,5 +533,10 @@ if __name__ == "__main__":
     test_a_stats_section_quoting_dollar_figures_is_not_read_as_pricing()
     test_bare_body_text_with_no_section_wrapper_is_still_attributed()
     test_a_card_grids_first_article_title_does_not_relabel_the_whole_section()
+    test_a_react_streaming_loading_fallback_is_not_read_as_page_content()
+    test_strip_suspense_fallbacks_leaves_ordinary_html_and_unterminated_markers_alone()
+    test_flat_typography_spares_a_real_document_but_still_catches_a_thin_template()
+    test_faq_check_ignores_short_pages_but_still_catches_long_thin_content()
+    test_js_dependent_pages_are_flagged_without_running_anything()
     test_checklist_ids_are_unique_and_cover_observed_flags()
     print("\nAll local rule-engine tests passed.")

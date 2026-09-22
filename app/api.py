@@ -299,7 +299,8 @@ def get_scan_pages(scan_id: str, account: Account = Depends(require_account),
     pages = session.scalars(select(Page).where(Page.scan_id == scan_id)).all()
     return [
         {"url": p.url, "path": p.path, "title": p.title, "status": p.status_code,
-         "words": p.word_count, "sections": p.section_roles}
+         "words": p.word_count, "sections": p.section_roles,
+         "js_dependent": p.js_dependent, "js_dependent_reason": p.js_dependent_reason}
         for p in pages
     ]
 

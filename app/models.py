@@ -238,6 +238,11 @@ class Page(Base):
     status_code = Column(Integer, nullable=True)
     word_count = Column(Integer, nullable=False, default=0)
     section_roles = Column(JSON, nullable=True)
+    # A caveat, not a finding: this scraper never runs JavaScript, so a
+    # client-only route can quietly read as thin instead of erroring loudly.
+    # See app/scraper.py:_detect_js_dependency.
+    js_dependent = Column(Boolean, nullable=False, default=False)
+    js_dependent_reason = Column(String, nullable=True)
     fetched_at = Column(DateTime, default=_now)
 
     scan = relationship("Scan", back_populates="pages")

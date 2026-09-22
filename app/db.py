@@ -85,6 +85,8 @@ _ADDED_COLUMNS = (
     ("scans", "trace", "JSON"),
     ("sites", "reports_public", "BOOLEAN DEFAULT FALSE"),
     ("users", "session_epoch", "INTEGER NOT NULL DEFAULT 0"),
+    ("pages", "js_dependent", "BOOLEAN NOT NULL DEFAULT FALSE"),
+    ("pages", "js_dependent_reason", "VARCHAR"),
 )
 
 

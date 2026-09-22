@@ -120,6 +120,12 @@ class PageSignal:
     has_faq_block: bool = False
     numbers_in_copy: int = 0
     proper_nouns: int = 0
+    # $0, best-effort: this scraper never runs JavaScript, so a client-rendered
+    # route can quietly read as thin instead of erroring loudly. Not scored as
+    # a finding -- it is a caveat about this page's *other* signals, not a
+    # design tell. See _detect_js_dependency.
+    js_dependent: bool = False
+    js_dependent_reason: str = ""
 
 
 @dataclass
@@ -628,8 +634,107 @@ def _describe_section(idx: int, el) -> SectionSignal:
     )
 
 
+_SUSPENSE_OPEN = "<!--$?-->"
+_SUSPENSE_CLOSE = "<!--/$-->"
+
+
+def _strip_suspense_fallbacks(html: str) -> str:
+    """Remove React/Next streaming-SSR Suspense fallback markup.
+
+    A route still resolving when the server flushes its first byte streams the
+    fallback UI (a `loading.tsx` spinner, say) wrapped in
+    `<!--$?-->...<!--/$-->` comment markers, with the real content placed
+    separately afterwards in a `hidden` container a client-side script swaps
+    in once it arrives. A plain HTTP fetch -- this scraper, and any crawler or
+    answer engine that doesn't run JavaScript -- sees the fallback sitting
+    right there as if it were the page: on FIG's own site (found while tuning
+    checks against it) this put a phantom "Loading your page" <h2> on every
+    route, since BeautifulSoup has no notion of `hidden` or a loading state.
+    React has used this exact wire format since Suspense-streaming SSR
+    shipped, so it is not a Next.js-specific quirk and will show up on any
+    site built with React 18+ streaming.
+
+    Nested boundaries are handled by removing only the outermost pair (a
+    fallback inside a fallback is still just loading UI). An unterminated
+    marker -- a truncated fetch, or a document that isn't actually using this
+    protocol and just happens to contain the string -- returns the input
+    unchanged rather than risk dropping real content.
+    """
+    if _SUSPENSE_OPEN not in html:
+        return html
+    out: list[str] = []
+    i = 0
+    depth = 0
+    start = 0
+    n = len(html)
+    while i < n:
+        if html.startswith(_SUSPENSE_OPEN, i):
+            if depth == 0:
+                out.append(html[start:i])
+            depth += 1
+            i += len(_SUSPENSE_OPEN)
+        elif html.startswith(_SUSPENSE_CLOSE, i):
+            i += len(_SUSPENSE_CLOSE)
+            if depth > 0:
+                depth -= 1
+                if depth == 0:
+                    start = i
+        else:
+            i += 1
+    if depth != 0:
+        return html                        # unterminated -- leave it alone
+    out.append(html[start:])
+    return "".join(out)
+
+
+# A page this thin is where the two signals below are worth checking at all --
+# above it, a page is either genuinely rendering (any framework) or is simply
+# a real short page (see check_thin_page), and guessing "needs JS" from a
+# near-empty mount point alone would misfire on those.
+JS_DEPENDENT_MAX_WORDS = 40
+_ENABLE_JS_PATTERN = re.compile(
+    r"enable\s*javascript|requires?\s*javascript|javascript\s*is\s*(?:required|disabled)",
+    re.IGNORECASE,
+)
+# The element a framework's client bundle mounts into and renders under. Named
+# by convention (create-react-app's #root, Vue CLI's #app, Next's own
+# #__next, ...), so this only ever needs updating if a major framework's
+# default changes.
+_KNOWN_MOUNT_IDS = ("root", "app", "__next", "__nuxt", "___gatsby", "svelte-app")
+
+
+def _detect_js_dependency(soup: BeautifulSoup, word_count: int) -> tuple[bool, str]:
+    """Best-effort, $0 signal that a page may only be readable with
+    JavaScript -- the scraper's real ceiling (CLAUDE.md), separate from and
+    worth checking before ever reaching for a browser like Playwright.
+
+    Two patterns catch most real cases without executing anything:
+
+    1. A <noscript> block telling a human to turn JavaScript on. Nearly every
+       app built by create-react-app, Vue CLI or the Angular CLI ships one of
+       these verbatim, so it is a strong, low-noise signal on its own.
+    2. A known framework mount point (#root, #app, #__next, ...) that is
+       still empty while the rest of the page is also thin. Gated behind
+       JS_DEPENDENT_MAX_WORDS so a real short page with, say, a leftover
+       unused `<div id="app">` from a template doesn't get flagged.
+    """
+    noscript_text = " ".join(
+        n.get_text(" ", strip=True) for n in soup.find_all("noscript"))
+    if _ENABLE_JS_PATTERN.search(noscript_text):
+        return True, "a <noscript> block tells visitors to turn on JavaScript"
+
+    if word_count <= JS_DEPENDENT_MAX_WORDS:
+        for mount_id in _KNOWN_MOUNT_IDS:
+            el = soup.find(id=mount_id)
+            if el is not None and not el.get_text(strip=True):
+                return True, f"the page is thin and its #{mount_id} mount point is empty"
+
+    return False, ""
+
+
 def parse_html(url: str, html: str) -> PageSignal:
     """Pure extraction step — no network access. Safe to call directly in tests."""
+    html = _strip_suspense_fallbacks(html)
     soup = BeautifulSoup(html, "html.parser")
 
     title = soup.title.get_text(strip=True) if soup.title else ""
@@ -707,6 +812,7 @@ def parse_html(url: str, html: str) -> PageSignal:
 
     body_text = soup.body.get_text(" ", strip=True) if soup.body else soup.get_text(" ", strip=True)
     words = body_text.split()
+    js_dependent, js_dependent_reason = _detect_js_dependency(soup, len(words))
 
     # An empty block -- no words, images, buttons, forms or list items -- is a
     # mount point for a toast, a modal or a cookie banner, not a section. Left
@@ -757,4 +863,6 @@ def parse_html(url: str, html: str) -> PageSignal:
         # numbers and actual names.
         numbers_in_copy=len(re.findall(r"\b\d[\d,.]*\b", body_text)),
         proper_nouns=len(re.findall(r"\b[A-Z][a-z]{2,}\b", body_text)),
+        js_dependent=js_dependent,
+        js_dependent_reason=js_dependent_reason,
     )

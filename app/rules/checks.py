@@ -307,6 +307,19 @@ def check_color_distance(signal: PageSignal) -> Flag | None:
 FLAT_TYPOGRAPHY_MIN_HEADINGS = 4
 FLAT_TYPOGRAPHY_MAX_DISTINCT_LEVELS = 2
 FLAT_TYPOGRAPHY_MIN_DOMINANT_RATIO = 0.75
+# A long-form reference document -- a policy, a set of terms, a FAQ page --
+# legitimately reads as one h1 plus a flat run of h2 sections: each section is
+# a self-contained clause, so there is nothing to nest under it, and further
+# heading levels would be decoration, not structure. That is a different shape
+# from the pattern this check exists to catch: a template's row of short,
+# near-identical cards or steps all sitting at the same heading level with
+# barely any content under each one. Words-per-heading tells them apart --
+# found by running this check against FIG's own privacy/terms pages, which
+# were tripping it (~100-140 words per heading) while genuinely flat template
+# sections run closer to 10-30. This is an approximation (page-wide word count
+# over heading count, not per-section), so it errs toward not exempting a page
+# unless the density is unambiguously document-like.
+FLAT_TYPOGRAPHY_MIN_WORDS_PER_HEADING_TO_EXEMPT = 60
 
 
 def check_flat_typography(signal: PageSignal) -> Flag | None:
@@ -319,6 +332,10 @@ def check_flat_typography(signal: PageSignal) -> Flag | None:
     if (
         len(heading_levels) <= FLAT_TYPOGRAPHY_MAX_DISTINCT_LEVELS
         and dominant_count / total >= FLAT_TYPOGRAPHY_MIN_DOMINANT_RATIO
+        and not (
+            heading_levels.get("h1", 0) == 1
+            and signal.word_count / total >= FLAT_TYPOGRAPHY_MIN_WORDS_PER_HEADING_TO_EXEMPT
+        )
     ):
         return Flag(
             check="flat_typography",
@@ -574,10 +591,20 @@ def check_structured_data(signal: PageSignal) -> Flag | None:
     return None
 
 
+FAQ_MIN_WORDS = 400
+# Below this a page is more likely a short utility page -- sign-in, contact,
+# a thank-you screen -- than something trying to be found or quoted, so a
+# missing Q&A block isn't the tell it is on a real content page. Raised from
+# 250: FIG's own sign-in (264 words) and sign-up (380 words) pages were both
+# firing, and neither is competing to answer a search query. 400 still catches
+# genuine short-form content pages; it was chosen to sit above ordinary
+# transactional-page word counts rather than below them.
+
+
 def check_faq(signal: PageSignal) -> Flag | None:
     if signal.has_faq_block:
         return None
-    if signal.word_count < 250:
+    if signal.word_count < FAQ_MIN_WORDS:
         return None
     return Flag(
         check="no_answerable_questions", layer="answers", severity="medium",
@@ -683,7 +710,9 @@ CHECKLIST: list[dict] = [
               "gradient blues)."},
     {"ids": ["flat_typography"], "layer": "craft", "title": "Flat heading hierarchy",
      "flags": "4 or more headings where 75% or more collapse into 2 or fewer distinct "
-              "heading levels."},
+              "heading levels. Not flagged when there is exactly one h1 and each heading "
+              "owns 60+ words on average -- a real long-form document read as one h1 "
+              "plus flat h2 sections, not a row of thin templated cards."},
     {"ids": ["overused_icons"], "layer": "craft", "title": "Overused icon set",
      "flags": "2 or more uses of icons from a maintained list overused in generated UI "
               "(sparkles, arrow-right, zap, rocket, shield-check, star, ...)."},
@@ -719,7 +748,7 @@ CHECKLIST: list[dict] = [
      "flags": "No JSON-LD on the page, or JSON-LD present but none of it a useful type "
               "(Organization, Product, FAQPage, Article, ...)."},
     {"ids": ["no_answerable_questions"], "layer": "answers", "title": "No Q&A block",
-     "flags": "250+ words of copy with no FAQ block and no plainly-worded question "
+     "flags": "400+ words of copy with no FAQ block and no plainly-worded question "
               "headings."},
     {"ids": ["low_specificity"], "layer": "answers", "title": "Low specificity",
      "flags": "200+ words of copy with fewer than 4 concrete numbers, and under 1 "
