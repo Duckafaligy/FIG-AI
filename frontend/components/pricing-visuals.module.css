@@ -66,6 +66,16 @@
 .custom p { color:#698375; font-size:12px; line-height:1.8; margin:0 0 15px; }
 .custom a { display:inline-flex; align-items:center; gap:12px; color:#285b46; font-size:13px; font-weight:650; }
 .tableWrap { overflow-x:auto; border:1px solid #e0e5ef; border-radius:14px; background:white; }
+.scrollHint { display:none; }
+@media(max-width:900px) {
+  .scrollHint { display:flex; justify-content:space-between; gap:12px; margin:0 0 10px; font-size:12px; color:#65738a; }
+  .capabilityScrollHint { display:none; }
+  .table thead th:first-child,.table tbody th[scope=row] { position:sticky; left:0; z-index:1; background:#f8f9fc; box-shadow:1px 0 #e0e5ef; }
+}
+@media(max-width:650px) {
+  .axis { margin-left:84px; margin-right:60px; }
+  .capabilityScrollHint { display:flex; }
+}
 .table { width:100%; border-collapse:collapse; min-width:850px; text-align:left; font-size:12px; }
 .table caption { text-align:left; font-size:14px; font-weight:600; padding:20px; border-bottom:1px solid #e8ebf3; }
 .table th,.table td { padding:20px 16px; border-bottom:1px solid #eceff5; vertical-align:top; line-height:1.7; width:16.66%; }

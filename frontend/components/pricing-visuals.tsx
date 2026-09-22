@@ -40,6 +40,7 @@ export function PricingComparison() {
       <PricingBudgetChart />
       <aside className={styles.custom}><span className={styles.customIcon}><BriefcaseBusiness size={23} /><GraduationCap size={23} /></span><span className={styles.eyebrow}>ORGANIZATIONS & SCHOOLS</span><h3>Start with your needs.<br />Build the right scope.</h3><p>Enterprise and School Registered begin with a conversation, not an automatic checkout.</p><dl className={styles.enquiryList}><div><dt>Enterprise</dt><dd>Tell us about your websites, who will use FIG, and how you review and make changes.</dd></div><div><dt>School Registered</dt><dd>Share your learning goals, expected group size, and how students would choose to share their work.</dd></div><div><dt>What we’ll clarify</dt><dd>Plan inclusions, usage allowances, access requirements, and pricing before you commit.</dd></div></dl><a href={planContact("Enterprise or School Registered")}>Discuss your requirements<ArrowUpRight size={17} /></a></aside>
     </div>
+    <p className={styles.scrollHint}>Scroll sideways to compare all five plans <span aria-hidden="true">↔</span></p>
     <div className={styles.tableWrap} tabIndex={0} role="region" aria-label="Plan comparison table; scroll horizontally on smaller screens">
       <table className={styles.table}><caption>Compare FIG Business and Education plans</caption><thead><tr><th scope="col">At a glance</th>{PLANS.map(p => <th scope="col" key={p.name}><small>{p.audience}</small>{p.name}</th>)}</tr></thead><tbody>
         <tr><th scope="row">Monthly price</th>{PLANS.map(p => <td key={p.name} className={styles.tablePrice}>{p.price === null ? "Contact Us" : `$${p.price} USD`}</td>)}</tr>
@@ -54,6 +55,7 @@ export function PricingComparison() {
       </tbody></table>
     </div><p className={styles.tableNote}>All amounts exclude applicable taxes. Standard and Premium feature differences still need to be finalized; the use cases above describe fit, not promised extra features.</p>
     <div className={styles.capabilityHeading}><span className={styles.eyebrow}>UNDERSTAND THE PRODUCT</span><h3>What’s built—and what it means for you.</h3><p>Current capabilities across FIG. Availability within each commercial plan is confirmed before purchase.</p></div>
+    <p className={`${styles.scrollHint} ${styles.capabilityScrollHint}`}>Scroll sideways for requirements and details <span aria-hidden="true">↔</span></p>
     <div className={styles.tableWrap} tabIndex={0} role="region" aria-label="Current FIG capabilities"><table className={`${styles.table} ${styles.capabilityTable}`}><caption>Current product capabilities</caption><thead><tr><th scope="col">Area</th><th scope="col">What you can work with</th><th scope="col">Requirements & boundaries</th></tr></thead><tbody>{capabilities.map(([name, feature, detail]) => <tr key={name}><th scope="row">{name}</th><td>{feature}</td><td>{detail}</td></tr>)}</tbody></table></div>
   </section>;
 }
