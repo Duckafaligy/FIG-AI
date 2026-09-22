@@ -594,7 +594,7 @@ def test_settings_integration_names_match_the_frontends_static_list():
     backend_names = {row["name"] for row in pages._api_rows(None, [])}
 
     wired_in_frontend = {"Google Analytics", "Google Search Console", "WordPress", "Shopify",
-                        "Webflow", "Wix"}
+                        "Webflow", "Wix", "GitHub"}
     missing_from_frontend = wired_in_frontend - frontend_names
     assert not missing_from_frontend, \
         f"expected a static row for {missing_from_frontend} in settings/page.tsx"

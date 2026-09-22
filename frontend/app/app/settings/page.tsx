@@ -16,6 +16,7 @@ import {
   CreditCard,
   Database,
   FileText,
+  Github,
   Globe2,
   KeyRound,
   Layers,
@@ -57,6 +58,7 @@ const services: Service[] = [
   { name: "WordPress", detail: "Publishing destination", permission: "Read / write", status: "Optional", tone: "blue", icon: Globe2 },
   { name: "Webflow", detail: "Publishing destination", permission: "Not connected", status: "Optional", tone: "purple", icon: Layers },
   { name: "Wix", detail: "Publishing destination", permission: "Not connected", status: "Optional", tone: "amber", icon: LayoutTemplate },
+  { name: "GitHub", detail: "Self-hosted / Git-deployed sites", permission: "Not connected", status: "Optional", tone: "blue", icon: Github },
   { name: "Google Analytics", detail: "Traffic and conversions", permission: "Read", status: "Optional", tone: "amber", icon: BarChart3 },
   { name: "Google Search Console", detail: "Queries and indexing", permission: "Read", status: "Optional", tone: "blue", icon: Search },
   { name: "Webhooks", detail: "Workspace events", permission: "Send / receive", status: "Backend pending", tone: "purple", icon: Webhook }
@@ -182,6 +184,17 @@ export default function SettingsPage() {
     window.location.href = apiUrl(`/oauth/shopify/start?site_id=${liveProjectId}&shop=${encodeURIComponent(shop)}`);
   };
 
+  const [githubFormOpen, setGithubFormOpen] = useState(false);
+  const [githubRepo, setGithubRepo] = useState("");
+  const submitGithub = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!liveProjectId) return;
+    // Accepts a plain "owner/repo" or a pasted github.com URL -- normalised
+    // to the "owner/repo" shape /oauth/github/start actually requires.
+    const raw = githubRepo.trim().replace(/^https?:\/\/(www\.)?github\.com\//, "").replace(/\/$/, "");
+    window.location.href = apiUrl(`/oauth/github/start?site_id=${liveProjectId}&repo=${encodeURIComponent(raw)}`);
+  };
+
   const [billingBusy, setBillingBusy] = useState<"checkout" | "portal" | null>(null);
   const [billingError, setBillingError] = useState("");
   const goToCheckout = async () => {
@@ -295,6 +308,7 @@ export default function SettingsPage() {
                 const isShopify = service.name === "Shopify";
                 const isWebflow = service.name === "Webflow";
                 const isWix = service.name === "Wix";
+                const isGithub = service.name === "GitHub";
                 const remote = liveApi(service.name);
                 const statusText = remote ? remote.state : service.status;
                 const tone = remote ? (remote.ok ? "green" : service.tone) : service.tone;
@@ -314,6 +328,8 @@ export default function SettingsPage() {
                       <a className="settings-row-action button button--small" href={apiUrl(`/oauth/webflow/start?site_id=${liveProjectId}`)}>{remote?.ok ? "Reconnect" : "Connect"}</a>
                     ) : isWix && liveProjectId ? (
                       <a className="settings-row-action button button--small" href={apiUrl(`/oauth/wix/start?site_id=${liveProjectId}`)}>{remote?.ok ? "Reconnect" : "Connect"}</a>
+                    ) : isGithub && liveProjectId ? (
+                      <button type="button" className="settings-row-action button button--small" onClick={() => setGithubFormOpen((open) => !open)}>{remote?.ok ? "Reconnect" : "Connect"}</button>
                     ) : (
                       <PreviewInfo className="settings-row-action" label="Setup" message={`${service.name} doesn't have a working connect flow from this page yet.`} />
                     )}
@@ -342,6 +358,16 @@ export default function SettingsPage() {
                   <div style={{ display: "flex", gap: 10 }}>
                     <button className="button button--small" type="submit">Continue to Shopify</button>
                     <button className="secondary-button" type="button" onClick={() => setShopifyFormOpen(false)}>Cancel</button>
+                  </div>
+                </form>
+              )}
+              {githubFormOpen && liveProjectId && (
+                <form onSubmit={submitGithub} className="settings-workspace-profile" style={{ flexDirection: "column", alignItems: "stretch", gap: 12, marginTop: 4 }}>
+                  <label className="auth-field" htmlFor="github-repo"><span>Repository</span><input id="github-repo" required placeholder="owner/repo or a github.com URL" value={githubRepo} onChange={(event) => setGithubRepo(event.target.value)} /></label>
+                  <p style={{ fontSize: 12.5, opacity: 0.7, margin: 0 }}>Takes you to GitHub to approve the connection. Fixes are opened as pull requests for your review — nothing is ever committed directly to this repo.</p>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button className="button button--small" type="submit">Continue to GitHub</button>
+                    <button className="secondary-button" type="button" onClick={() => setGithubFormOpen(false)}>Cancel</button>
                   </div>
                 </form>
               )}
