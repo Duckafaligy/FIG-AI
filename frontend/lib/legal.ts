@@ -34,8 +34,9 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://fig-ai-sev
 /** Bump when the text of any legal page changes in a way that matters. */
 export const LAST_UPDATED = "September 21, 2026";
 
-/** Matches `Account.TRIAL_DAYS` in app/models.py; keep the two in step. */
-export const TRIAL_DAYS = 7;
+/** Matches `Account.TRIAL_DAYS` in app/models.py; keep the two in step.
+ *  test_pricing_sync.py fails if these two ever drift apart. */
+export const TRIAL_DAYS = 3;
 
 /** Days after a first payment during which a full refund is available. */
 export const REFUND_WINDOW_DAYS = 14;

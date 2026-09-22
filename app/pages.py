@@ -552,9 +552,34 @@ def overview(session: Session, account: Account, site: Site | None) -> dict:
              "note": ("Receiving data from Google Analytics"
                       if (fill or ga.is_connected(session, site))
                       else "Needs Google Analytics")},
+            _js_rendering_health(latest),
         ],
     })
     return ctx
+
+
+def _js_rendering_health(latest: Scan | None) -> dict:
+    """This scanner never runs JavaScript (see CLAUDE.md), so a client-only
+    route can quietly read as thin instead of erroring loudly.
+    Page.js_dependent (app/scraper.py:_detect_js_dependency) is a real,
+    per-page caveat, not a design finding -- it costs no score -- so it
+    belongs on the health panel, not in the findings list."""
+    if not latest:
+        return {"icon": "code", "tone": "b", "name": "Page Rendering",
+                "state": "Never run", "ok": True,
+                "note": "Run an audit to check"}
+    flagged = sum(1 for p in latest.pages if p.js_dependent)
+    total = len(latest.pages)
+    if not flagged:
+        return {"icon": "code", "tone": "g", "name": "Page Rendering",
+                "state": "All server-rendered", "ok": True,
+                "note": "This scanner cannot run JavaScript, so a page that only "
+                        "fills in client-side would read as thin instead -- "
+                        "none did here"}
+    return {"icon": "code", "tone": "a", "name": "Page Rendering",
+            "state": f"{flagged} of {total} may need JS", "ok": False,
+            "note": f"{flagged} of {total} pages read may only fully render with "
+                    "JavaScript -- their other findings could be incomplete"}
 
 
 def _blank_overview() -> dict:

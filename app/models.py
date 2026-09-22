@@ -92,7 +92,7 @@ class Account(Base):
         rate = self.rate_override_cents or self.rate_for(n)
         return n * rate
 
-    TRIAL_DAYS = 7
+    TRIAL_DAYS = 3
 
     def trial_days_left(self) -> int:
         """Whole days remaining, 0 once it has run out."""
@@ -106,6 +106,18 @@ class Account(Base):
 
     def on_trial(self) -> bool:
         return self.trial_days_left() > 0 and not self.stripe_subscription_id
+
+    def trial_expired(self) -> bool:
+        """The free trial ran out and nothing is subscribed -- the gate on the
+        cost-incurring actions (running a scan; see webapp.py). An account
+        with no trial_ends_at at all (a row from before trials existed, or
+        one provisioned outside the sign-up flow) is never "expired" by this
+        check -- it was simply never given a deadline, which is different
+        from having missed one. The seeded demo account is exempted at the
+        call site by slug, not here, so this stays a plain date check."""
+        return (not self.stripe_subscription_id
+                and self.trial_ends_at is not None
+                and self.trial_days_left() <= 0)
 
 
 class ApiKey(Base):

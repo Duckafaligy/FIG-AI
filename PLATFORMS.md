@@ -45,7 +45,20 @@ Two separate projects, same codebase (`frontend/`), same org (`ducakfaligy`):
 - **Editing env vars without the dashboard:** needs a personal API key from
   Account Settings → API Keys, then
   `PUT https://api.render.com/v1/services/<service-id>/env-vars/<KEY>`
-  (see git history around 2026-09-19 for the exact curl shape).
+  (see git history around 2026-09-19 for the exact curl shape). The same key
+  reads deploy status/logs: `GET /v1/services/<id>/deploys` and
+  `GET /v1/logs?ownerId=<owner>&resource=<id>` (owner id comes from
+  `GET /v1/services/<id>`) — the actual boot log line is more trustworthy
+  than `/health` when something looks stuck (see the Sentry entry above for
+  why).
+- **Every push to `main` rebuilds this service**, even a `frontend/`-only
+  change with nothing Python in it — Render has no path filter configured, so
+  a purely cosmetic frontend commit still costs a ~1-2 minute Python rebuild
+  and a few seconds of downtime while it swaps in. It also installs Node
+  during every one of those builds (buildpack auto-detection sees
+  `frontend/package.json` from the full repo checkout, even though
+  `buildCommand` never touches it). Harmless, just wasteful — worth a path
+  filter in Render's dashboard if this gets noisy.
 
 ## UptimeRobot — keep-alive
 
@@ -155,9 +168,21 @@ Two separate projects, same codebase (`frontend/`), same org (`ducakfaligy`):
   a temporary route that deliberately raised, and confirmed the event landed
   in Sentry (`FIG-AI-BACKEND-1`) with `environment=development` and the
   release auto-detected from the local git SHA. Resolved and the route
-  removed before committing. **Not yet confirmed against the live Render
-  deployment** — once `SENTRY_DSN` is set there, `GET /health`'s `sentry`
-  field should read `true`.
+  removed before committing.
+- **Confirmed live in production too (2026-09-22).** First attempt looked
+  broken for ~10 minutes — `/health`'s `sentry` field stayed `false` after
+  what looked like a successful save. The Render env var had been saved as
+  **`SENTRY_DNS`** (letters swapped), so `os.environ.get("SENTRY_DSN")` never
+  found it — not a deploy or code problem, just that one typo. **If this ever
+  looks stuck again:** don't trust `/health` or "deploy: live" alone; pull the
+  actual boot log line (`FIG API up - ... sentry %s`) via the Render API
+  (`GET /v1/logs?ownerId=...&resource=<service-id>`) — that's what caught a
+  second, real race: an env-var-triggered redeploy landed at nearly the same
+  moment as one of the other AI tool's frontend-only pushes (see CLAUDE.md's
+  roadmap item 8's note on that), and the container that came up used an
+  environment snapshot from just before the fix. A second explicit manual
+  deploy (`POST /v1/services/<id>/deploys`) resolved it; its own boot log
+  read `sentry production`.
 - **Traces:** off by default (`SENTRY_TRACES_SAMPLE_RATE=0.0`) — this is
   error tracking, not performance monitoring, and traces count against a
   separate, smaller free quota.

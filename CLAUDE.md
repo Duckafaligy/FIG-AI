@@ -204,7 +204,14 @@ again (unmounts `/api`, allows no browser origin); `/v1`, `/scan` and
   (`Page.js_dependent`/`js_dependent_reason`, exposed at
   `GET /v1/scans/{id}/pages`) and is deliberately **not** a `Flag` — it costs
   no score, because it isn't a design tell, it's a caveat that the page's
-  *other* findings may be incomplete. Not yet surfaced in the frontend.
+  *other* findings may be incomplete. **Surfaced in the frontend (2026-09-23),
+  with zero frontend code changes:** `app/pages.py:_js_rendering_health`
+  turns the latest scan's `js_dependent` count into a 5th row on Overview's
+  already-live "Workspace Health" panel — that panel was already wired end
+  to end to `overview-health`, so this only needed a backend entry with the
+  exact shape `frontend/lib/api.ts` already typed for it. Reads "All
+  server-rendered" when clean, or "N of M may need JS" with the caveat spelled
+  out, never scored.
   `parse_html` also strips React/Next's streaming-SSR Suspense fallback
   markup (`<!--$?-->...<!--/$-->`) before extracting anything — found because
   it put a phantom "Loading your page" `<h2>` on every route of FIG's own
@@ -225,6 +232,18 @@ again (unmounts `/api`, allows no browser origin); `/v1`, `/scan` and
   findings to 4 (all `no_answerable_questions` on the two genuinely long
   legal pages, which is a real, if low-priority, finding — adding a short
   Q&A section there would resolve it honestly rather than tuning it away).
+  **A second tuning pass (2026-09-23)** found a related, more general
+  problem: a page that deliberately opts out of search
+  (`<meta name="robots" content="noindex">` — a login screen, a
+  password-reset link target) was still getting flagged for missing
+  canonical, thin content and no inbound links, none of which mean anything
+  once a page has explicitly declined to be found. `NOINDEX_EXEMPT_CHECKS`
+  drops `missing_canonical`/`missing_meta_description`/
+  `meta_description_length`/`few_internal_links`/`thin_page` on a page
+  `PageSignal.noindex` reads true for, while leaving accessibility-shaped
+  checks (`missing_lang`, alt text) and structured data alone — found on
+  FIG's own `/forgot-password`, but this is a real, general pattern any
+  noindexed utility page on any site would trip.
 - `app/rules/sections.py` — section role classification and the order check.
   This is the one the product leads with: it reports things like pricing
   sitting above the section that justifies it.
@@ -255,7 +274,20 @@ again (unmounts `/api`, allows no browser origin); `/v1`, `/scan` and
 - `app/models.py` — `Account` → `Site` → `Scan` → `Finding`/`Page`, plus
   `ApiKey`, `Job`, `User`. **The meter is sites, not seats.** A column added to
   an existing table also goes in `app/db.py:_ADDED_COLUMNS`, because
-  `create_all` never alters a table.
+  `create_all` never alters a table. **`TRIAL_DAYS` is 3 (2026-09-23, was 7),
+  and it is now enforced, not just displayed:** `Account.trial_expired()`
+  gates the three cost-incurring actions in `app/webapp.py` (adding a
+  project, auditing one, auditing the estate) with a 402 once the trial has
+  run out and nothing is subscribed. Everything else — existing data,
+  drafts, settings, billing — stays fully visible and editable, so a lapsed
+  trial can still see what it had and subscribe. A subscription always
+  overrides it, and an account that was never given a `trial_ends_at` at all
+  (a row from before trials existed) is never gated — not having a deadline
+  is different from having missed one. The seeded demo account is exempt by
+  slug at the call site, since `FIG_DEV_NO_AUTH` and the public showcase
+  both resolve to it and its trial (set once, at seed time) is permanently
+  in the past. `frontend/lib/legal.ts`'s `TRIAL_DAYS` moved to 3 alongside
+  it (`test_pricing_sync.py` fails if the two drift).
 - `app/api.py` — `/v1` with API-key auth: provision a site, scan one or the
   whole estate, poll a scan and pull its pages and trace, pull `/v1/report` as
   a partner-renderable roll-up, run ownership verification. `GET /v1/checklist`
@@ -802,18 +834,37 @@ placeholders** — only email/password goes through Supabase for now.
    be read and run by the owner: `python scripts/cleanup_test_data.py`. It
    refuses to run until the backend has migrated `users.session_epoch`.
 
-   **Still open, found here and not built:** (1) the trial is **not enforced**
-   — `on_trial()` is display-only and nothing gates features after `TRIAL_DAYS`
-   (7; the signup form said 14 until this fixed it), so the Terms deliberately
-   say a subscription "may" be required later; (2) Supabase's shared email
-   sender only delivers to team members and is rate-limited, so signup and
-   recovery emails need real SMTP (which needs a domain to send from) and the
-   dashboard **Site URL / Redirect URLs** still point at localhost; (3) the
+   **Still open, found here and not built:** (1) ~~the trial is not
+   enforced~~ done 2026-09-23, see `app/models.py`'s entry above — it is now
+   3 days and actually gates scanning; (2) Supabase's shared email sender
+   only delivers to team members and is rate-limited, so signup and recovery
+   emails still need real SMTP (which needs a domain to send from) — but
+   ~~the dashboard Site URL / Redirect URLs still point at localhost~~ fixed
+   2026-09-22 (Site URL is `https://fig-ai-seven.vercel.app`; `/signin` and
+   `/reset-password` are both allow-listed; verified with a real
+   `generate_link` call, not just read from the dashboard); (3) the
    Google consent screen is published but **unverified** (100-user cap, warning
    screen) until there is a custom domain and a logo; (4) ~~`PLATFORMS.md`'s
    Sentry is still not added~~ done 2026-09-22, see below; (5) the Watch
    scheduler is off by default (`FIG_WATCH_ENABLED=0`), so nothing may claim
    daily monitoring.
+
+   **A second AI tool has been editing `frontend/` concurrently since
+   2026-09-22** (via a separately-installed agent-plugin flow, pushing
+   straight to `main`) — worth knowing before touching any public page, and
+   the reason recent frontend commits don't all trace back to this file.
+   Coordination gap found the hard way: its pricing redesign (`Introduce
+   business/education pricing`, `Redesign pricing...`) replaced
+   `frontend/app/pricing/page.tsx` with **invented flat pricing** ("Standard
+   $49/month, Premium $99/month", "Education $19/month") that does not
+   match what Stripe actually charges (real billing is still the per-site
+   volume tiers in `frontend/lib/pricing.ts`/`Account.TIERS`) — live on the
+   real site as of 2026-09-22, **not yet resolved as of 2026-09-23**,
+   flagged to the owner, awaiting a decision on whether to fix the numbers
+   inside the new design or change the billing model to match it. `lib/
+   pricing.ts` itself is untouched and still correct — only the page stopped
+   reading from it. **Lesson: re-check pricing.py page /pricing against
+   `Account.TIERS` after any frontend session from here on**, not just once.
 9. **Sentry — wired 2026-09-22.** `app/main.py` calls `sentry_sdk.init()`
    before the FastAPI app is built, gated entirely on `SENTRY_DSN` (unset =
    no call at all, same degrade-quietly pattern as Stripe/Anthropic/every

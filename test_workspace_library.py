@@ -5,12 +5,15 @@ os.environ["FIG_DB_STRICT"] = "1"
 os.environ["FIG_DEV_NO_AUTH"] = "0"
 
 import unittest
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
+from app import config, pages
 from app.db import get_session
 from app.models import Base, Account, Site
 from app.webapp import router
@@ -154,6 +157,140 @@ class LibraryTests(unittest.TestCase):
         self.assertEqual(self.client.get("/api/content?q=%25", headers=self.headers).json()["total"], 1)
         self.assertEqual(self.client.get("/api/content?state=invalid", headers=self.headers).status_code, 422)
         self.assertEqual(self.client.get("/api/content?limit=500", headers=self.headers).status_code, 422)
+
+
+class TrialEnforcementTests(unittest.TestCase):
+    """Scanning (adding a project, auditing one, auditing the estate) is the
+    cost-incurring action -- a real crawl plus an LLM call -- so it's the one
+    thing gated once the trial runs out with nothing subscribed."""
+
+    def setUp(self):
+        self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        Base.metadata.create_all(self.engine)
+        with Session(self.engine) as db:
+            db.add_all([
+                Account(id="fresh", name="Fresh", slug="fresh",
+                       trial_ends_at=datetime.now(timezone.utc) + timedelta(days=2)),
+                Account(id="expired", name="Expired", slug="expired",
+                       trial_ends_at=datetime.now(timezone.utc) - timedelta(days=1)),
+                Account(id="subscribed", name="Subscribed", slug="subscribed",
+                       trial_ends_at=datetime.now(timezone.utc) - timedelta(days=30),
+                       stripe_subscription_id="sub_live"),
+                Account(id="legacy", name="Legacy", slug="legacy", trial_ends_at=None),
+                Account(id=config.DEMO_ACCOUNT_SLUG, name="Demo", slug=config.DEMO_ACCOUNT_SLUG,
+                       trial_ends_at=datetime.now(timezone.utc) - timedelta(days=365)),
+            ])
+            db.flush()
+            for acct in ("fresh", "expired", "subscribed", "legacy", config.DEMO_ACCOUNT_SLUG):
+                db.add(Site(id=f"site-{acct}", account_id=acct, hostname=f"{acct}.example"))
+            db.commit()
+        app = FastAPI()
+        app.include_router(router)
+
+        def session():
+            with Session(self.engine) as db:
+                yield db
+        app.dependency_overrides[get_session] = session
+        self.auth = patch("app.webapp.current_account",
+                          side_effect=lambda request, db: db.get(Account, request.headers.get("x-test-account"))
+                          if request.headers.get("x-test-account") else None)
+        self.auth.start()
+        self.patch_hostname = patch("app.webapp.public_hostname", side_effect=lambda raw: raw.strip().lower())
+        self.patch_hostname.start()
+        # These tests are about trial gating, not billing sync -- and one
+        # fixture account carries a fake stripe_subscription_id, which
+        # without this would make add_project's billing.try_sync() call the
+        # REAL Stripe API with a bogus id. Off here means try_sync always
+        # returns early without a network call, whatever .env holds.
+        self.patch_billing = patch.object(config, "BILLING_ENABLED", False)
+        self.patch_billing.start()
+        self.client = TestClient(app)
+
+    def tearDown(self):
+        self.client.close()
+        self.auth.stop()
+        self.patch_hostname.stop()
+        self.patch_billing.stop()
+        self.engine.dispose()
+
+    def headers(self, account):
+        return {"x-test-account": account}
+
+    def test_a_fresh_trial_can_add_and_audit(self):
+        added = self.client.post("/api/projects", headers=self.headers("fresh"), json={"hostname": "new.example"})
+        self.assertEqual(added.status_code, 200, added.text)
+        pid = added.json()["id"]
+        self.assertEqual(self.client.post(f"/api/projects/{pid}/audit", headers=self.headers("fresh")).status_code, 200)
+        self.assertEqual(self.client.post("/api/audit-all", headers=self.headers("fresh")).status_code, 200)
+
+    def test_an_expired_trial_is_blocked_from_all_three(self):
+        added = self.client.post("/api/projects", headers=self.headers("expired"), json={"hostname": "new.example"})
+        self.assertEqual(added.status_code, 402)
+        self.assertIn("trial has ended", added.json()["detail"])
+        self.assertEqual(self.client.post("/api/projects/site-expired/audit", headers=self.headers("expired")).status_code, 402)
+        self.assertEqual(self.client.post("/api/audit-all", headers=self.headers("expired")).status_code, 402)
+
+    def test_nothing_was_created_by_the_blocked_add(self):
+        self.client.post("/api/projects", headers=self.headers("expired"), json={"hostname": "new.example"})
+        listing = self.client.get("/api/projects", headers=self.headers("expired")).text
+        self.assertNotIn("new.example", listing)
+
+    def test_an_expired_trial_can_still_read_and_edit_existing_data(self):
+        r = self.client.get("/api/projects", headers=self.headers("expired"))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("expired.example", r.text)
+        renamed = self.client.patch("/api/settings/profile", headers=self.headers("expired"), json={"name": "Still mine"})
+        self.assertEqual(renamed.status_code, 200)
+
+    def test_a_subscription_overrides_an_expired_trial(self):
+        added = self.client.post("/api/projects", headers=self.headers("subscribed"), json={"hostname": "new.example"})
+        self.assertEqual(added.status_code, 200, added.text)
+        self.assertEqual(self.client.post("/api/projects/site-subscribed/audit", headers=self.headers("subscribed")).status_code, 200)
+
+    def test_an_account_with_no_trial_deadline_is_not_gated(self):
+        """Never given a deadline is not the same as having missed one --
+        covers rows from before trials existed."""
+        added = self.client.post("/api/projects", headers=self.headers("legacy"), json={"hostname": "new.example"})
+        self.assertEqual(added.status_code, 200, added.text)
+
+    def test_the_seeded_demo_account_is_always_exempt(self):
+        """Its trial (set once, at seed time) is permanently in the past --
+        FIG_DEV_NO_AUTH and the public showcase both resolve to this account,
+        and neither should ever see a paywall."""
+        added = self.client.post("/api/projects", headers=self.headers(config.DEMO_ACCOUNT_SLUG), json={"hostname": "new.example"})
+        self.assertEqual(added.status_code, 200, added.text)
+        self.assertEqual(self.client.post(f"/api/projects/site-{config.DEMO_ACCOUNT_SLUG}/audit",
+                                          headers=self.headers(config.DEMO_ACCOUNT_SLUG)).status_code, 200)
+        self.assertEqual(self.client.post("/api/audit-all", headers=self.headers(config.DEMO_ACCOUNT_SLUG)).status_code, 200)
+
+
+class JsRenderingHealthTests(unittest.TestCase):
+    """app.pages._js_rendering_health -- a pure function, so no app/DB needed.
+    Only .pages is read, so a lightweight stand-in for Scan is enough."""
+
+    def scan(self, *flags):
+        page_objs = [SimpleNamespace(js_dependent=f) for f in flags]
+        return SimpleNamespace(pages=page_objs)
+
+    def test_no_scan_yet(self):
+        h = pages._js_rendering_health(None)
+        self.assertEqual(h["state"], "Never run")
+        self.assertTrue(h["ok"])
+
+    def test_a_clean_scan_reports_all_server_rendered(self):
+        h = pages._js_rendering_health(self.scan(False, False, False))
+        self.assertEqual(h["state"], "All server-rendered")
+        self.assertTrue(h["ok"])
+
+    def test_flagged_pages_are_counted_and_reported_not_ok(self):
+        h = pages._js_rendering_health(self.scan(True, False, True, False))
+        self.assertEqual(h["state"], "2 of 4 may need JS")
+        self.assertFalse(h["ok"])
+        self.assertIn("2 of 4", h["note"])
+
+    def test_a_scan_with_no_pages_at_all_does_not_divide_by_zero(self):
+        h = pages._js_rendering_health(self.scan())
+        self.assertEqual(h["state"], "All server-rendered")
 
 
 if __name__ == "__main__":

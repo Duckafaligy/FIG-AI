@@ -45,6 +45,24 @@ def _account(request: Request, session: Session) -> Account:
     return account
 
 
+def _require_scanning_allowed(account: Account) -> None:
+    """Trial enforcement. A scan is the cost-incurring action here -- it
+    crawls a real site and calls the LLM -- so it's the one thing gated once
+    the trial runs out with nothing subscribed. Everything else (existing
+    data, drafts, settings, billing) stays fully visible and editable, so
+    someone whose trial lapsed can still see what they had and subscribe.
+    The seeded demo account is exempt: FIG_DEV_NO_AUTH and the public
+    showcase both resolve to it, and its trial (set once, at seed time) is
+    permanently in the past."""
+    if account.slug == config.DEMO_ACCOUNT_SLUG:
+        return
+    if account.trial_expired():
+        raise HTTPException(
+            402,
+            "Your free trial has ended. Subscribe in Settings → Billing "
+            "to keep scanning sites.")
+
+
 def _public(payload: dict) -> dict:
     """Drop the ORM objects `pages.py` keeps for its own use.
 
@@ -248,6 +266,7 @@ def add_project(request: Request, payload: dict = Body(...),
                 session: Session = Depends(get_session)):
     """Add a project and immediately queue its first audit."""
     account = _account(request, session)
+    _require_scanning_allowed(account)
     raw = (payload or {}).get("hostname", "")
     if not raw:
         raise HTTPException(400, "a hostname is required")
@@ -315,6 +334,7 @@ def share_project(project_id: str, request: Request, payload: dict = Body(...),
 def audit_project(project_id: str, request: Request,
                   session: Session = Depends(get_session)):
     account = _account(request, session)
+    _require_scanning_allowed(account)
     site = _project(session, account, project_id)
     if site is None:
         raise HTTPException(404, "no such project")
@@ -326,6 +346,7 @@ def audit_project(project_id: str, request: Request,
 @router.post("/audit-all")
 def audit_all(request: Request, session: Session = Depends(get_session)):
     account = _account(request, session)
+    _require_scanning_allowed(account)
     scans = enqueue_estate(session, account.id, trigger="manual")
     session.commit()
     return {"ok": True, "queued": len(scans), "queue": queue_depth(session)}
