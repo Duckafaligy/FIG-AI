@@ -38,7 +38,7 @@ from pathlib import Path
 
 import requests as real_requests
 
-from app import ai_explain, pages, scraper, search_console, validation, wordpress
+from app import ai_explain, html_headings, pages, scraper, search_console, shopify, validation, wordpress
 from app.pipeline import explanation_payload, group_flags
 from app.rules.checks import Flag
 from app.validation import ValidationError, check_url, normalise_target, validate_target
@@ -566,18 +566,20 @@ def test_settings_integration_names_match_the_frontends_static_list():
         f"_api_rows() has no matching row for {missing_from_backend} -- Connect would never show as connected"
 
 
-def test_wordpress_promotes_the_first_h2_to_h1():
-    html, changed = wordpress._promote_first_heading(
+def test_html_headings_promotes_the_first_h2_to_h1():
+    """Shared by every CMS write adapter (app/html_headings.py) -- was
+    WordPress-only until app/shopify.py needed the identical transform."""
+    html, changed = html_headings.promote_first_heading(
         "<p>intro</p><h2 class=\"a\">Section</h2><p>more</p>", from_level=2, to_level=1)
     assert changed
     assert html == "<p>intro</p><h1 class=\"a\">Section</h1><p>more</p>"
 
-    html, changed = wordpress._promote_first_heading("<p>no headings here</p>", from_level=2, to_level=1)
+    html, changed = html_headings.promote_first_heading("<p>no headings here</p>", from_level=2, to_level=1)
     assert not changed and html == "<p>no headings here</p>"
 
 
-def test_wordpress_demotes_every_h1_after_the_first():
-    html, changed = wordpress._demote_extra_h1s(
+def test_html_headings_demotes_every_h1_after_the_first():
+    html, changed = html_headings.demote_extra_h1s(
         "<h1>Real title</h1><p>x</p><h1 id=\"b\">Duplicate</h1><p>y</p><h1>Another</h1>")
     assert changed
     assert html.count("<h1") == 1 and html.count("<h2") == 2
@@ -621,6 +623,165 @@ def test_wordpress_refuses_when_no_matching_post_is_found():
             "https://shop.example.com", "jamie", "abcd1234",
             check="missing_title", page_url="https://shop.example.com/nowhere", after="New title")
         assert not ok and "couldn't find" in message
+
+
+# --- the Shopify adapter, against a fake Shopify GraphQL Admin API -------
+# No real store could be used either (see app/shopify.py's docstring for why
+# this is GraphQL-only, not a REST port) -- same fake-network pattern as
+# WordPress above, one level up: the fake inspects which named operation
+# (FindByHandle / UpdatePage / UpdateArticle) is in the request body, since
+# GraphQL has one endpoint for everything rather than one path per resource.
+
+
+class FakeShopifyResponse:
+    def __init__(self, status: int = 200, body=None):
+        self.status_code = status
+        self._body = body
+        self.text = json.dumps(body) if body is not None else ""
+
+    def json(self):
+        return self._body
+
+
+class FakeShopify:
+    def __init__(self):
+        self.calls: list[dict] = []
+        self.reject_auth = False
+        self.pages_by_handle: dict[str, dict] = {}
+        self.articles_by_handle: dict[str, dict] = {}
+        self.updates: dict[str, dict] = {}
+        self.user_errors_on_update: list[dict] | None = None
+
+    def post(self, url, json=None, headers=None, timeout=None):
+        body = json or {}
+        self.calls.append(body)
+        if self.reject_auth:
+            return FakeShopifyResponse(200, {"errors": [{"message": "Invalid API key or access token"}]})
+        query = body.get("query", "")
+        variables = body.get("variables", {})
+
+        if "FindByHandle" in query:
+            handle = (variables.get("handle") or "").removeprefix("handle:")
+            page = self.pages_by_handle.get(handle)
+            article = self.articles_by_handle.get(handle)
+            return FakeShopifyResponse(200, {"data": {
+                "pages": {"edges": [{"node": page}] if page else []},
+                "articles": {"edges": [{"node": article}] if article else []},
+            }})
+
+        if "UpdatePage" in query or "UpdateArticle" in query:
+            kind = "page" if "UpdatePage" in query else "article"
+            gid = variables["id"]
+            fields = variables[kind]
+            if self.user_errors_on_update is not None:
+                return FakeShopifyResponse(200, {"data": {f"{kind}Update": {
+                    kind: None, "userErrors": self.user_errors_on_update}}})
+            self.updates[gid] = fields
+            node = {"id": gid, **fields}
+            return FakeShopifyResponse(200, {"data": {f"{kind}Update": {
+                kind: node, "userErrors": []}}})
+
+        return FakeShopifyResponse(404, {"errors": [{"message": "unknown query"}]})
+
+
+@contextmanager
+def fake_shopify():
+    sp = FakeShopify()
+    saved = shopify.httpx
+    shopify.httpx = types.SimpleNamespace(post=sp.post, HTTPError=real_requests.RequestException)
+    try:
+        yield sp
+    finally:
+        shopify.httpx = saved
+
+
+def test_shopify_title_fix_writes_the_drafted_title():
+    with fake_shopify() as sp:
+        sp.pages_by_handle["old-title"] = {"id": "gid://shopify/Page/1", "title": "Old", "body": "<p>hi</p>"}
+        ok, message, applied = shopify.apply_change(
+            "shop.myshopify.com", "shpat_token",
+            check="title_length", page_url="https://shop.myshopify.com/pages/old-title",
+            after="A properly short title")
+        assert ok, message
+        assert applied == "A properly short title"
+        assert sp.updates["gid://shopify/Page/1"] == {"title": "A properly short title"}
+
+
+def test_shopify_title_fix_refuses_without_drafted_text():
+    with fake_shopify() as sp:
+        sp.pages_by_handle["old-title"] = {"id": "gid://shopify/Page/1", "title": "Old", "body": "<p>hi</p>"}
+        ok, message, applied = shopify.apply_change(
+            "shop.myshopify.com", "shpat_token",
+            check="missing_title", page_url="https://shop.myshopify.com/pages/old-title", after=None)
+        assert not ok and applied is None
+        assert not sp.updates, "should never have tried to write without a drafted title"
+
+
+def test_shopify_heading_fix_round_trips_through_the_fake_api():
+    with fake_shopify() as sp:
+        sp.pages_by_handle["guide"] = {"id": "gid://shopify/Page/7", "title": "Guide",
+                                       "body": "<h2>Only heading</h2>"}
+        ok, message, applied = shopify.apply_change(
+            "shop.myshopify.com", "shpat_token",
+            check="missing_h1", page_url="https://shop.myshopify.com/pages/guide", after=None)
+        assert ok, message
+        assert applied == "<h1>Only heading</h1>"
+        assert sp.updates["gid://shopify/Page/7"] == {"body": "<h1>Only heading</h1>"}
+
+
+def test_shopify_finds_an_article_when_no_page_matches_the_handle():
+    """Pages and Articles share no id space -- this proves the adapter
+    actually falls through to checking Articles, not just Pages."""
+    with fake_shopify() as sp:
+        sp.articles_by_handle["a-post"] = {"id": "gid://shopify/Article/9", "title": "A post",
+                                           "body": "<h2>Sub</h2>"}
+        ok, message, applied = shopify.apply_change(
+            "shop.myshopify.com", "shpat_token",
+            check="missing_h1", page_url="https://shop.myshopify.com/blogs/news/a-post", after=None)
+        assert ok, message
+        assert sp.updates["gid://shopify/Article/9"] == {"body": "<h1>Sub</h1>"}
+
+
+def test_shopify_refuses_finding_types_not_exposed_here():
+    with fake_shopify() as sp:
+        for check in shopify.NOT_EXPOSED_HERE:
+            ok, message, applied = shopify.apply_change(
+                "shop.myshopify.com", "shpat_token",
+                check=check, page_url="https://shop.myshopify.com/pages/any", after="ignored")
+            assert not ok and applied is None, (check, message)
+        assert sp.calls == [], f"a refusal should never touch the network: {sp.calls}"
+
+
+def test_shopify_refuses_when_no_matching_page_or_article_is_found():
+    with fake_shopify():
+        ok, message, applied = shopify.apply_change(
+            "shop.myshopify.com", "shpat_token",
+            check="missing_title", page_url="https://shop.myshopify.com/pages/nowhere",
+            after="New title")
+        assert not ok and "couldn't find" in message
+
+
+def test_shopify_surfaces_a_graphql_user_error_rather_than_claiming_success():
+    with fake_shopify() as sp:
+        sp.pages_by_handle["guide"] = {"id": "gid://shopify/Page/7", "title": "Guide", "body": "<p>x</p>"}
+        sp.user_errors_on_update = [{"field": ["page", "title"], "message": "Title can't be blank"}]
+        ok, message, applied = shopify.apply_change(
+            "shop.myshopify.com", "shpat_token",
+            check="missing_title", page_url="https://shop.myshopify.com/pages/guide",
+            after="A real drafted title")
+        assert not ok and applied is None
+        assert "gid://shopify/Page/7" not in sp.updates, \
+            "a rejected update must not be recorded as if it landed"
+
+
+def test_shopify_surfaces_a_top_level_graphql_error_such_as_a_bad_token():
+    with fake_shopify() as sp:
+        sp.reject_auth = True
+        ok, message, applied = shopify.apply_change(
+            "shop.myshopify.com", "bad-token",
+            check="missing_title", page_url="https://shop.myshopify.com/pages/guide", after="New")
+        assert not ok and applied is None
+        assert "rejected" in message.lower() or "invalid" in message.lower(), message
 
 
 # --- Search Console's pure response-shaping and site-matching ------------

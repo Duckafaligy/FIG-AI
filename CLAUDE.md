@@ -583,8 +583,7 @@ placeholders** — only email/password goes through Supabase for now.
    running backend against that same real site. Every other platform
    (Shopify, Webflow, ...) still refuses unconditionally, same as before.
 
-   **Shopify OAuth connect step — done (2026-09-23); the write adapter is
-   deliberately still absent.** `app/oauth.py`'s `/oauth/shopify/start` and
+   **Shopify OAuth connect step — done (2026-09-23).** `app/oauth.py`'s `/oauth/shopify/start` and
    `/oauth/shopify/callback` follow the file's own three-step OAuth shape,
    with the two things Shopify's flow needs that Google's doesn't: the
    authorize URL lives on the merchant's own store
@@ -635,8 +634,70 @@ placeholders** — only email/password goes through Supabase for now.
    disposable account, `/api/projects`, then `/oauth/shopify/start`), not
    assumed from `/health` alone — worth remembering for the next platform
    too: a "some keys are set" boolean is not the same claim as "the actual
-   request is correctly formed." **Re-check before trusting a live
-   connection attempt** — this was flagged as unresolved at the point this
+   request is correctly formed." **Re-checked and confirmed fixed
+   (2026-09-22)** — a disposable account through the live proxy now gets
+   back a real, well-formed authorize redirect at
+   `https://{shop}.myshopify.com/admin/oauth/authorize` with the production
+   `redirect_uri`.
+
+   **Shopify write adapter — built and fake-network tested (2026-09-22),
+   not yet verified against a real connected store.** `app/shopify.py`,
+   same scope as WordPress's adapter on purpose (titles + the two heading-
+   structure fixes only, everything else refuses honestly) — but a
+   different shape underneath, because **Shopify's REST Admin API is
+   deprecated** (all of it, since October 2024) and new custom apps are
+   expected onto the **GraphQL Admin API** instead. This is GraphQL from
+   the start, not a REST port: one endpoint
+   (`https://{shop}/admin/api/2026-07/graphql.json`), `pageUpdate`/
+   `articleUpdate` mutations, `Page.body`/`Article.body` as the content
+   field (not `bodyHtml` — checked against shopify.dev's live docs, not
+   assumed). Content is found by handle (Shopify's GraphQL API has no
+   "look up by front-end URL" field either, same gap WordPress's REST API
+   has) — checks Pages first, then Articles. Deliberately refuses SEO
+   title/description even though Shopify likely supports it via
+   `global.title_tag`/`global.description_tag` metafields: that shape
+   hasn't been verified against a real store, so it stays a refusal rather
+   than a guess, same bar as everything else in this file.
+
+   `app/publishing.py:publish()` was refactored from a single
+   `if integ.platform != wordpress.PLATFORM` check to a small `_ADAPTERS`
+   dispatch table (`platform -> callable`), specifically so adding Shopify
+   here was a one-line addition rather than a growing if/elif chain — the
+   next platform (Wix or Webflow's write adapter) is the same one line.
+   `app/html_headings.py` is new too: the heading-promote/demote transforms
+   were WordPress-only until Shopify needed the exact same fix for the
+   exact same two findings against a completely different API shape —
+   pulled out once two callers needed it, not speculatively.
+
+   Covered by 8 fake-network tests in `test_backend.py` (mirroring
+   WordPress's adapter tests, including one proving the fake actually falls
+   through from Pages to Articles) and 6 more in the new `test_publishing.py`
+   proving `publish()`'s dispatch itself — title/endpoint/credential really
+   reach the right adapter, a real adapter failure marks the Change
+   `failed` with the adapter's own message, an unwired platform never
+   touches either adapter. **Both test files found real gaps by trying to
+   break their own claims first**: a GraphQL `userErrors` test was
+   initially vacuous (`after=""` is falsy, so `apply_change` refused before
+   ever calling the network — fixed to use real drafted text and confirmed
+   the test now fails when `userErrors` handling is disabled), and
+   `publish()`'s dispatch itself had **no test coverage at all** before
+   `test_publishing.py` — proven by temporarily restoring the pre-refactor
+   `publishing.py` and confirming 3 of the 6 new tests fail on it (the ones
+   naming Shopify specifically; `AttributeError: module 'app.publishing'
+   has no attribute 'shopify'` on the old code, exactly as expected).
+
+   **Still needs a real store to actually trust**: nobody has completed a
+   real install-and-approve flow on any of the four newer platforms yet
+   (Shopify, Wix, Webflow, and Shopify's write adapter specifically needs a
+   real Page or Article to run `apply_change` against — the fake network
+   proves the request/response handling is correct, not that Shopify's
+   schema still matches what shopify.dev's docs said on 2026-09-22).
+   Shopify Partners gives a free development store for exactly this
+   (Stores → Add store → Development store) — connecting FIG to one and
+   running a real fix through it is the next concrete step before this
+   adapter is verified rather than just tested. This was flagged as
+   unresolved at the point this note was last written and hasn't been
+   re-verified since.
    note was last written and hasn't been re-verified since.
 
    **Webflow OAuth connect step — coded, tested and deployed (2026-09-23).**

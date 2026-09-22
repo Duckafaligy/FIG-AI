@@ -13,9 +13,10 @@ Three rules shape it, and they are not negotiable:
 3. **Credentials live per site, never per account.** An agency holds keys for
    forty clients; one leaking must not expose the other thirty-nine.
 
-The CMS adapters are not written yet. `publish()` records the attempt and
-returns a clear "not connected" rather than pretending, so the queue and the
-approval flow can be used and reviewed before any write path exists.
+WordPress and Shopify have real adapters (app/wordpress.py, app/shopify.py).
+Every other platform's `publish()` records the attempt and returns a clear
+"not implemented yet" rather than pretending, so the queue and the approval
+flow can be used and reviewed before its write path exists.
 """
 from __future__ import annotations
 
@@ -25,11 +26,23 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import wordpress
+from app import shopify, wordpress
 from app.models import Account, Change, Finding, Integration, Site
 from app.secrets_store import SecretsNotConfigured, delete_secret, read_secret, store_secret
 
 log = logging.getLogger("fig.publishing")
+
+# platform -> (site_url_or_shop_domain, auth_args_from_creds, apply_change).
+# The first two differ per adapter (WordPress needs username+app_password,
+# Shopify needs just an access token) so this stays a small per-platform
+# lambda rather than a forced-uniform signature -- adding a platform here is
+# the only change publish() itself needs once its adapter module exists.
+_ADAPTERS = {
+    wordpress.PLATFORM: lambda integ, creds, **kw: wordpress.apply_change(
+        integ.endpoint or "", creds.get("username", ""), creds.get("application_password", ""), **kw),
+    shopify.PLATFORM: lambda integ, creds, **kw: shopify.apply_change(
+        integ.endpoint or "", creds.get("access_token", ""), **kw),
+}
 
 
 def _now() -> datetime:
@@ -162,10 +175,10 @@ def reject(session: Session, account: Account, change_id: str) -> Change:
 def publish(session: Session, account: Account, change_id: str) -> dict:
     """Write one approved change to the live site.
 
-    Only the WordPress adapter exists so far (app/wordpress.py). Every other
-    platform, and every WordPress finding its REST API doesn't actually
-    expose, records the attempt against the change and says exactly what is
-    missing rather than silently succeeding.
+    Dispatches by platform via `_ADAPTERS`. Every platform not in there --
+    and every finding its adapter puts in its own NOT_EXPOSED/refuse set --
+    records the attempt against the change and says exactly what is missing
+    rather than silently succeeding.
     """
     change = _owned(session, account, change_id)
     if change.state != "approved":
@@ -180,7 +193,8 @@ def publish(session: Session, account: Account, change_id: str) -> dict:
         session.commit()
         return {"ok": False, "reason": change.error}
 
-    if integ.platform != wordpress.PLATFORM:
+    adapter = _ADAPTERS.get(integ.platform)
+    if adapter is None:
         change.state = "failed"
         change.error = (f"The {integ.platform} adapter is not implemented yet. The change, "
                         "its approval and its before-state are all recorded, so it will "
@@ -194,13 +208,12 @@ def publish(session: Session, account: Account, change_id: str) -> dict:
         creds = read_secret(session, integ.credential_ref)
     except (SecretsNotConfigured, KeyError) as exc:
         change.state = "failed"
-        change.error = f"couldn't read the stored WordPress credential: {exc}"
+        change.error = f"couldn't read the stored {integ.platform} credential: {exc}"
         session.commit()
         return {"ok": False, "reason": change.error}
 
-    ok, message, applied = wordpress.apply_change(
-        integ.endpoint or "", creds.get("username", ""), creds.get("application_password", ""),
-        check=check, page_url=change.page_url or "", after=change.after)
+    ok, message, applied = adapter(integ, creds, check=check,
+                                   page_url=change.page_url or "", after=change.after)
 
     if ok:
         change.state = "published"

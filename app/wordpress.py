@@ -30,6 +30,8 @@ from urllib.parse import urlparse
 
 import httpx
 
+from app.html_headings import demote_extra_h1s, promote_first_heading
+
 PLATFORM = "wordpress"
 TIMEOUT = 15.0
 
@@ -101,40 +103,6 @@ def _find_post(base: str, headers: dict, page_url: str) -> tuple[str, dict] | tu
     return None, None
 
 
-def _promote_first_heading(html: str, from_level: int, to_level: int) -> tuple[str, bool]:
-    """Structural only: retags the first <hN> found, keeping its attributes
-    and inner content exactly as they are. No new text is written."""
-    pattern = re.compile(rf"<h{from_level}(\s[^>]*)?>", re.IGNORECASE)
-    close_pattern = re.compile(rf"</h{from_level}>", re.IGNORECASE)
-    match = pattern.search(html)
-    if not match:
-        return html, False
-    opened = html[:match.start()] + f"<h{to_level}{match.group(1) or ''}>" + html[match.end():]
-    close_match = close_pattern.search(opened, match.start())
-    if not close_match:
-        return html, False
-    fixed = opened[:close_match.start()] + f"</h{to_level}>" + opened[close_match.end():]
-    return fixed, True
-
-
-def _demote_extra_h1s(html: str) -> tuple[str, bool]:
-    """Keeps the first <h1> as-is, demotes every subsequent one to <h2>."""
-    parts = re.split(r"(<h1(?:\s[^>]*)?>.*?</h1>)", html, flags=re.IGNORECASE | re.DOTALL)
-    seen_first = False
-    changed = False
-    out = []
-    for part in parts:
-        if re.match(r"<h1", part, re.IGNORECASE):
-            if seen_first:
-                part = re.sub(r"^<h1(\s[^>]*)?>", lambda m: f"<h2{m.group(1) or ''}>", part, flags=re.IGNORECASE)
-                part = re.sub(r"</h1>$", "</h2>", part, flags=re.IGNORECASE)
-                changed = True
-            else:
-                seen_first = True
-        out.append(part)
-    return "".join(out), changed
-
-
 def apply_change(site_url: str, username: str, app_password: str, *,
                  check: str, page_url: str, after: str | None) -> tuple[bool, str, str | None]:
     """Writes one change to the live WordPress site. Returns
@@ -172,9 +140,9 @@ def apply_change(site_url: str, username: str, app_password: str, *,
     if check in STRUCTURAL_CHECKS:
         content = (post.get("content") or {}).get("raw") or (post.get("content") or {}).get("rendered") or ""
         if check == "missing_h1":
-            fixed, changed = _promote_first_heading(content, from_level=2, to_level=1)
+            fixed, changed = promote_first_heading(content, from_level=2, to_level=1)
         else:  # multiple_h1
-            fixed, changed = _demote_extra_h1s(content)
+            fixed, changed = demote_extra_h1s(content)
         if not changed:
             return False, "no heading matching this finding was found in the current content "\
                           "(it may have already been fixed on the site)", None
