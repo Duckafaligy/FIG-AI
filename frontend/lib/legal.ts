@@ -21,7 +21,7 @@ export const OPERATOR = {
   /** A monitored address for privacy, refund and removal requests. */
   email: "Brendanhllau@gmail.com",
   /** A postal address (required by CASL and by GDPR Art. 13 for the controller). */
-  address: "Markham, Ontario",
+  address: "Markham, Ontario, Canada",
   /** Whose law governs the Terms, e.g. "Ontario, Canada". */
   jurisdiction: "Ontario, Canada",
 };
