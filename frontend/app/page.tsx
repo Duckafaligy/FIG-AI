@@ -26,7 +26,7 @@ import { PlatformLogos } from "@/components/platform-logos";
 import { ProductLaptop } from "@/components/product-laptop";
 import { PublicNav } from "@/components/public-nav";
 import { TRIAL_DAYS } from "@/lib/legal";
-import { TIERS, dollars, tierRange } from "@/lib/pricing";
+import { PlanCatalogue } from "@/components/plan-catalogue";
 
 export const metadata: Metadata = {
   title: "FIG — see what makes your site read as generic",
@@ -86,7 +86,7 @@ const audiences = [
   },
   {
     title: "Agencies",
-    copy: "Keep a whole client list in one workspace, billed per site.",
+    copy: "Keep your website projects organized in one workspace.",
     image: "https://images.unsplash.com/photo-1758873268745-dd2cf0d677b5?auto=format&fit=crop&w=900&q=88",
     alt: "Colleagues collaborating around a computer in a shared workspace",
     position: "center 45%"
@@ -122,7 +122,7 @@ const frequentlyAsked = [
   },
   {
     question: "What does it cost?",
-    answer: `From $20 down to $5 per site per month, depending on how many sites you have. There is a ${TRIAL_DAYS}-day free trial with no card, and you can cancel any time.`
+    answer: "Business plans are Standard at $49/month and Premium at $99/month, with Enterprise by enquiry. Education is $19/month; School Registered is by enquiry. Prices are in USD. See Pricing to contact us about a plan."
   },
 ];
 
@@ -181,7 +181,7 @@ export default function HomePage() {
               <p>Paste a URL. FIG checks 19 patterns across design, structure, search and answer-readiness, then shows where each one is, why it matters and how to fix it.</p>
               <div id="scan"><FreeScanForm /></div>
               <div className="home-hero-actions">
-                <Link className="button" href="/projects">Try the demo</Link>
+                <Link className="button" href="/projects">Open workspace</Link>
                 <Link className="secondary-button" href="/signup">Start free</Link>
               </div>
               <div className="home-hero-proof">
@@ -255,7 +255,7 @@ export default function HomePage() {
               <span className="section-kicker">The workspace</span>
               <h2>One place for every site you check</h2>
               <p>See what needs attention and where to focus next. Sites, findings, history and a content queue live together. The screens here use sample data.</p>
-              <Link href="/projects">See the demo workspace <MoveRight size={15} /></Link>
+              <Link href="/projects">Open your workspace <MoveRight size={15} /></Link>
             </div>
             <ProductPreviewCards />
           </div>
@@ -267,7 +267,7 @@ export default function HomePage() {
               <span className="eyebrow"><MessageSquareText size={13} />Answer-ready</span>
               <h2>Be found beyond Google</h2>
               <p>People increasingly get answers from a model, not a list of links. FIG checks whether yours could be quoted, next to the search basics.</p>
-              <Link className="button" href="/projects">See it in the demo</Link>
+              <Link className="button" href="/projects">Explore your workspace</Link>
             </div>
             <div className="home-visibility-card">
               <div className="home-visibility-chart-panel">
@@ -319,24 +319,10 @@ export default function HomePage() {
 
         <section className="section page-shell home-pricing-preview">
           <div className="home-pricing-heading">
-            <div><span className="section-kicker">Simple, transparent pricing</span><h2>Pay per site, pay less as you grow</h2><p>The rate for your total number of sites applies to every site. Every check is included at every size.</p></div>
+            <div><span className="section-kicker">Business & education</span><h2>Find your next step with FIG</h2><p>For business owners improving their websites, and learners discovering how to build better ones.</p></div>
             <Link href="/pricing">View full pricing <MoveRight size={15} /></Link>
           </div>
-          <div className="home-plan-grid">
-            {[0, 1, 2].map((index) => (
-              <article key={index}>
-                <h3>{tierRange(index)}</h3>
-                <p>{index === 0 ? "Where most people start." : index === 1 ? "A growing set of projects." : "For agencies and larger estates."}</p>
-                <strong>{dollars(TIERS[index][1])}<span>/site/month</span></strong>
-                <ul>
-                  <li><Check size={14} />All 19 checks</li>
-                  <li><Check size={14} />{TRIAL_DAYS}-day free trial, no card</li>
-                  <li><Check size={14} />{index === 2 ? `Down to ${dollars(TIERS[TIERS.length - 1][1])} at 1,000+ sites` : "Cancel anytime"}</li>
-                </ul>
-                <Link className="secondary-button" href={index === 2 ? "/pricing" : "/signup"}>{index === 2 ? "See all tiers" : "Start free trial"}</Link>
-              </article>
-            ))}
-          </div>
+          <PlanCatalogue />
         </section>
 
         <section className="section page-shell home-faq" id="faq">
@@ -345,8 +331,8 @@ export default function HomePage() {
         </section>
 
         <section className="page-shell home-cta">
-          <div className="home-cta-copy"><span>Ready when you are</span><h2>See how your site reads to people, crawlers and models.</h2><p>Paste a URL for a free scan, or open the demo workspace to look around first.</p></div>
-          <div className="home-cta-actions"><div><Link className="secondary-button secondary-button--light" href="/projects">Explore demo</Link><Link className="button button--light" href="/signup">Start free</Link></div><small>A free scan needs no account. The trial is {TRIAL_DAYS} days with no card.</small></div>
+          <div className="home-cta-copy"><span>Ready when you are</span><h2>Understand your website. Build with confidence.</h2><p>Run a free scan or create a workspace to keep your projects together.</p></div>
+          <div className="home-cta-actions"><div><Link className="secondary-button secondary-button--light" href="/#scan">Scan a website</Link><Link className="button button--light" href="/signup">Create account</Link></div><small>A free scan needs no account.</small></div>
         </section>
       </main>
       <Footer />

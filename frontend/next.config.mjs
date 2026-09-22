@@ -1,6 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async headers() {
+    const paths = process.env.NEXT_PUBLIC_DEMO_MODE === "1"
+      ? ["/:path*"]
+      : ["/app/:path*", "/projects", "/signin", "/signup", "/forgot-password", "/reset-password", "/report/:path*", "/library"];
+    return paths.map(source => ({ source, headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] }));
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" }

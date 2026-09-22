@@ -90,7 +90,7 @@ const sections: LegalSection[] = [
     title: "Subscriptions, fees and payment",
     body: (
       <>
-        <p>New accounts get a free trial of <strong>{TRIAL_DAYS} days</strong>. We do not take a card at sign-up, so <strong>nothing is charged unless you start a subscription yourself</strong>. Once the trial ends, we may require a paid subscription to keep using workspace features, and we will tell you before that changes anything. Pricing is <strong>per active site, per month</strong>, on volume tiers: the more sites in your workspace, the lower the price per site, and the rate for your total number of sites applies to every site. The current rates are shown on the <Link href="/pricing">pricing page</Link> and at checkout, before you pay.</p>
+        <p>New accounts get a free trial of <strong>{TRIAL_DAYS} days</strong>. We do not take a card at sign-up, so <strong>nothing is charged unless you start a subscription yourself</strong>. Once the trial ends, we may require a paid subscription to keep using workspace features, and we will tell you before that changes anything. Business and Education plans are listed on the <Link href="/pricing">pricing page</Link>. Plan inclusions and payment details are confirmed before purchase. Existing subscriptions retain their agreed billing terms unless a change is agreed with you.</p>
         <ul>
           <li><strong>Billing.</strong> Payments are handled by Stripe. Subscriptions renew automatically each month until you cancel, and are charged in advance to the payment method you provide. You authorise those charges.</li>
           <li><strong>Changing your number of sites</strong> during a billing period adjusts the amount you owe from that point, prorated, so you pay for what you use.</li>

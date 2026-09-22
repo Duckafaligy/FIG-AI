@@ -1,0 +1,32 @@
+.fig-pricing-intro { text-align:center; max-width:900px; margin:auto; }
+.fig-pricing-intro h1 { font-size:clamp(36px,5vw,64px); line-height:1.08; letter-spacing:-2px; margin:22px 0; }
+.fig-pricing-intro h1 span { color:#6446e8; }
+.fig-pricing-intro > p { max-width:600px; margin:auto; color:#69768e; font-size:17px; line-height:1.7; }
+.fig-pricing-audiences { display:flex; justify-content:center; gap:12px; margin-top:25px; }
+.fig-pricing-audiences a { border:1px solid #ddd9ee; border-radius:24px; padding:10px 20px; color:#6146ce; }
+.fig-plan-group { margin:30px 0 48px; scroll-margin-top:100px; }
+.fig-plan-group-heading h2 { font-size:26px; margin:10px 0; letter-spacing:-.7px; }
+.fig-plan-group-heading p { color:#69758b; margin:0 0 22px; }
+.fig-plan-cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; }
+.fig-plan-cards--education { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.fig-plan-card { border:1px solid #e0e5ef; border-radius:16px; padding:30px; display:flex; flex-direction:column; background:white; min-width:0; }
+.fig-plan-card--accent { border-color:#8064ef; background:linear-gradient(160deg,#f6f3ff,white 65%); box-shadow:0 10px 28px #5540990c; }
+.fig-plan-card h3 { font-size:22px; margin:0 0 12px; }
+.fig-plan-card > p { color:#69768b; font-size:14px; line-height:1.7; margin:0; min-height:48px; }
+.fig-plan-price { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin:28px 0; }
+.fig-plan-price strong { font-size:36px; letter-spacing:-1px; }
+.fig-plan-price span { color:#788398; font-size:12px; }
+.fig-plan-card > a { margin-top:auto; text-align:center; }
+.fig-launch-footer { margin-top:70px; border-top:1px solid #e4e7f0; background:#f8f9fc; padding:56px 0 24px; }
+.fig-footer-main { display:grid; grid-template-columns:minmax(250px,1fr) 1.5fr; gap:80px; }
+.fig-footer-brand h2 { font-size:22px; line-height:1.4; letter-spacing:-.5px; margin:20px 0 10px; }
+.fig-footer-brand p { color:#6a768d; max-width:340px; font-size:14px; line-height:1.8; }
+.fig-footer-brand > a:last-child { display:inline-flex; gap:8px; align-items:center; color:#6546d5; font-size:13px; margin-top:10px; }
+.fig-footer-links { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; }
+.fig-footer-links h3 { font-size:13px; margin:5px 0 20px; }
+.fig-footer-links a { display:block; color:#6b768e; font-size:13px; padding:7px 0; line-height:1.6; }
+.fig-launch-footer a:hover { color:#6241d7; }
+.fig-footer-bottom { display:flex; justify-content:space-between; flex-wrap:wrap; gap:20px; padding-top:24px; margin-top:40px; border-top:1px solid #e4e7f0; font-size:11px; color:#7a8497; }
+.fig-footer-bottom > div { display:flex; gap:22px; }
+@media(max-width:800px) { .fig-plan-cards { grid-template-columns:1fr; } .fig-footer-main { grid-template-columns:1fr; gap:36px; } .fig-plan-card { padding:24px; } }
+@media(max-width:420px) { .fig-footer-links { grid-template-columns:1fr 1fr; } .fig-pricing-audiences { flex-wrap:wrap; } .fig-footer-bottom { flex-direction:column; } }
