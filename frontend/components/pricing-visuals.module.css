@@ -106,4 +106,35 @@
 @media(hover:hover) { .photo:hover img { transform:scale(1.035); } }
 @media(max-width:850px) { .overview { grid-template-columns:1fr; } .photo strong { font-size:22px; } }
 @media(max-width:700px) { .photos { grid-template-columns:1fr; gap:16px; } .photo { height:245px; } .chart { padding:24px 18px; } .barRow { grid-template-columns:68px 1fr 32px; gap:9px; } .chartHeading { align-items:flex-start; } }
-@media(prefers-reduced-motion:reduce) { .photo img { transition:none; } .photo:hover img { transform:none; } }
+.comparisonHeading { text-align:left; display:grid; grid-template-columns:1.2fr 1fr; align-items:end; gap:14px 50px; margin-bottom:38px; }
+.comparisonHeading > span { grid-column:1 / -1; }
+.comparisonHeading h2 { margin:0; font-size:clamp(32px,4vw,48px); line-height:1.08; letter-spacing:-1.8px; }
+.comparisonHeading p { margin:0 0 3px; max-width:440px; line-height:1.8; color:#647189; }
+.chart { box-shadow:0 8px 30px #23314a05; background:linear-gradient(160deg,#fff 65%,#f8f7fc); }
+.chartHeading h3 { font-size:21px; letter-spacing:-.6px; }
+.chartHeading > span { border:1px solid #e8eaf0; border-radius:20px; padding:6px 9px; background:white; }
+.barRow > span { font-weight:600; color:#34445e; }
+.barRow > span small { display:block; color:#7d889b; font-size:10px; font-weight:400; margin-top:5px; }
+.track { height:32px; background-color:#f3f4f8; border-radius:6px; }
+.bar { background:linear-gradient(90deg,#8e74e3,#6341c8); box-shadow:inset 0 1px 0 #ffffff40; }
+.standardBar { background:linear-gradient(90deg,#9cace1,#657ac1); }
+.green { background:linear-gradient(90deg,#83bd9f,#3d8765); }
+.budgetValue { font-variant-numeric:tabular-nums; animation:budgetIn .22s ease-out; }
+.budgetSummary { margin-top:8px; padding:20px 0; }
+.budgetSummary strong { font-size:14px; color:#34445e; }
+.captionNote { display:block; margin-top:6px; font-size:12px; color:#738098; font-weight:400; }
+.planTable caption { padding:24px; font-size:20px; letter-spacing:-.4px; }
+.planTable thead th { padding:25px 18px; font-size:17px; letter-spacing:-.3px; vertical-align:top; }
+.planTable thead small { margin-bottom:10px; font-size:10px; letter-spacing:.7px; text-transform:uppercase; color:#647189; }
+.planTable thead th:first-child small { text-transform:none; letter-spacing:0; line-height:1.6; margin-top:10px; }
+.planTable thead .businessColumn { background:#f5f3fb; border-top:3px solid #a58bd9; }
+.planTable thead .educationColumn { background:#eff7f2; border-top:3px solid #82b398; }
+.table .planHeaderLink { display:flex; justify-content:space-between; padding:8px 10px; margin-top:18px; border:1px solid #dcdde8; border-radius:6px; background:#ffffffb3; font-size:11px; letter-spacing:0; color:#394a65; }
+.planTable td,.planTable tbody th { padding:22px 18px; font-size:12px; line-height:1.8; }
+.planTable tbody th[scope=row] { color:#3f4f67; font-weight:600; }
+.planTable .tablePrice { font-size:22px; letter-spacing:-.6px; color:#172942; }
+.planTable .groupRow th { padding:13px 18px; background:#edf0f6; color:#485a74; }
+@keyframes budgetIn { from { opacity:.4; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+@media(hover:hover) { .planTable tbody tr:not(.groupRow):hover td { background:#fafbfe; } .planHeaderLink:hover { border-color:#9984c8; } }
+@media(max-width:700px) { .comparisonHeading { grid-template-columns:1fr; gap:18px; } .comparisonHeading > span { grid-column:auto; } .chartHeading h3 { font-size:18px; } .chartHeading > span { font-size:9px; } }
+@media(prefers-reduced-motion:reduce) { .photo img { transition:none; } .photo:hover img { transform:none; } .budgetValue { animation:none; } }

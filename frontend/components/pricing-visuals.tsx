@@ -35,14 +35,14 @@ export function PricingPhotography() {
 
 export function PricingComparison() {
   return <section className={`page-shell ${styles.comparison}`} aria-labelledby="comparison-title">
-    <div className={styles.heading}><span>THE BIG PICTURE</span><h2 id="comparison-title">Your options, side by side.</h2><p>A clear view of who each plan is for and what it costs.</p></div>
+    <div className={`${styles.heading} ${styles.comparisonHeading}`}><span>THE BIG PICTURE</span><h2 id="comparison-title">Find your fit.<br />Know your investment.</h2><p>Building a business or exploring your next idea? Compare the costs, find your starting point, and see how FIG fits the way you work.</p></div>
     <div className={styles.overview}>
       <PricingBudgetChart />
       <aside className={styles.custom}><span className={styles.customIcon}><BriefcaseBusiness size={23} /><GraduationCap size={23} /></span><span className={styles.eyebrow}>ORGANIZATIONS & SCHOOLS</span><h3>Start with your needs.<br />Build the right scope.</h3><p>Enterprise and School Registered begin with a conversation, not an automatic checkout.</p><dl className={styles.enquiryList}><div><dt>Enterprise</dt><dd>Tell us about your websites, who will use FIG, and how you review and make changes.</dd></div><div><dt>School Registered</dt><dd>Share your learning goals, expected group size, and how students would choose to share their work.</dd></div><div><dt>What we’ll clarify</dt><dd>Plan inclusions, usage allowances, access requirements, and pricing before you commit.</dd></div></dl><a href={planContact("Enterprise or School Registered")}>Discuss your requirements<ArrowUpRight size={17} /></a></aside>
     </div>
     <p className={styles.scrollHint}>Scroll sideways to compare all five plans <span aria-hidden="true">↔</span></p>
     <div className={styles.tableWrap} tabIndex={0} role="region" aria-label="Plan comparison table; scroll horizontally on smaller screens">
-      <table className={styles.table}><caption>Compare FIG Business and Education plans</caption><thead><tr><th scope="col">At a glance</th>{PLANS.map(p => <th scope="col" key={p.name}><small>{p.audience}</small>{p.name}</th>)}</tr></thead><tbody>
+      <table className={`${styles.table} ${styles.planTable}`}><caption>One view. Every option.<span className={styles.captionNote}>Compare Business and Education plans</span></caption><thead><tr><th scope="col">At a glance<small>Your plan, your starting point.</small></th>{PLANS.map(p => <th scope="col" key={p.name} className={p.audience === "Education" ? styles.educationColumn : styles.businessColumn}><small>{p.audience}</small>{p.name}<a className={styles.planHeaderLink} href={planContact(p.name)} aria-label={`Discuss ${p.name}`}>Let’s talk <ArrowUpRight size={13} /></a></th>)}</tr></thead><tbody>
         <tr><th scope="row">Monthly price</th>{PLANS.map(p => <td key={p.name} className={styles.tablePrice}>{p.price === null ? "Contact Us" : `$${p.price} USD`}</td>)}</tr>
         <tr><th scope="row">12-month budget<small className={styles.rowHint}>Monthly rate × 12; not annual billing</small></th>{PLANS.map(p => <td key={p.name}>{p.price === null ? "Quoted to your scope" : `$${(p.price * 12).toLocaleString()} USD`}</td>)}</tr>
         <tr className={styles.groupRow}><th colSpan={6}>Find your fit · suggested uses, not different feature entitlements</th></tr>
