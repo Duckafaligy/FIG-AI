@@ -618,6 +618,76 @@ def check_faq(signal: PageSignal) -> Flag | None:
     )
 
 
+# --- site-level "answers" checks: can an AI answer engine even reach this
+# site, not just whether the page gives it something worth quoting. Both
+# operate on the whole site (robots.txt, /llms.txt), not one PageSignal, so
+# they're called once per scan from app/pipeline.py rather than from
+# run_all_checks() -- see that module and app/scraper.py:crawl().
+#
+# Curated, not exhaustive, matching this file's existing reference-list
+# philosophy: the community-maintained ai-robots-txt/ai.robots.txt project
+# lists 240+ tokens, most of them long-tail scrapers nobody's heard of. This
+# list is the handful independently documented by their own company that a
+# site owner would actually recognize and want to check.
+AI_CRAWLER_TOKENS: dict[str, str] = {
+    "GPTBot": "ChatGPT's training crawler (OpenAI)",
+    "ChatGPT-User": "ChatGPT's user-invoked browsing agent (OpenAI)",
+    "OAI-SearchBot": "ChatGPT's search feature crawler (OpenAI)",
+    "ClaudeBot": "Claude's crawler (Anthropic)",
+    "Claude-User": "Claude's user-invoked browsing agent (Anthropic)",
+    "PerplexityBot": "Perplexity's crawler",
+    "Google-Extended": "Google's AI training / Gemini opt-out token",
+    "Applebot-Extended": "Apple Intelligence's crawler",
+    "Bytespider": "ByteDance/TikTok's AI crawler",
+    "CCBot": "Common Crawl -- feeds the training data of many other models",
+    "Meta-ExternalAgent": "Meta AI's crawler",
+    "Amazonbot": "Amazon's AI crawler",
+}
+
+
+def check_ai_crawler_access(blocked: list[str]) -> Flag | None:
+    """`blocked` is the list of AI_CRAWLER_TOKENS names app/scraper.py:crawl()
+    found disallowed from `/` by this site's actual robots.txt -- the
+    parsing itself reuses app/robots.py's RFC 9309 reader, not a second
+    implementation. A site blocking one of these cannot be cited by that
+    crawler's answer engine no matter how good its content is; this can't
+    be inferred from a page, so it isn't a per-page Flag."""
+    if not blocked:
+        return None
+    return Flag(
+        check="ai_crawlers_blocked", layer="answers", severity="high",
+        summary=f"robots.txt blocks {len(blocked)} AI crawler{'s' if len(blocked) != 1 else ''} "
+                f"from this site: {', '.join(sorted(blocked))}",
+        why="This is a probabilistic, not certain, signal: a blocked crawler's answer engine "
+            "generally can't quote or cite pages it was never allowed to read. Some sites "
+            "block these on purpose (a licensing or training-data decision, not an accident) "
+            "-- if that's true here, this is working as intended.",
+        fix="If being findable by AI answer engines matters for this site, remove or narrow "
+            "the Disallow rule for the crawlers listed above in robots.txt.",
+        evidence=sorted(blocked),
+    )
+
+
+def check_llms_txt(present: bool) -> Flag | None:
+    """`present` comes from app/scraper.py:crawl() checking for a real
+    /llms.txt (llmstxt.org's spec: a Markdown file that tells an AI agent
+    what on the site is worth fetching, the llms.txt equivalent of a
+    sitemap). Unlike robots.txt this is opt-in signage, not access control
+    -- its absence is a missed opportunity, not a block, so this stays
+    lower severity than check_ai_crawler_access."""
+    if present:
+        return None
+    return Flag(
+        check="missing_llms_txt", layer="answers", severity="low",
+        summary="No /llms.txt found",
+        why="llms.txt is a routing guide for AI agents, not an access-control file -- it "
+            "points a model at what's actually worth reading on the site instead of leaving "
+            "it to guess from a sitemap built for search engines.",
+        fix="Add a Markdown file at /llms.txt: an H1 with the site's name, a one-line "
+            "summary, and links to the pages most worth an agent's attention.",
+    )
+
+
 SPECIFICITY_MIN_NUMBERS = 4
 
 
@@ -774,6 +844,13 @@ CHECKLIST: list[dict] = [
     {"ids": ["low_specificity"], "layer": "answers", "title": "Low specificity",
      "flags": "200+ words of copy with fewer than 4 concrete numbers, and under 1 "
               "number per 100 words."},
+    {"ids": ["ai_crawlers_blocked"], "layer": "answers", "title": "AI crawlers blocked",
+     "flags": "Site-level, once per scan, not per page: robots.txt disallows one or more "
+              "of a curated list of named AI-answer-engine crawlers (GPTBot, ClaudeBot, "
+              "PerplexityBot, Google-Extended, ...) from the whole site."},
+    {"ids": ["missing_llms_txt"], "layer": "answers", "title": "No /llms.txt",
+     "flags": "Site-level, once per scan: no llms.txt found at the site root (llmstxt.org's "
+              "spec -- a routing guide for AI agents, not an access-control file)."},
 ]
 
 

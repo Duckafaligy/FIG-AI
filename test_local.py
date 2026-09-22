@@ -8,7 +8,8 @@ those. The structure/search/answers checks are hygiene, and a bare fixture
 legitimately fails them — so those are asserted separately rather than
 expecting silence across the board.
 """
-from app.rules.checks import CHECKLIST, checklist, run_all_checks
+from app.rules.checks import (AI_CRAWLER_TOKENS, CHECKLIST, check_ai_crawler_access, check_llms_txt,
+                              checklist, run_all_checks)
 from app.rules.sections import roles_for
 from app.scraper import parse_html, _strip_suspense_fallbacks
 
@@ -535,6 +536,35 @@ def test_noindex_pages_skip_the_findability_checks_but_not_the_rest():
     print(f"[PASS] noindex page: {sorted(exempted)}  |  same page indexed: {sorted(baseline)}")
 
 
+def test_ai_crawler_access_and_llms_txt_are_pure_and_quiet_by_default():
+    """Both are site-level, not PageSignal-driven (see checks.py), so they
+    can't be exercised through run_all_checks() the way every other check
+    here is -- called directly instead."""
+    assert check_ai_crawler_access([]) is None
+    assert check_llms_txt(True) is None
+
+    blocked = check_ai_crawler_access(["GPTBot", "ClaudeBot"])
+    assert blocked is not None
+    assert blocked.check == "ai_crawlers_blocked" and blocked.layer == "answers"
+    assert blocked.severity == "high"
+    assert set(blocked.evidence) == {"GPTBot", "ClaudeBot"}
+    assert blocked.page_url == "", "site-level, no single page to blame"
+
+    missing = check_llms_txt(False)
+    assert missing is not None
+    assert missing.check == "missing_llms_txt" and missing.layer == "answers"
+    assert missing.severity == "low", "opt-in signage, not access control -- lower stakes than a real block"
+
+    # Every token this can ever report is one this file's own curated list
+    # names -- a regression here would mean checks.py and its own flag
+    # disagree about what "blocked" can even mean.
+    for name in AI_CRAWLER_TOKENS:
+        flag = check_ai_crawler_access([name])
+        assert flag.evidence == [name]
+    print(f"[PASS] ai_crawlers_blocked and missing_llms_txt: quiet when clean, "
+          f"real Flags naming {len(AI_CRAWLER_TOKENS)} known crawlers when not")
+
+
 def test_checklist_ids_are_unique_and_cover_observed_flags():
     """CHECKLIST is hand-maintained (see rules/checks.py), so the one thing
     worth guarding automatically is that it does not drift into duplicate or
@@ -573,5 +603,6 @@ if __name__ == "__main__":
     test_faq_check_ignores_short_pages_but_still_catches_long_thin_content()
     test_js_dependent_pages_are_flagged_without_running_anything()
     test_noindex_pages_skip_the_findability_checks_but_not_the_rest()
+    test_ai_crawler_access_and_llms_txt_are_pure_and_quiet_by_default()
     test_checklist_ids_are_unique_and_cover_observed_flags()
     print("\nAll local rule-engine tests passed.")

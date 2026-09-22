@@ -36,7 +36,7 @@ export default function SignInPage() {
               {benefits.map(({ icon: Icon, title, copy }) => <article key={title}><span><Icon size={25} /></span><div><h3>{title}</h3><p>{copy}</p></div></article>)}
             </div>
             <div className="auth-laptop-frame">
-              <div className="auth-stat auth-stat--preview"><BarChart3 size={20} /><div><strong>19 checks</strong><span>across craft, structure, search and answers</span></div></div>
+              <div className="auth-stat auth-stat--preview"><BarChart3 size={20} /><div><strong>21 checks</strong><span>across craft, structure, search and answers</span></div></div>
               <span className="auth-scribble-note">A fix for every<br />finding <ArrowDownRight size={30} /></span>
               <div className="auth-laptop"><ProductLaptop compact variant="library" /></div>
             </div>

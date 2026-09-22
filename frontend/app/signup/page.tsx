@@ -9,7 +9,7 @@ import { ProductLaptop } from "@/components/product-laptop";
 import { TRIAL_DAYS } from "@/lib/legal";
 
 const signupBenefits = [
-  { icon: PenLine, title: "See what reads as generic", copy: "19 checks across design, structure, search and answers." },
+  { icon: PenLine, title: "See what reads as generic", copy: "21 checks across design, structure, search and answers." },
   { icon: Search, title: "Know where and why", copy: "Every finding names the page, the reason and a concrete fix." },
   { icon: BarChart3, title: "Track what changed", copy: "Re-scan after a fix and compare it with your history." },
   { icon: Share2, title: "Share when you choose", copy: "A public report link stays off until you turn it on." },

@@ -301,6 +301,41 @@ def test_a_whole_crawl_reads_what_it_may_and_reports_what_it_skipped():
     assert net.requested.count("https://shop.testsite.com/") == 1, "homepage fetched twice"
 
 
+def test_crawl_reports_llms_txt_presence_and_ai_crawler_blocking():
+    """The two site-level GEO signals app/pipeline.py turns into Flags
+    (ai_crawlers_blocked, missing_llms_txt) -- checked at the scraper.py
+    layer here, where the actual HTTP/robots-parsing happens; the pure
+    Flag-shaping itself is tested in test_local.py."""
+    home = b"<html><head><title>Shop</title></head><body><h1>Hi</h1></body></html>"
+    routes = {
+        "https://shop.testsite.com/robots.txt": FakeResponse(
+            200, b"User-agent: GPTBot\nDisallow: /\n\nUser-agent: *\nAllow: /\n", TEXT),
+        "https://shop.testsite.com/": FakeResponse(200, home, HTML),
+        "https://shop.testsite.com/llms.txt": FakeResponse(200, b"# Shop\n\n> A real shop.\n", TEXT),
+    }
+    report = scraper.CrawlReport()
+    with fake_network(routes) as net:
+        scraper.crawl("shop.testsite.com", max_pages=5, report=report)
+        assert report.llms_txt_present is True
+        rules = scraper.robots_rules_for(report.base_url)
+    assert "https://shop.testsite.com/llms.txt" in net.requested
+    assert rules.allowed("GPTBot", "https://shop.testsite.com/") is False
+    assert rules.allowed("ClaudeBot", "https://shop.testsite.com/") is True
+
+
+def test_a_missing_llms_txt_is_absence_not_an_error():
+    home = b"<html><head><title>Shop</title></head><body><h1>Hi</h1></body></html>"
+    routes = {
+        "https://shop.testsite.com/robots.txt": FakeResponse(404, b"", TEXT),
+        "https://shop.testsite.com/": FakeResponse(200, home, HTML),
+        # No /llms.txt route at all -> FakeNetwork's default 404.
+    }
+    report = scraper.CrawlReport()
+    with fake_network(routes):
+        scraper.crawl("shop.testsite.com", max_pages=5, report=report)
+    assert report.llms_txt_present is False
+
+
 def test_sitemaps_parse_with_no_optional_parser_including_indexes_and_gzip():
     index = (b'<?xml version="1.0" encoding="UTF-8"?>'
              b'<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'

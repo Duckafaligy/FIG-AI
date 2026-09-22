@@ -104,6 +104,25 @@ no model in that loop at all. That still means adding Playwright, which
 CLAUDE.md's tech stack section marks as not-yet-needed, so it's not a small
 addition either.
 
+**Same call, made again on 2026-09-22: no real-AI-engine GEO/citation
+tracking, at least not yet.** The GEO dashboard panel's KPIs (citation rate,
+inclusion, per-platform "mentions" charts) look like they should come from
+actually asking ChatGPT/Perplexity/Claude/Google AI real questions about a
+site's business and checking whether it gets cited — that's the literal,
+correct meaning of "AI visibility" the panel's own copy implies. Not built:
+(1) it's a recurring, per-query, multi-provider API cost with no natural
+cap the way `ai_explain`'s one small batched call per scan has — closer in
+shape to `content.py:draft()` than to anything else already deterministic
+here, and (2) the result is inherently probabilistic and would need its own
+honest framing (a probability, not a verdict — same ONE-rule language
+discipline as every finding), which is a real design task on its own, not
+a detail to bolt on after the API calls exist. What *is* built instead,
+$0 and deterministic: `app/rules/checks.py:check_ai_crawler_access` /
+`check_llms_txt` (robots.txt AI-crawler blocking, llms.txt presence — see
+that module's own bullet below). If the real query-and-check-citations
+feature is ever built, it needs its own cost cap and its own file, same
+rule `content.py:draft()`'s bullet states for that feature.
+
 The "known tells" reference lists (`KNOWN_DEFAULT_COLORS`,
 `GENERIC_COPY_PHRASES`, `OVERUSED_ICON_NAMES` in `app/rules/checks.py`) are
 the actual differentiating IP of this product. They should be expanded over
@@ -217,7 +236,7 @@ again (unmounts `/api`, allows no browser origin); `/v1`, `/scan` and
   it put a phantom "Loading your page" `<h2>` on every route of FIG's own
   site; this is a React 18+ wire-format thing, not Next-specific, so it will
   show up on any site built with streaming SSR, not just ours.
-- `app/rules/checks.py` — **19** deterministic checks across four layers:
+- `app/rules/checks.py` — **21** deterministic checks across four layers:
   craft (the original six), structure, search, answers. Every `Flag` carries
   its own `why` and `fix`. **Tuned against FIG's own dogfooded pages
   (2026-09-22), the first real accuracy pass since launch (see CLAUDE.md's
@@ -244,6 +263,48 @@ again (unmounts `/api`, allows no browser origin); `/v1`, `/scan` and
   checks (`missing_lang`, alt text) and structured data alone — found on
   FIG's own `/forgot-password`, but this is a real, general pattern any
   noindexed utility page on any site would trip.
+
+  **Two new site-level "answers" checks — real GEO signal, not the
+  demo-only GEO panel's kind (2026-09-22).** `GET /app/geo`'s KPIs
+  (citation rate, inclusion, per-platform mention charts) require actually
+  querying real AI answer engines per site, a genuinely different,
+  ongoing-per-query-cost feature that was deliberately NOT built today —
+  see the "Same call, made again on 2026-09-22" note earlier in this file
+  for why that's a separate decision, not something to
+  fold in quietly. What *is* real and $0 to compute: `ai_crawlers_blocked`
+  (robots.txt disallowing a curated list of named AI-answer-engine
+  crawlers — `AI_CRAWLER_TOKENS` in `checks.py`, 12 entries, each
+  independently documented by its own company, not the 240+-entry
+  community-maintained `ai-robots-txt/ai.robots.txt` list this was checked
+  against and deliberately not copied wholesale) and `missing_llms_txt`
+  (llmstxt.org's spec — a routing guide for AI agents, checked for
+  presence only, content not parsed). Both are **site-level, not per-page**
+  — the first new check category that isn't `PageSignal -> Flag`:
+  `app/scraper.py:crawl()` computes `CrawlReport.llms_txt_present` (one
+  extra small GET per scan) and exposes the already-parsed, already-cached
+  `Robots` object via `robots_rules_for()` (no second robots.txt fetch);
+  `app/pipeline.py` calls both pure `checks.py` functions once per scan,
+  right after the per-page rules loop, and appends their Flags (`page_url`
+  empty — `explanation_payload()` already treats that as "no page
+  affected" correctly, found by reading, not guessed). Findings show up
+  wherever "answers"-layer findings already do; no scoring-layer or API
+  changes were needed since `layer_scores()` already counts per (layer,
+  check), not per page. **The homepage's public check-count claims were
+  stale the moment this shipped** (19 → 21) and were caught the same way
+  the Search Console/Shopify naming mismatches were: by building the thing
+  that made the old number wrong, not by remembering to update it. Fixed
+  in five places across two files, and a new regression test
+  (`test_pricing_sync.py`) now checks the real function count via
+  introspection against every "N checks across/in four layers" string —
+  while building it, it caught a second, unrelated stale number on the
+  same page ("3 checks" specifically for the answers layer, now 5, with
+  two new `<span>` entries added so the visual list of named sources
+  matches). **Still open, a separate decision:** the GEO page's own KPI
+  panel doesn't show either new signal yet — these findings are real and
+  visible in the findings list today, but redesigning `/app/geo`'s static
+  layout (one of the five `LivePageKey` pages, source-of-truth structure in
+  `frontend/lib/dashboard-pages.ts`) to feature them is its own, smaller
+  follow-on task, not done in the same pass as the backend work.
 - `app/rules/sections.py` — section role classification and the order check.
   This is the one the product leads with: it reports things like pricing
   sitting above the section that justifies it.

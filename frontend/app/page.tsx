@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FreeScanForm } from "@/components/free-scan-form";
 import {
   BarChart3,
+  Bot,
   Braces,
   Check,
   Eye,
@@ -16,6 +17,7 @@ import {
   PenLine,
   Quote,
   Scale,
+  ScrollText,
   Search,
   Upload,
 } from "lucide-react";
@@ -36,7 +38,7 @@ export const metadata: Metadata = {
 
 /**
  * Everything on this page describes something FIG does today, and the numbers
- * are ones that can be checked: 19 checks in four layers (app/rules/checks.py),
+ * are ones that can be checked: 21 checks in four layers (app/rules/checks.py),
  * a free scan of up to 6 pages with no account, prices from lib/pricing.ts
  * (held equal to the backend by test_pricing_sync.py). The old outcome stats and
  * customer quotes were invented, so they are gone rather than relabelled.
@@ -106,7 +108,7 @@ const frequentlyAsked = [
   },
   {
     question: "What does FIG actually check?",
-    answer: "19 checks in four layers: craft (how it reads), structure (what sits where), search (what a crawler reaches) and answers (what a model could quote). They are ordinary code with a stated rule. AI is used only to write the plain-language explanation of each finding."
+    answer: "21 checks in four layers: craft (how it reads), structure (what sits where), search (what a crawler reaches) and answers (what a model could quote). They are ordinary code with a stated rule. AI is used only to write the plain-language explanation of each finding."
   },
   {
     question: "Does FIG say my site was written by AI?",
@@ -215,7 +217,7 @@ export default function HomePage() {
         <section className="section page-shell home-features" id="features">
           <div className="section-heading centered">
             <span className="section-kicker">What FIG checks</span>
-            <h2>19 checks across four layers</h2>
+            <h2>21 checks across four layers</h2>
             <p>Every check is ordinary code with a stated rule, so you can see exactly what triggers it. AI only writes the plain-language explanation.</p>
           </div>
           <div className="home-feature-grid">
@@ -272,14 +274,16 @@ export default function HomePage() {
             <div className="home-visibility-card">
               <div className="home-visibility-chart-panel">
                 <div className="home-visibility-heading">
-                  <div><strong>The answers layer</strong><small>3 checks · what a model can quote</small></div>
+                  <div><strong>The answers layer</strong><small>5 checks · what a model can quote and reach</small></div>
                 </div>
-                <p className="home-answers-copy">A page is easier to quote when it answers a question directly, says something specific, and tells machines what it is.</p>
+                <p className="home-answers-copy">A page is easier to quote when it answers a question directly, says something specific, and tells machines what it is -- and none of that matters if an AI crawler is blocked from reading it at all.</p>
               </div>
               <div className="home-visibility-sources">
                 <span><Braces size={15} /><b>Structured data</b><strong>JSON-LD</strong></span>
                 <span><MessageSquareText size={15} /><b>Question and answer block</b><strong>Q&amp;A</strong></span>
                 <span><Search size={15} /><b>Specific, checkable claims</b><strong>Detail</strong></span>
+                <span><Bot size={15} /><b>AI crawler access</b><strong>robots.txt</strong></span>
+                <span><ScrollText size={15} /><b>Agent routing file</b><strong>llms.txt</strong></span>
               </div>
             </div>
           </div>

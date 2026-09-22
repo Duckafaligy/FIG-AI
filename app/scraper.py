@@ -161,6 +161,7 @@ class CrawlReport:
     base_attempts: list[dict] = field(default_factory=list)
     resolve_ms: int = 0
     robots: dict = field(default_factory=dict)
+    llms_txt_present: bool = False
     sitemaps: list[dict] = field(default_factory=list)
     sitemap_urls: int = 0
     same_site_urls: int = 0
@@ -324,6 +325,30 @@ def _robots(url: str) -> tuple[Robots, RobotsInfo]:
 def robots_allowed(url: str) -> bool:
     rules, _info = _robots(url)
     return rules.allowed(USER_AGENT, url)
+
+
+def robots_rules_for(url: str) -> Robots:
+    """The already-parsed, already-cached Robots object for this origin --
+    app/pipeline.py uses this after crawl() to check named AI crawlers
+    (app/rules/checks.py:AI_CRAWLER_TOKENS) without a second fetch. Kept
+    here rather than importing that token list into this module: checks.py
+    already imports PageSignal from here, so the reverse import would be
+    circular."""
+    rules, _info = _robots(url)
+    return rules
+
+
+def _llms_txt_present(base: str) -> bool:
+    """A real GET, not a HEAD -- some hosts return 200 with an HTML error
+    page for any path, so a passing status alone isn't proof; this at least
+    confirms something was actually served at the exact path llmstxt.org's
+    spec defines. Absence (any non-2xx, or unreachable) just means no
+    llms.txt, not a broken site -- never raises."""
+    try:
+        res = _http_get(f"{_origin(base)}/llms.txt", robots=False, max_bytes=64 * 1024)
+    except ScrapeError:
+        return False
+    return 200 <= res.status < 300
 
 
 # --- pages --------------------------------------------------------------
@@ -505,6 +530,7 @@ def crawl(base_url: str, max_pages: int = MAX_PAGES_PER_SCAN,
 
     _parser, robots = _robots(base)
     report.robots = asdict(robots)
+    report.llms_txt_present = _llms_txt_present(base)
 
     started = time.monotonic()
     listed = sitemap_urls(base, report=report)

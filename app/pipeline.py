@@ -26,10 +26,10 @@ from sqlalchemy.orm import Session
 from app import config
 from app.config import AI_EXPLAIN_ENABLED, DOMAIN_CACHE_HOURS, MAX_PAGES_PER_SCAN
 from app.models import Finding, Page, PublicRead, Scan, Site
-from app.rules.checks import Flag, run_all_checks
+from app.rules.checks import AI_CRAWLER_TOKENS, Flag, check_ai_crawler_access, check_llms_txt, run_all_checks
 from app.rules.scoring import summarise
 from app.rules.sections import roles_for
-from app.scraper import CrawlReport, ScrapeError, crawl
+from app.scraper import CrawlReport, ScrapeError, crawl, robots_rules_for
 from app.validation import ValidationError, validate_target
 
 log = logging.getLogger("fig.pipeline")
@@ -175,6 +175,16 @@ def run_scan(session: Session, scan_id: str, max_pages: int = MAX_PAGES_PER_SCAN
             js_dependent_reason=sig.js_dependent_reason or None,
         ))
         all_flags.extend(run_all_checks(sig))
+
+    # Site-level, once per scan -- not one PageSignal to check against, so
+    # not part of run_all_checks(). robots_rules_for() reuses crawl()'s
+    # already-cached parse; no second robots.txt fetch.
+    rules = robots_rules_for(report.base_url or target.hostname)
+    blocked = [name for name in AI_CRAWLER_TOKENS if not rules.allowed(name, "/")]
+    for flag in (check_ai_crawler_access(blocked), check_llms_txt(report.llms_txt_present)):
+        if flag is not None:
+            all_flags.append(flag)
+
     trace.add("rules", "ok", started, pages=len(signals), flags=len(all_flags),
               distinct_checks=len({f.check for f in all_flags}),
               by_layer=dict(Counter(f.layer for f in all_flags)),
