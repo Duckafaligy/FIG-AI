@@ -457,13 +457,60 @@ with frontend work in flight):
   keys, integrations, and the checklist from `app/roadmap.py`).
 - `app/publishing.py` — mechanical findings become queued changes. Nothing is
   written without approval and every change keeps a before-state so it can be
-  reverted. Judgement calls stay advice. `app/wordpress.py` is the one CMS
-  adapter written so far; `publish()` still refuses out loud for every
-  other platform rather than pretending.
+  reverted. Judgement calls stay advice. `publish()` dispatches through a
+  small `_ADAPTERS` table (`platform -> callable`) to four real adapters
+  now — `app/wordpress.py`, `app/shopify.py`, `app/webflow.py`, `app/wix.py`
+  — refusing out loud, per-check, for every finding none of them can do
+  (see each module for exactly what it can and can't, and why: the four
+  have genuinely different capability shapes, not a shared subset by
+  design). `queue()`'s return dict carries the raw `Change`/`Integration`
+  ORM rows under `_change`/`_integrations` for an internal Python caller
+  (none live currently) — `app/webapp.py`'s `/changes` route strips both
+  via `_public()` before anything reaches JSON; found and fixed while
+  wiring the first real frontend caller of this endpoint (below), since
+  nothing had ever actually hit it over HTTP before that.
+
+  **The publish queue UI — built and verified end to end (2026-09-22).**
+  Until this, all four write adapters were invisible: the backend could
+  propose/approve/reject/publish/revert a `Change`, but nothing in the
+  frontend ever called any of it (`actions.proposeChanges`/
+  `actions.changeAction` existed in `lib/api.ts`, unused by any page).
+  `/app/publish` (`frontend/components/publish-queue.tsx`, added to the
+  sidebar nav) is a new bespoke client page — not one of the five
+  overlay-driven `LivePageKey` pages, same "fetches its own endpoint"
+  pattern as Settings/Projects, since a review queue with real buttons
+  doesn't fit that read-only metric/section shape. Each row shows the
+  finding, the site, the connected platform, and state-appropriate actions
+  (Approve/Reject when proposed, Publish/Reject when approved, Retry/Reject
+  when failed — "Retry" is literally another `approve` call, since
+  `publish()` only requires `state == "approved"`, not `"proposed"` — Revert
+  when published). Verified against a real local backend, not just
+  type-checked: seeded a real Account/Site/Scan/Finding/Integration
+  directly in SQLite, then drove every action a button triggers over real
+  HTTP — propose (2 changes derived), approve, reject, a **genuine publish
+  failure** (a deliberately-invalid stored credential, to prove the error
+  path surfaces `couldn't read the stored wordpress credential: ...`
+  through to where the UI's error banner would show it, not just the happy
+  path), retry, and an unrecognized action correctly 404ing. No browser/
+  screenshot tool was available this session to see the rendered page
+  directly — verified instead with a clean `next build` (catches real
+  compile errors a plain typecheck can miss) plus the full API round trip
+  above; worth an actual look in a browser before calling it fully done.
 - `app/wordpress.py` — the WordPress adapter: Application Passwords, title
   and post-content heading fixes are real, everything else (meta
   description, canonical, lang, schema, alt text) refuses out loud rather
   than guess at a plugin's private field.
+- `app/shopify.py` — GraphQL Admin API only (REST is deprecated); title and
+  Page/Article body heading fixes are real, everything else refuses.
+- `app/webflow.py` — title and, uniquely here, real meta description fixes
+  on static Pages (`seo.description` is a genuine native field); no body
+  field exists for Pages at all, so heading fixes refuse everywhere.
+- `app/wix.py` — title-only; post bodies are a `richContent` JSON tree, not
+  HTML, so heading fixes refuse. Mints its own access token per call
+  (client-credentials + the stored `instance_id`) since Wix's connect step
+  has no code-exchange step to hand back a ready-to-use one. Every write
+  will 403 today — the connected app's permissions only include Read Blog,
+  not the Manage Blog scope `UpdateDraftPost` needs (see roadmap item 3b).
 - `app/secrets_store.py` — Fernet encryption (key: `FIG_SECRET_KEY`) around
   whatever `Integration.credential_ref` points at (table: `Secret` in
   `app/models.py`). Not a real vault — one symmetric key, good enough to stop

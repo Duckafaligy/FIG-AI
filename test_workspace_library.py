@@ -159,6 +159,84 @@ class LibraryTests(unittest.TestCase):
         self.assertEqual(self.client.get("/api/content?limit=500", headers=self.headers).status_code, 422)
 
 
+class PublishQueueEndpointTests(unittest.TestCase):
+    """GET /api/changes: publishing.queue()'s return dict carries raw
+    SQLAlchemy ORM objects (a Change and a list of Integration rows) under
+    "_change"/"_integrations" for an internal Python caller -- this proved
+    to still JSON-serialize by accident (FastAPI's jsonable_encoder walks
+    an ORM object's __dict__), so it never crashed, but it dumped every
+    column of both, unfiltered, straight to the browser. Found while
+    building the first real frontend caller of this endpoint; nothing had
+    ever actually hit it before. webapp.py's /changes route now strips both
+    via _public(), applied per-row too since "_change" is one level down."""
+
+    def setUp(self):
+        self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        Base.metadata.create_all(self.engine)
+        with Session(self.engine) as db:
+            db.add(Account(id="a", name="A", slug="a"))
+            db.add(Site(id="s", account_id="a", hostname="a.example"))
+            db.commit()
+            from app.models import Change, Finding, Integration, Scan
+            db.add(Scan(id="scan-1", site_id="s", status="done"))
+            db.commit()
+            finding = Finding(scan_id="scan-1", check="missing_title", summary="x")
+            db.add(finding)
+            db.commit()
+            db.add(Change(site_id="s", finding_id=finding.id, page_url="https://a.example/p",
+                          kind="meta", title="missing_title", state="proposed"))
+            db.add(Integration(site_id="s", platform="wordpress", endpoint="https://a.example",
+                               connected_at=datetime.now(timezone.utc)))
+            db.commit()
+        app = FastAPI()
+        app.include_router(router)
+        def session():
+            with Session(self.engine) as db:
+                yield db
+        app.dependency_overrides[get_session] = session
+        self.auth = patch("app.webapp.current_account",
+                          side_effect=lambda request, db: db.get(Account, request.headers.get("x-test-account"))
+                          if request.headers.get("x-test-account") else None)
+        self.auth.start()
+        self.client = TestClient(app)
+        self.headers = {"x-test-account": "a"}
+
+    def tearDown(self):
+        self.client.close()
+        self.auth.stop()
+        self.engine.dispose()
+
+    def test_the_response_carries_no_internal_orm_keys(self):
+        r = self.client.get("/api/changes", headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        # The pre-fix bug: a top-level "integrations" key (no underscore)
+        # held every column of every raw Integration row; a per-row
+        # "change" key (also no underscore) held the raw Change row too --
+        # both survived _public() because that helper only strips keys that
+        # already start with "_". Check the exact key set, not just for
+        # the new "_"-prefixed names, so this fails the same way the old
+        # unprefixed leak would have.
+        self.assertEqual(set(body.keys()), {"rows", "counts", "connected", "sites"})
+        self.assertEqual(len(body["rows"]), 1)
+        row = body["rows"][0]
+        self.assertEqual(set(row.keys()), {
+            "id", "site_id", "hostname", "client", "page", "kind", "title",
+            "detail", "state", "error", "platform", "can_publish", "at",
+        })
+        self.assertEqual(row["state"], "proposed")
+        self.assertEqual(row["platform"], "wordpress")
+        self.assertEqual(row["hostname"], "a.example")
+
+    def test_someone_elses_workspace_sees_nothing(self):
+        with Session(self.engine) as db:
+            db.add(Account(id="b", name="B", slug="b"))
+            db.commit()
+        r = self.client.get("/api/changes", headers={"x-test-account": "b"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["rows"], [])
+
+
 class TrialEnforcementTests(unittest.TestCase):
     """Scanning (adding a project, auditing one, auditing the estate) is the
     cost-incurring action -- a real crawl plus an LLM call -- so it's the one

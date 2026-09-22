@@ -502,7 +502,11 @@ def _post_json(session: Session, post) -> dict:
 def changes(request: Request, layer: str = Query(default=""),
             session: Session = Depends(get_session)):
     account = _account(request, session)
-    return publishing.queue(session, account, layer=layer or None)
+    result = publishing.queue(session, account, layer=layer or None)
+    # _public() only strips top-level keys; each row also carries its own
+    # internal-only "_change" (the raw ORM object), one level down.
+    result["rows"] = [_public(row) for row in result["rows"]]
+    return _public(result)
 
 
 @router.post("/changes/propose")

@@ -122,7 +122,7 @@ def queue(session: Session, account: Account, layer: str | None = None) -> dict:
     """The publish console: what is waiting, per site, with its integration."""
     sites = {s.id: s for s in account.sites if s.is_active}
     if not sites:
-        return {"rows": [], "counts": {}, "integrations": [], "connected": 0}
+        return {"rows": [], "counts": {}, "_integrations": [], "connected": 0}
 
     q = select(Change).where(Change.site_id.in_(list(sites)))
     if layer:
@@ -138,7 +138,12 @@ def queue(session: Session, account: Account, layer: str | None = None) -> dict:
         site = sites.get(c.site_id)
         integ = by_site.get(c.site_id)
         rows.append({
-            "change": c, "id": c.id, "site_id": c.site_id,
+            # Underscore-prefixed like app/pages.py's own internal keys --
+            # the raw ORM object, kept for a Python caller (none live today;
+            # app/dashboard.py's is dead code), stripped before this dict
+            # ever reaches JSON by webapp.py's `_public()`. Every field an
+            # API caller actually needs is already flattened below.
+            "_change": c, "id": c.id, "site_id": c.site_id,
             "hostname": site.hostname if site else "—",
             "client": site.client_name if site else None,
             "page": c.page_url, "kind": c.kind, "title": c.title,
@@ -155,7 +160,7 @@ def queue(session: Session, account: Account, layer: str | None = None) -> dict:
     return {
         "rows": rows,
         "counts": counts,
-        "integrations": integrations,
+        "_integrations": integrations,
         "connected": sum(1 for i in integrations if i.is_connected()),
         "sites": len(sites),
     }

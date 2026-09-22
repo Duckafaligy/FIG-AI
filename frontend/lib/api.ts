@@ -424,6 +424,19 @@ export type ApiSettingsPage = ApiChrome & {
   webhooks: { active: number; delivered: Nullable<number>; rate: Nullable<number> };
 };
 
+export type ApiChangeRow = {
+  id: string; site_id: string; hostname: string; client: Nullable<string>;
+  page: Nullable<string>; kind: string; title: string; detail: Nullable<string>;
+  state: "proposed" | "approved" | "published" | "failed" | "rejected" | "reverted";
+  error: Nullable<string>; platform: Nullable<string>; can_publish: boolean; at: string;
+};
+export type ApiChangesPage = {
+  rows: ApiChangeRow[];
+  counts: Record<string, number>;
+  connected: number;
+  sites: number;
+};
+
 /* ------------------------------------------------------------------ calls */
 
 export const api = {
@@ -448,6 +461,9 @@ export const api = {
   notifications: () => apiServer<ApiNotificationsPage>("/api/notifications"),
   history: () => apiServer<ApiHistoryPage>("/api/history"),
   settings: () => apiClient<ApiSettingsPage>("/api/settings"),
+  // Client-fetched like projects()/settings() -- this page is its own
+  // bespoke route, not one of the five overlay-driven LivePageKey pages.
+  changes: () => apiClient<ApiChangesPage>("/api/changes"),
 };
 
 /* ------------------------------------------------- browser-side mutations */

@@ -47,6 +47,7 @@ const nav = [
   { href: "/app", label: "Overview", icon: Home },
   { href: "/app/seo", label: "SEO", icon: Search },
   { href: "/app/geo", label: "GEO", icon: Globe2 },
+  { href: "/app/publish", label: "Publish", icon: Upload },
   { href: "/app/notifications", label: "Notifications", icon: Bell },
   { href: "/app/history", label: "History", icon: History },
   { href: "/app/settings", label: "Settings", icon: Settings }
