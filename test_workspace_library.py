@@ -44,6 +44,25 @@ class LibraryTests(unittest.TestCase):
         self.auth.stop()
         self.engine.dispose()
 
+    def test_project_rename_is_owned_and_validated(self):
+        self.assertEqual(self.client.patch('/api/projects/site-a', json={'name': 'Name'}).status_code, 401)
+        self.assertEqual(self.client.patch('/api/projects/site-b', headers=self.headers, json={'name': 'Name'}).status_code, 404)
+        for name in ('', ' ', 'x' * 81, None):
+            self.assertEqual(self.client.patch('/api/projects/site-a', headers=self.headers, json={'name': name}).status_code, 422)
+        result = self.client.patch('/api/projects/site-a', headers=self.headers, json={'name': ' New name '})
+        self.assertEqual(result.status_code, 200)
+        with Session(self.engine) as db:
+            self.assertEqual(db.get(Site, 'site-a').client_name, 'New name')
+            self.assertEqual(db.get(Site, 'site-a').hostname, 'a.example')
+
+    def test_new_owner_starts_without_demo_projects(self):
+        from app.auth import link_user
+        with Session(self.engine) as db:
+            with patch.object(config, 'OWNER_EMAIL', 'new-owner@example.com'), patch.object(config, 'DEMO_ACCOUNT_SLUG', 'a'):
+                user = link_user(db, {'id': 'new-owner', 'email': 'new-owner@example.com'})
+            self.assertNotEqual(user.account_id, 'a')
+            self.assertEqual(pages.sites_of(db, db.get(Account, user.account_id)), [])
+
     def create(self, title="My guide", account="a", site="site-a"):
         return self.client.post("/api/content", headers={"x-test-account": account}, json={"project_id": site, "title": title})
 

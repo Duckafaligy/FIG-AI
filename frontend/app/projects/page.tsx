@@ -1,6 +1,7 @@
 "use client";
 
 import { ServiceUnavailable } from "@/components/service-unavailable";
+import { ProjectActions } from "@/components/project-actions";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import Link from "next/link";
@@ -218,12 +219,13 @@ export default function ProjectsPage() {
         <section className={`projects-card-grid projects-card-grid--${view}`} aria-label="Project list">
           {live ? (
             visibleCards && visibleCards.length > 0 ? visibleCards.map((card) => (
-              <Link href={`/app?project=${encodeURIComponent(card.id)}`} key={card.id} className="project-card project-card--selected">
+              <article key={card.id} className="project-card project-card--selected">
                 <span className="project-card-check"><CheckCircle2 size={17} /></span>
-                <div className="project-card-heading"><span className="project-logo"><Zap size={20} fill="currentColor" /></span><div><strong>{card.name}</strong><small>{card.tagline}</small><em>{card.hostname}</em></div><MoreVertical size={17} /></div>
+                <div className="project-card-heading"><span className="project-logo"><Zap size={20} fill="currentColor" /></span><div><Link href={`/app?project=${encodeURIComponent(card.id)}`}><strong>{card.name}</strong></Link><small>{card.tagline}</small><em>{card.hostname}</em></div><ProjectActions id={card.id} name={card.name} onChange={loadProjects} /></div>
                 <span className="project-active"><i />{card.state}</span>
                 <div className="project-card-stats"><span><strong>{card.published}</strong><small>Published posts</small></span><span><strong>{fmt(card.impact)}</strong><small>Avg. impact score</small></span></div>
-              </Link>
+                <Link href={`/app?project=${encodeURIComponent(card.id)}`}>Open project →</Link>
+              </article>
             )) : visibleCards && visibleCards.length === 0 && q ? (
               <div className="projects-no-results"><Search size={22} /><strong>No matching projects</strong><button type="button" onClick={() => setQuery("")}>Clear search</button></div>
             ) : (

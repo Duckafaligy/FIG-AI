@@ -585,3 +585,10 @@
 }
 .dashboard-shell .settings-integrations-panel .settings-integration-brand { background: #fff; border: 1px solid #e6eaf0; color: #586780; }
 .settings-integration-brand svg { flex-shrink: 0; }
+.project-actions { position: relative; margin-left: auto; }
+.project-actions summary { display: grid; place-items: center; width: 32px; height: 32px; cursor: pointer; border-radius: 6px; border: 1px solid #e1e6f0; background: white; list-style: none; }
+.project-actions summary::-webkit-details-marker { display: none; }
+.project-actions-popover { position: absolute; right: 0; top: 38px; z-index: 20; min-width: 170px; padding: 6px; background: white; border: 1px solid #e1e6f0; border-radius: 8px; box-shadow: 0 8px 24px #17284020; }
+.project-actions-popover button { display: block; width: 100%; padding: 10px; text-align: left; background: white; border: 0; color: #33445f; cursor: pointer; }
+.project-actions-popover button:hover { background: #f3f1fa; }
+.projects-card-grid .project-card:has(.project-actions) { overflow: visible; }

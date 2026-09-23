@@ -51,7 +51,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
     pendingSession.current = null;
     setCanRetrySession(false);
     // A full navigation avoids reusing a prefetched, signed-out App Router tree.
-    window.location.replace("/app");
+    window.location.replace("/projects");
   };
   const retrySession = async () => {
     if (busy || !pendingSession.current) return;

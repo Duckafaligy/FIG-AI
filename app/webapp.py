@@ -296,6 +296,21 @@ def add_project(request: Request, payload: dict = Body(...),
     return {"id": site.id, "hostname": site.hostname, "scan_id": scan.id}
 
 
+@router.patch("/projects/{project_id}")
+def rename_project(project_id: str, request: Request, payload: dict = Body(...),
+                   session: Session = Depends(get_session)):
+    account = _account(request, session)
+    site = _project(session, account, project_id)
+    if site is None:
+        raise HTTPException(404, "no such project")
+    name = payload.get("name")
+    if not isinstance(name, str) or not name.strip() or len(name.strip()) > 80:
+        raise HTTPException(422, "Project name must contain 1–80 characters")
+    site.client_name = name.strip()
+    session.commit()
+    return {"ok": True, "id": site.id, "name": site.client_name}
+
+
 @router.delete("/projects/{project_id}")
 def remove_project(project_id: str, request: Request,
                    session: Session = Depends(get_session)):

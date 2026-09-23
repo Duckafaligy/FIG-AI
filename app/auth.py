@@ -146,9 +146,8 @@ def link_user(session: Session, supabase_user: dict,
     """Find or create our User row, and decide which Account it belongs to.
 
     A new person gets their own empty workspace, named by them at sign-up.
-    Nobody lands inside somebody else's client list -- the only exception is
-    FIG_OWNER_EMAIL, which adopts the seeded demo estate so it has an owner
-    rather than floating unattached.
+    Nobody inherits a seeded demo estate, including FIG_OWNER_EMAIL.
+    Existing account memberships are preserved.
     """
     uid = supabase_user["id"]
     email = (supabase_user.get("email") or "").strip().lower()
@@ -167,9 +166,8 @@ def link_user(session: Session, supabase_user: dict,
 
     if user.account_id is None:
         account = None
-        if config.OWNER_EMAIL and email == config.OWNER_EMAIL:
-            account = session.scalars(
-                select(Account).where(Account.slug == config.DEMO_ACCOUNT_SLUG)).first()
+        # New users always get an empty workspace, including the owner.
+        # Seeded demo estates must never be adopted implicitly at sign-up.
         if account is None:
             account = Account(
                 name=(account_name or "").strip()[:80]
