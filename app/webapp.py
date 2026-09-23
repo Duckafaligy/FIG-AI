@@ -377,18 +377,17 @@ def audit_project(project_id: str, request: Request,
     return {"ok": True, "scan_id": scan.id, "queue": queue_depth(session)}
 
 
-@router.get("/projects/{project_id}/integrations")
-def project_integrations(project_id: str, request: Request,
-                         session: Session = Depends(get_session)):
-    """This project's own connectors only -- the fix for Settings always
-    defaulting to account.sites[0] with no indication which project it was
-    even looking at. Lives on the project itself, not folded into
-    account-wide settings()."""
+@router.get("/project-settings")
+def project_settings(request: Request, project: str = Query(default=""),
+                     session: Session = Depends(get_session)):
+    """/app/settings is per-project (its connectors), the same `?project=`
+    scoping as /api/overview, /api/seo and /api/geo -- an explicit,
+    non-empty id 404s if it isn't yours; empty defaults to the account's
+    first site, same as those three, and a zero-site account gets an empty,
+    non-error shape rather than a 404."""
     account = _account(request, session)
-    site = _project(session, account, project_id)
-    if site is None:
-        raise HTTPException(404, "no such project")
-    return _public(pages.project_integrations(session, account, site))
+    return _public(pages.project_settings(session, account,
+                                          _project(session, account, project)))
 
 
 @router.post("/audit-all")

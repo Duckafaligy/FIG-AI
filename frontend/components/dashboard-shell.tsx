@@ -166,7 +166,7 @@ export function DashboardShell({ children, workspaceName = "Workspace" }: { chil
                       padding: 6,
                     }}
                   >
-                    <Link href="/app/settings" role="menuitem" className="account-settings-link" onClick={() => setAccountMenuOpen(false)}>Account settings</Link>
+                    <Link href="/projects/settings" role="menuitem" className="account-settings-link" onClick={() => setAccountMenuOpen(false)}>Account settings</Link>
                     {accountError && <p role="alert" className="form-message">{accountError}</p>}
                     <button
                       role="menuitem"
@@ -209,7 +209,7 @@ function HeaderActionDialog({ action, onClose }: { action: string; onClose: () =
   const id = useId();
   useEffect(() => { const element = dialog.current; element?.showModal(); return () => element?.close(); }, []);
   const description = action === "Edit profile" ? "LaunchVault.ca is the sample workspace. Profile editing will cover your workspace name, website, industry, and timezone once workspace storage is connected." : action === "Export log" ? "The audit log below contains illustrative activity. Live workspace exports will become available when activity tracking is connected." : action === "Add query" ? "Prompt tracking will let you add the questions your audience asks and follow LaunchVault citations across AI search platforms." : "Create a brief with a topic, audience, and target keywords. The content workflow below lets you preview, review, and organize sample drafts while your workspace is being set up.";
-  return <dialog ref={dialog} className="dashboard-detail-dialog" aria-labelledby={id} onCancel={onClose} onClick={(event) => { if (event.target === dialog.current) onClose(); }}><div className="detail-dialog-heading"><div><span>LaunchVault.ca</span><h2 id={id}>{action}</h2></div><button className="detail-close" aria-label="Close action details" onClick={onClose}><X size={19} /></button></div><div className="detail-dialog-body"><p className="detail-summary">{description}</p><p className="detail-demo-note">This workspace currently contains demo content. No live data has been changed.</p></div><div className="detail-dialog-footer"><button className="button button--small" onClick={onClose}>Continue exploring</button><Link className="button button--primary button--small" href="/app/settings" onClick={onClose}>Workspace settings</Link></div></dialog>;
+  return <dialog ref={dialog} className="dashboard-detail-dialog" aria-labelledby={id} onCancel={onClose} onClick={(event) => { if (event.target === dialog.current) onClose(); }}><div className="detail-dialog-heading"><div><span>LaunchVault.ca</span><h2 id={id}>{action}</h2></div><button className="detail-close" aria-label="Close action details" onClick={onClose}><X size={19} /></button></div><div className="detail-dialog-body"><p className="detail-summary">{description}</p><p className="detail-demo-note">This workspace currently contains demo content. No live data has been changed.</p></div><div className="detail-dialog-footer"><button className="button button--small" onClick={onClose}>Continue exploring</button><Link className="button button--primary button--small" href="/projects/settings" onClick={onClose}>Workspace settings</Link></div></dialog>;
 }
 
 export function MetricCard({ label, value, change, detail, icon: Icon, tone = "purple", lowerIsBetter = false }: DashboardPage["metrics"][number]) {

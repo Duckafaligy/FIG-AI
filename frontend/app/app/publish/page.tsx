@@ -1,2 +1,6 @@
 import { PublishQueue } from "@/components/publish-queue";
-export default function PublishPage() { return <PublishQueue />; }
+
+export default async function PublishPage({ searchParams }: { searchParams: Promise<{ project?: string }> }) {
+  const { project } = await searchParams;
+  return <PublishQueue projectId={project} />;
+}

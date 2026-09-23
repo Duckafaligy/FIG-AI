@@ -424,6 +424,10 @@ export type ApiSettingsPage = ApiChrome & {
   webhooks: { active: number; delivered: Nullable<number>; rate: Nullable<number> };
 };
 
+export type ApiProjectSettingsPage = ApiChrome & {
+  apis: ApiSettingsPage["apis"];
+};
+
 export type ApiChangeRow = {
   id: string; site_id: string; hostname: string; client: Nullable<string>;
   page: Nullable<string>; kind: string; title: string; detail: Nullable<string>;
@@ -441,12 +445,13 @@ export type ApiChangesPage = {
 
 export const api = {
   me: () => apiServer<ApiMe>("/api/me"),
-  // projects() and settings() are called from Client Components
-  // (app/projects/page.tsx, app/app/settings/page.tsx -- both "use client",
-  // fetching in a useEffect), never from a Server Component. apiServer
-  // needs next/headers, which does not exist in the browser -- calling it
-  // from client-side code throws, so `live` state on both pages was never
-  // actually populated. apiClient is the correct fetch for these two; every
+  // projects(), settings() and projectSettings() are called from Client
+  // Components (app/projects/page.tsx, app/projects/settings/page.tsx,
+  // app/app/settings/page.tsx -- all "use client", fetching in a
+  // useEffect), never from a Server Component. apiServer needs
+  // next/headers, which does not exist in the browser -- calling it from
+  // client-side code throws, so `live` state on these pages was never
+  // actually populated. apiClient is the correct fetch for these; every
   // other entry below runs inside a real Server Component and keeps
   // apiServer.
   projects: () => apiClient<ApiProjectsPage>("/api/projects"),
@@ -460,18 +465,20 @@ export const api = {
     apiServer<ApiGeoPage>(`/api/geo${project ? `?project=${encodeURIComponent(project)}` : ""}`),
   notifications: () => apiServer<ApiNotificationsPage>("/api/notifications"),
   history: () => apiServer<ApiHistoryPage>("/api/history"),
+  // Account-wide only (workspace profile, team, billing, ...) -- reached
+  // from /projects' account menu, not from the per-project dashboard sidebar.
   settings: () => apiClient<ApiSettingsPage>("/api/settings"),
+  // /app/settings' real data: one project's own connectors, scoped the same
+  // way overview()/seo()/geo() are -- empty defaults to the account's first
+  // site (same as those three), a real id 404s if it isn't yours.
+  projectSettings: (project = "") =>
+    apiClient<ApiProjectSettingsPage>(`/api/project-settings${project ? `?project=${encodeURIComponent(project)}` : ""}`),
   // Client-fetched like projects()/settings() -- this page is its own
   // bespoke route, not one of the five overlay-driven LivePageKey pages.
-  // `project` scopes to one site's own changes (the /projects/[id] page);
-  // omitted, this is the account-wide /app/publish queue.
+  // `project` scopes to one site's own changes; omitted, this is the
+  // account-wide /app/publish queue.
   changes: (project = "") =>
     apiClient<ApiChangesPage>(`/api/changes${project ? `?project=${encodeURIComponent(project)}` : ""}`),
-  // This project's own connectors only -- see app/pages.py:project_integrations
-  // for why this isn't folded into settings(), which never scoped to a
-  // specific project at all before this.
-  projectIntegrations: (project: string) =>
-    apiClient<{ apis: ApiSettingsPage["apis"] }>(`/api/projects/${encodeURIComponent(project)}/integrations`),
 };
 
 /* ------------------------------------------------- browser-side mutations */

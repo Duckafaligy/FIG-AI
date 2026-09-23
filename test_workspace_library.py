@@ -290,11 +290,14 @@ class PublishQueueEndpointTests(unittest.TestCase):
         self.assertEqual(rows[0]["site_id"], "s2")
 
 
-class ProjectIntegrationsEndpointTests(unittest.TestCase):
-    """GET /api/projects/{id}/integrations -- the real fix for Settings
-    always defaulting to account.sites[0] with no way to tell which
-    project it was even scoped to. This endpoint is explicit: one project,
-    named in the URL, ownership-checked."""
+class ProjectSettingsEndpointTests(unittest.TestCase):
+    """GET /api/project-settings?project= -- /app/settings' real data.
+    Scoped the same way /api/overview, /api/seo and /api/geo already are:
+    an explicit id is ownership-checked, empty defaults to the account's
+    first site, and a zero-site account gets an empty, non-error shape
+    rather than a 404 -- the real fix for Settings always defaulting to
+    account.sites[0] with no way to tell (or see) which project it was
+    even scoped to."""
 
     def setUp(self):
         self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
@@ -303,6 +306,7 @@ class ProjectIntegrationsEndpointTests(unittest.TestCase):
             db.add(Account(id="a", name="A", slug="a"))
             db.add(Site(id="site-1", account_id="a", hostname="one.example"))
             db.add(Site(id="site-2", account_id="a", hostname="two.example"))
+            db.add(Account(id="empty", name="Empty", slug="empty"))
             db.commit()
             from app.models import Integration
             db.add(Integration(site_id="site-1", platform="wordpress", endpoint="https://one.example",
@@ -327,29 +331,42 @@ class ProjectIntegrationsEndpointTests(unittest.TestCase):
         self.engine.dispose()
 
     def test_returns_only_that_projects_own_integrations(self):
-        r = self.client.get("/api/projects/site-1/integrations", headers=self.headers)
+        r = self.client.get("/api/project-settings?project=site-1", headers=self.headers)
         self.assertEqual(r.status_code, 200)
-        apis = r.json()["apis"]
-        wp = next(a for a in apis if a["name"] == "WordPress")
+        body = r.json()
+        self.assertEqual(body["project"]["id"], "site-1")
+        wp = next(a for a in body["apis"] if a["name"] == "WordPress")
         self.assertTrue(wp["ok"])
 
         # The other real project, with no integration connected, must show
         # WordPress as not connected -- proves this isn't reading site-1's
         # connection for every project by accident.
-        r2 = self.client.get("/api/projects/site-2/integrations", headers=self.headers)
+        r2 = self.client.get("/api/project-settings?project=site-2", headers=self.headers)
         self.assertEqual(r2.status_code, 200)
         wp2 = next(a for a in r2.json()["apis"] if a["name"] == "WordPress")
         self.assertFalse(wp2["ok"])
+
+    def test_no_project_given_defaults_to_the_first_site(self):
+        r = self.client.get("/api/project-settings", headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["project"]["id"], "site-1")
+
+    def test_an_account_with_no_sites_gets_an_empty_shape_not_an_error(self):
+        r = self.client.get("/api/project-settings", headers={"x-test-account": "empty"})
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertIsNone(body["project"])
+        self.assertEqual(body["apis"], [])
 
     def test_a_project_you_dont_own_404s(self):
         with Session(self.engine) as db:
             db.add(Account(id="b", name="B", slug="b"))
             db.commit()
-        r = self.client.get("/api/projects/site-1/integrations", headers={"x-test-account": "b"})
+        r = self.client.get("/api/project-settings?project=site-1", headers={"x-test-account": "b"})
         self.assertEqual(r.status_code, 404)
 
     def test_requires_authentication(self):
-        r = self.client.get("/api/projects/site-1/integrations")
+        r = self.client.get("/api/project-settings?project=site-1")
         self.assertEqual(r.status_code, 401)
 
 

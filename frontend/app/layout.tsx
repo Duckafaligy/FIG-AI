@@ -13,7 +13,6 @@ import "./navigation-polish.css";
 import "./library-workspace.css";
 import "./launch-polish.css";
 import "./publish-queue.css";
-import "./project-detail.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

@@ -1166,6 +1166,17 @@ def project_integrations(session: Session, account: Account, site: Site) -> dict
     return {"apis": _api_rows(session, integrations)}
 
 
+def project_settings(session: Session, account: Account, site: Site | None) -> dict:
+    """/app/settings' real data: connectors for one project, chosen the same
+    way overview()/seo()/geo() choose one -- _chrome() defaults to the
+    account's first site when `site` is None, and this stays None-safe past
+    that in case the account has none at all yet."""
+    ctx = _chrome(session, account, "settings", site)
+    chosen = ctx["_site"]
+    apis = project_integrations(session, account, chosen)["apis"] if chosen else []
+    return ctx | {"apis": apis}
+
+
 # --- 7. settings ----------------------------------------------------------
 
 
@@ -1312,10 +1323,11 @@ def _api_rows(session: Session, integrations: list[Integration]) -> list[dict]:
 
     return [
         # The name here has to match the static row's `name` in
-        # frontend/app/app/settings/page.tsx exactly -- `liveApi()` looks it
-        # up by string equality. This one used to say "Shopify Store API"
-        # against a static "Shopify" and would never have matched (the same
-        # class of bug the Search Console row's naming already hit once).
+        # frontend/components/project-connectors.tsx's GROUPS exactly --
+        # `liveApi()` looks it up by string equality. This one used to say
+        # "Shopify Store API" against a static "Shopify" and would never
+        # have matched (the same class of bug the Search Console row's
+        # naming already hit once).
         row("Shopify", "shop", "g", "shopify", "Store", "Read / Write"),
         row("WordPress", "globe", "s", "wordpress", "Site", "Read / Write"),
         row("Webflow", "layers", "b", "webflow", "Site", "Read / Write"),

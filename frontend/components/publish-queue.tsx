@@ -83,7 +83,7 @@ function Row({ row, onAction, busy }: {
   );
 }
 
-export function PublishQueue({ projectId, embedded = false }: { projectId?: string; embedded?: boolean } = {}) {
+export function PublishQueue({ projectId }: { projectId?: string } = {}) {
   const [data, setData] = useState<ApiChangesPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -127,28 +127,21 @@ export function PublishQueue({ projectId, embedded = false }: { projectId?: stri
   const doneRows = rows.filter(r => ["rejected", "reverted"].includes(r.state));
 
   return (
-    <div className={embedded ? "publish-queue publish-queue--embedded" : "publish-queue"}>
-      {embedded ? (
-        <div className="pq-embedded-heading">
-          <p>Mechanical fixes from this project's latest scan, reviewed here before anything touches the live site.</p>
-          <button type="button" className="button button--small" disabled={proposing} onClick={propose}>
-            <Wand2 size={14} />{proposing ? "Checking…" : "Propose changes"}
-          </button>
+    <div className="publish-queue">
+      <header className="dashboard-heading-row">
+        <div>
+          <span className="dashboard-eyebrow">{projectId ? "Project / Publish" : "Workspace / Publish"}</span>
+          <h1>Publish queue</h1>
+          <p>{projectId
+            ? "Mechanical fixes from this project's latest scan, reviewed here before anything touches the live site."
+            : "Mechanical fixes from your latest scans, reviewed here before anything touches a live site."}</p>
         </div>
-      ) : (
-        <header className="dashboard-heading-row">
-          <div>
-            <span className="dashboard-eyebrow">Workspace / Publish</span>
-            <h1>Publish queue</h1>
-            <p>Mechanical fixes from your latest scans, reviewed here before anything touches a live site.</p>
-          </div>
-          <button type="button" className="button" disabled={proposing || data.sites === 0} onClick={propose}>
-            <Wand2 size={16} />{proposing ? "Checking…" : "Propose changes"}
-          </button>
-        </header>
-      )}
+        <button type="button" className="button" disabled={proposing || data.sites === 0} onClick={propose}>
+          <Wand2 size={16} />{proposing ? "Checking…" : "Propose changes"}
+        </button>
+      </header>
 
-      {!embedded && data.sites === 0 && (
+      {data.sites === 0 && (
         <div className="pq-empty">
           <p>Add a project first, then come back here — proposed fixes are drawn from a site's most recent scan.</p>
         </div>
@@ -156,9 +149,9 @@ export function PublishQueue({ projectId, embedded = false }: { projectId?: stri
 
       {data.sites > 0 && data.connected === 0 && (
         <div className="pq-note">
-          <p>No CMS is connected {embedded ? "for this project" : "on any of your sites"} yet. Proposed changes
+          <p>No CMS is connected {projectId ? "for this project" : "on any of your sites"} yet. Proposed changes
             can still be reviewed and approved here, but Publish stays disabled until you connect one
-            {embedded ? " below" : " under Settings → Integrations"}.</p>
+            under Settings.</p>
         </div>
       )}
 
@@ -166,7 +159,7 @@ export function PublishQueue({ projectId, embedded = false }: { projectId?: stri
 
       {data.sites > 0 && rows.length === 0 && (
         <div className="pq-empty">
-          <p>Nothing proposed yet. Click <strong>Propose changes</strong> to check {embedded ? "this project's" : "your sites'"} latest
+          <p>Nothing proposed yet. Click <strong>Propose changes</strong> to check {projectId ? "this project's" : "your sites'"} latest
             scan for fixes FIG can apply mechanically — titles, heading structure, and (where a platform supports it)
             meta descriptions.</p>
         </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { BarChart3, Check, CircleDashed, Github, Globe2, LayoutTemplate, Layers, LockKeyhole, Search, ShoppingBag } from "lucide-react";
-import { actions, api, apiUrl, type ApiSettingsPage } from "@/lib/api";
+import { actions, apiUrl, type ApiSettingsPage } from "@/lib/api";
 import { IntegrationLogo } from "@/components/integration-logo";
 
 type Service = { name: string; detail: string; icon: React.ComponentType<{ size?: number }> };
@@ -42,19 +42,12 @@ function IntegrationDialog({ title, busy = false, onClose, children }: { title: 
   </dialog>;
 }
 
-export function ProjectConnectors({ projectId }: { projectId: string }) {
-  const [live, setLive] = useState<{ apis: ApiSettingsPage["apis"] } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-
-  const load = () => api.projectIntegrations(projectId).then((result) => {
-    if (result.ok) { setLive(result.data); setLoadError(""); }
-    else setLoadError(result.error);
-    setLoading(false);
-  });
-  useEffect(() => { load(); }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const liveApi = (name: string) => live?.apis.find((a) => a.name === name);
+export function ProjectConnectors({ projectId, apis, onChanged }: {
+  projectId: string;
+  apis: ApiSettingsPage["apis"];
+  onChanged: () => void | Promise<void>;
+}) {
+  const liveApi = (name: string) => apis.find((a) => a.name === name);
 
   const [wpFormOpen, setWpFormOpen] = useState(false);
   const [wpBusy, setWpBusy] = useState(false);
@@ -72,7 +65,7 @@ export function ProjectConnectors({ projectId }: { projectId: string }) {
     if (!result.ok) { setWpError(result.error); return; }
     if (!result.data.connected) { setWpError(result.data.error ?? "couldn't connect"); return; }
     setWpFormOpen(false);
-    await load();
+    await onChanged();
   };
 
   const [shopifyFormOpen, setShopifyFormOpen] = useState(false);
@@ -91,9 +84,6 @@ export function ProjectConnectors({ projectId }: { projectId: string }) {
     const raw = githubRepo.trim().replace(/^https?:\/\/(www\.)?github\.com\//, "").replace(/\/$/, "");
     window.location.href = apiUrl(`/oauth/github/start?site_id=${projectId}&repo=${encodeURIComponent(raw)}`);
   };
-
-  if (loading) return <p role="status" className="pq-state">Loading connectors…</p>;
-  if (loadError) return <p className="pq-state pq-state--error">{loadError}</p>;
 
   return (
     <div className="settings-tab-stack settings-integrations-panel">
