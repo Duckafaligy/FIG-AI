@@ -183,7 +183,7 @@ export default function HomePage() {
               <p>Paste a URL. FIG checks 19 patterns across design, structure, search and answer-readiness, then shows where each one is, why it matters and how to fix it.</p>
               <div id="scan"><FreeScanForm /></div>
               <div className="home-hero-actions">
-                <Link className="button" href="/projects">Open workspace</Link>
+                <Link className="button" href="/app">Open dashboard</Link>
                 <Link className="secondary-button" href="/signup">Start free</Link>
               </div>
               <div className="home-hero-proof">
@@ -257,7 +257,7 @@ export default function HomePage() {
               <span className="section-kicker">The workspace</span>
               <h2>One place for every site you check</h2>
               <p>See what needs attention and where to focus next. Sites, findings, history and a content queue live together. The screens here use sample data.</p>
-              <Link href="/projects">Open your workspace <MoveRight size={15} /></Link>
+              <Link href="/app">Open your dashboard <MoveRight size={15} /></Link>
             </div>
             <ProductPreviewCards />
           </div>
@@ -269,7 +269,7 @@ export default function HomePage() {
               <span className="eyebrow"><MessageSquareText size={13} />Answer-ready</span>
               <h2>Be found beyond Google</h2>
               <p>People increasingly get answers from a model, not a list of links. FIG checks whether yours could be quoted, next to the search basics.</p>
-              <Link className="button" href="/projects">Explore your workspace</Link>
+              <Link className="button" href="/app">Open your dashboard</Link>
             </div>
             <div className="home-visibility-card">
               <div className="home-visibility-chart-panel">

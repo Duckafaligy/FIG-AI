@@ -108,14 +108,24 @@ async def verify_access_token(access_token: str) -> dict:
     if not config.AUTH_READY:
         raise HTTPException(503, "Supabase Auth is not configured")
     url = f"{config.SUPABASE_URL}/auth/v1/user"
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.get(url, headers={
-            "Authorization": f"Bearer {access_token}",
-            "apikey": config.SUPABASE_ANON_KEY,
-        })
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(url, headers={
+                "Authorization": f"Bearer {access_token}",
+                "apikey": config.SUPABASE_ANON_KEY,
+            })
+    except httpx.RequestError:
+        raise HTTPException(503, "Sign-in verification is temporarily unavailable. Please retry.") from None
+    if r.status_code == 429 or r.status_code >= 500:
+        raise HTTPException(503, "Sign-in verification is temporarily unavailable. Please retry.")
     if r.status_code != 200:
         raise HTTPException(401, "that sign-in could not be verified")
-    user = r.json()
+    try:
+        user = r.json()
+    except ValueError:
+        raise HTTPException(503, "Sign-in verification returned an invalid response. Please retry.") from None
+    if not isinstance(user, dict):
+        raise HTTPException(503, "Sign-in verification returned an invalid response. Please retry.")
     if not user.get("id"):
         raise HTTPException(401, "that sign-in could not be verified")
     return user
