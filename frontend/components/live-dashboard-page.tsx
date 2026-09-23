@@ -18,7 +18,8 @@ export function LiveDashboardPage({ page, overlay }: { page: keyof typeof dashbo
         const Icon = section.icon;
         const hasRows = Boolean(section.rows?.length);
         const hasStats = Boolean(section.stats?.length);
-        return <section key={section.title} className={`dashboard-panel ${section.span === "wide" ? "dashboard-panel--wide" : ""}`}>
+        const spanClass = section.span === "wide" ? "dashboard-panel--wide" : section.span ? `dashboard-panel--span-${section.span}` : "";
+        return <section key={section.title} className={`dashboard-panel dashboard-panel--${section.kind} dashboard-panel--${section.variant ?? "standard"} ${section.area ? `dashboard-panel--${section.area}` : ""} ${spanClass}`}>
           <div className="panel-heading"><div><span className="panel-icon"><Icon size={18} /></span><h2>{section.title}</h2></div></div>
           {section.liveChart ? <LiveTrendChart data={section.liveChart} /> : <>
             {section.score && <p><strong>{section.score.value}</strong> {section.score.label}</p>}
