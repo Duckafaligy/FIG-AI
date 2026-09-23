@@ -583,3 +583,5 @@
   .settings-connect-dialog { padding: 22px; }
   .settings-connect-actions { flex-direction: column; }
 }
+.dashboard-shell .settings-integrations-panel .settings-integration-brand { background: #fff; border: 1px solid #e6eaf0; color: #586780; }
+.settings-integration-brand svg { flex-shrink: 0; }

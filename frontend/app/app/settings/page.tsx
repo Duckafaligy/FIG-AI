@@ -1,6 +1,7 @@
 "use client";
 
 import { ServiceUnavailable } from "@/components/service-unavailable";
+import { IntegrationLogo } from "@/components/integration-logo";
 
 import { useEffect, useRef, useId, useState, type ReactNode, type ComponentType, type FormEvent, type KeyboardEvent } from "react";
 import {
@@ -330,7 +331,7 @@ export default function SettingsPage() {
                 const tone = remote?.ok ? "green" : "neutral";
                 return (
                   <article key={service.name}>
-                    <span className={`settings-service-icon settings-service-icon--${service.tone}`}><ServiceIcon size={21} /></span>
+                    <span className="settings-service-icon settings-integration-brand">{service.name === "Webhooks" ? <ServiceIcon size={21} /> : <IntegrationLogo name={service.name} />}</span>
                     <div className="settings-integration-identity"><strong>{service.name}</strong><small>{remote?.account || "Account information unavailable"}</small><small>Connected since: {remote?.since && remote.since !== "—" ? remote.since : "Unavailable"}</small></div>
                     <span className="settings-service-permission"><small>Access</small>{remote?.perms || "Unavailable"}</span>
                     <b className={`settings-status settings-status--${tone}`}>{remote?.ok ? <Check size={12} /> : <CircleDashed size={12} />}{statusText}</b>
