@@ -217,5 +217,52 @@ class PublishDispatchTests(unittest.TestCase):
         self.assertIn("approved", result["reason"])
 
 
+class QueueSiteScopingTests(unittest.TestCase):
+    """queue()'s site_id filter -- the /projects/[id] page's publish
+    section, and /api/changes?project=<id>. Needs two real sites to prove
+    the filter actually excludes the other one, not just that it runs."""
+
+    def setUp(self):
+        self.engine = create_engine("sqlite://", poolclass=StaticPool,
+                                    connect_args={"check_same_thread": False})
+        Base.metadata.create_all(self.engine)
+        self.db = Session(self.engine)
+        self.db.add(Account(id="a", name="A", slug="a"))
+        self.db.add(Site(id="site-1", account_id="a", hostname="one.example"))
+        self.db.add(Site(id="site-2", account_id="a", hostname="two.example"))
+        self.db.add(Scan(id="scan-1", site_id="site-1", status="done"))
+        self.db.add(Scan(id="scan-2", site_id="site-2", status="done"))
+        self.db.commit()
+        for site_id, scan_id in (("site-1", "scan-1"), ("site-2", "scan-2")):
+            finding = Finding(scan_id=scan_id, check="missing_title", summary="x")
+            self.db.add(finding)
+            self.db.commit()
+            self.db.add(Change(site_id=site_id, finding_id=finding.id, kind="meta",
+                               title=f"fix for {site_id}", state="proposed"))
+        self.db.commit()
+        self.account = self.db.get(Account, "a")
+
+    def tearDown(self):
+        self.db.close()
+        self.engine.dispose()
+
+    def test_no_filter_returns_every_sites_changes(self):
+        result = publishing.queue(self.db, self.account)
+        self.assertEqual(len(result["rows"]), 2)
+        self.assertEqual(result["sites"], 2)
+
+    def test_site_id_filter_returns_only_that_sites_changes(self):
+        result = publishing.queue(self.db, self.account, site_id="site-1")
+        self.assertEqual(len(result["rows"]), 1)
+        self.assertEqual(result["rows"][0]["site_id"], "site-1")
+        self.assertEqual(result["rows"][0]["title"], "fix for site-1")
+        self.assertEqual(result["sites"], 1)
+
+    def test_an_unrelated_or_unknown_site_id_returns_nothing_not_an_error(self):
+        result = publishing.queue(self.db, self.account, site_id="not-a-real-site")
+        self.assertEqual(result["rows"], [])
+        self.assertEqual(result["sites"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

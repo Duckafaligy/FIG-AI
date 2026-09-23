@@ -358,6 +358,20 @@ def audit_project(project_id: str, request: Request,
     return {"ok": True, "scan_id": scan.id, "queue": queue_depth(session)}
 
 
+@router.get("/projects/{project_id}/integrations")
+def project_integrations(project_id: str, request: Request,
+                         session: Session = Depends(get_session)):
+    """This project's own connectors only -- the fix for Settings always
+    defaulting to account.sites[0] with no indication which project it was
+    even looking at. Lives on the project itself, not folded into
+    account-wide settings()."""
+    account = _account(request, session)
+    site = _project(session, account, project_id)
+    if site is None:
+        raise HTTPException(404, "no such project")
+    return _public(pages.project_integrations(session, account, site))
+
+
 @router.post("/audit-all")
 def audit_all(request: Request, session: Session = Depends(get_session)):
     account = _account(request, session)
@@ -514,10 +528,11 @@ def _post_json(session: Session, post) -> dict:
 
 
 @router.get("/changes")
-def changes(request: Request, layer: str = Query(default=""),
+def changes(request: Request, layer: str = Query(default=""), project: str = Query(default=""),
             session: Session = Depends(get_session)):
     account = _account(request, session)
-    result = publishing.queue(session, account, layer=layer or None)
+    site_id = _project(session, account, project).id if project else None
+    result = publishing.queue(session, account, layer=layer or None, site_id=site_id)
     # _public() only strips top-level keys; each row also carries its own
     # internal-only "_change" (the raw ORM object), one level down.
     result["rows"] = [_public(row) for row in result["rows"]]
@@ -525,10 +540,18 @@ def changes(request: Request, layer: str = Query(default=""),
 
 
 @router.post("/changes/propose")
-def changes_propose(request: Request, session: Session = Depends(get_session)):
+def changes_propose(request: Request, project: str = Query(default=""),
+                    session: Session = Depends(get_session)):
     account = _account(request, session)
+    if project:
+        site = _project(session, account, project)
+        if site is None:
+            raise HTTPException(404, "no such project")
+        sites = [site]
+    else:
+        sites = pages.sites_of(session, account)
     made = 0
-    for site in pages.sites_of(session, account):
+    for site in sites:
         made += len(publishing.propose(session, site))
     return {"ok": True, "changes": made}
 

@@ -1,12 +1,10 @@
 "use client";
 
 import { ServiceUnavailable } from "@/components/service-unavailable";
-import { IntegrationLogo } from "@/components/integration-logo";
 
-import { useEffect, useRef, useId, useState, type ReactNode, type ComponentType, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useState, type ComponentType, type KeyboardEvent } from "react";
 import {
   BadgeCheck,
-  BarChart3,
   Bell,
   BrainCircuit,
   Check,
@@ -15,20 +13,12 @@ import {
   CircleDashed,
   Copy,
   CreditCard,
-  Database,
   FileText,
-  Github,
   Globe2,
   KeyRound,
-  Layers,
-  LayoutTemplate,
   Link2,
-  LockKeyhole,
-  PlugZap,
-  Search,
   Settings2,
   ShieldCheck,
-  ShoppingBag,
   SlidersHorizontal,
   Users,
   Webhook
@@ -36,11 +26,10 @@ import {
 import { DashboardHeader } from "@/components/dashboard-shell";
 import { AccountControls } from "@/components/account-controls";
 import { PreviewInfo } from "@/components/preview-info";
-import { actions, api, apiUrl, fmt, type ApiSettingsPage } from "@/lib/api";
+import { actions, api, fmt, type ApiSettingsPage } from "@/lib/api";
 
 type Icon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
-type TabId = "workspace" | "team" | "integrations" | "billing" | "security" | "notifications" | "defaults" | "webhooks";
-type Service = { name: string; detail: string; permission: string; status: string; tone: "blue" | "green" | "purple" | "amber"; icon: Icon };
+type TabId = "workspace" | "team" | "billing" | "security" | "notifications" | "defaults" | "webhooks";
 
 const members = [
   ["JD", "Jordan Davis", "Owner", "All workspace permissions", "Active", "2 hours ago"],
@@ -50,27 +39,11 @@ const members = [
   ["EP", "Emma Patel", "Analyst", "View analytics and reports", "Active", "6 hours ago"]
 ];
 
-const services: Service[] = [
-  { name: "Supabase", detail: "Workspace database", permission: "Read / write", status: "Ready to configure", tone: "blue", icon: Database },
-  { name: "OpenAI", detail: "Content generation", permission: "Read / write", status: "Ready to configure", tone: "green", icon: BrainCircuit },
-  { name: "Anthropic", detail: "Content assistance", permission: "Read / write", status: "Ready to configure", tone: "purple", icon: BrainCircuit },
-  { name: "Stripe", detail: "Plans and billing", permission: "Billing", status: "Backend pending", tone: "amber", icon: CreditCard },
-  { name: "Shopify", detail: "Publishing destination", permission: "Not connected", status: "Optional", tone: "green", icon: ShoppingBag },
-  { name: "WordPress", detail: "Publishing destination", permission: "Read / write", status: "Optional", tone: "blue", icon: Globe2 },
-  { name: "Webflow", detail: "Publishing destination", permission: "Not connected", status: "Optional", tone: "purple", icon: Layers },
-  { name: "Wix", detail: "Publishing destination", permission: "Not connected", status: "Optional", tone: "amber", icon: LayoutTemplate },
-  { name: "GitHub", detail: "Self-hosted / Git-deployed sites", permission: "Not connected", status: "Optional", tone: "blue", icon: Github },
-  { name: "Google Analytics", detail: "Traffic and conversions", permission: "Read", status: "Optional", tone: "amber", icon: BarChart3 },
-  { name: "Google Search Console", detail: "Queries and indexing", permission: "Read", status: "Optional", tone: "blue", icon: Search },
-  { name: "Webhooks", detail: "Workspace events", permission: "Send / receive", status: "Backend pending", tone: "purple", icon: Webhook }
-];
-
 const usage = [["Content drafts", "126 / 500", "25%"], ["API credits", "48.2K / 100K", "48%"], ["AI generations", "312K / 1M", "31%"], ["Team seats", "5 / 10", "50%"]];
 
 const allTabs: { id: TabId; label: string; description: string; icon: Icon }[] = [
   { id: "workspace", label: "Workspace", description: "Profile, plan, and workspace summary", icon: Settings2 },
   { id: "team", label: "Team & roles", description: "People, access, and permissions", icon: Users },
-  { id: "integrations", label: "Integrations", description: "Services and connection preparation", icon: PlugZap },
   { id: "billing", label: "Billing & usage", description: "Plan and account usage", icon: CreditCard },
   { id: "security", label: "Security", description: "Authentication and access controls", icon: ShieldCheck },
   { id: "notifications", label: "Notifications", description: "Delivery and alert preferences", icon: Bell },
@@ -91,17 +64,7 @@ function usagePercent(used: number | null, cap: number): string {
   return `${Math.min(100, Math.round((used / cap) * 100))}%`;
 }
 
-const tabs = allTabs.filter(tab => ["workspace", "team", "integrations", "billing"].includes(tab.id));
-
-function IntegrationDialog({ title, busy = false, onClose, children }: { title: string; busy?: boolean; onClose: () => void; children: ReactNode }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const titleId = useId();
-  useEffect(() => { const dialog = ref.current; dialog?.showModal(); return () => dialog?.close(); }, []);
-  return <dialog ref={ref} className="settings-connect-dialog" aria-labelledby={titleId} aria-busy={busy} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
-    <header><div><span>Site connection</span><h2 id={titleId}>{title}</h2></div><button type="button" aria-label="Close connection dialog" disabled={busy} onClick={onClose}>×</button></header>
-    {children}
-  </dialog>;
-}
+const tabs = allTabs.filter(tab => ["workspace", "team", "billing"].includes(tab.id));
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("workspace");
@@ -155,57 +118,6 @@ export default function SettingsPage() {
       setTimeout(() => setCopiedLink(false), 2000);
     });
   };
-  const liveApi = (name: string) => live?.apis.find((a) => a.name === name);
-
-  const [wpFormOpen, setWpFormOpen] = useState(false);
-  const [wpBusy, setWpBusy] = useState(false);
-  const [wpError, setWpError] = useState("");
-  const submitWordPress = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!liveProjectId) return;
-    const form = new FormData(event.currentTarget);
-    const siteUrl = String(form.get("site-url") ?? "").trim();
-    const username = String(form.get("username") ?? "").trim();
-    const appPassword = String(form.get("app-password") ?? "").trim();
-    setWpBusy(true);
-    setWpError("");
-    const result = await actions.connectIntegration(liveProjectId, "wordpress", siteUrl, `${username}:${appPassword}`);
-    setWpBusy(false);
-    if (!result.ok) {
-      setWpError(result.error);
-      return;
-    }
-    if (!result.data.connected) {
-      setWpError(result.data.error ?? "couldn't connect");
-      return;
-    }
-    setWpFormOpen(false);
-    await loadSettings();
-  };
-
-  const [shopifyFormOpen, setShopifyFormOpen] = useState(false);
-  const [shopifyShop, setShopifyShop] = useState("");
-  const submitShopify = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!liveProjectId) return;
-    // Accepts "my-store", "my-store.myshopify.com" or a pasted store URL --
-    // normalised to the one shape /oauth/shopify/start actually requires.
-    const raw = shopifyShop.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
-    const shop = raw.includes(".") ? raw : `${raw}.myshopify.com`;
-    window.location.href = apiUrl(`/oauth/shopify/start?site_id=${liveProjectId}&shop=${encodeURIComponent(shop)}`);
-  };
-
-  const [githubFormOpen, setGithubFormOpen] = useState(false);
-  const [githubRepo, setGithubRepo] = useState("");
-  const submitGithub = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!liveProjectId) return;
-    // Accepts a plain "owner/repo" or a pasted github.com URL -- normalised
-    // to the "owner/repo" shape /oauth/github/start actually requires.
-    const raw = githubRepo.trim().replace(/^https?:\/\/(www\.)?github\.com\//, "").replace(/\/$/, "");
-    window.location.href = apiUrl(`/oauth/github/start?site_id=${liveProjectId}&repo=${encodeURIComponent(raw)}`);
-  };
-
   const [billingBusy, setBillingBusy] = useState<"checkout" | "portal" | null>(null);
   const [billingError, setBillingError] = useState("");
   const goToCheckout = async () => {
@@ -264,7 +176,7 @@ export default function SettingsPage() {
       <aside className="settings-tab-sidebar" aria-label="Settings sections">
         <div className="settings-sidebar-workspace"><span className="settings-workspace-mark">{live ? live.initials : "LV"}</span><div><strong>{live ? live.profile.name : "LaunchVault.ca"}</strong><small>{live ? "Connected workspace" : "Frontend preview"}</small></div><ChevronRight size={15} /></div>
         <nav role="tablist" aria-label="Workspace settings">
-          {tabs.map((tab, index) => { const TabIcon = tab.icon; const selected = tab.id === activeTab; return <button type="button" key={tab.id} id={tabId(tab.id)} role="tab" aria-controls={panelId(tab.id)} aria-selected={selected} tabIndex={selected ? 0 : -1} className={selected ? "is-active" : ""} onClick={() => setActiveTab(tab.id)} onKeyDown={(event) => handleTabKeyDown(event, index)}><TabIcon size={17} /><span>{tab.label}</span>{tab.id === "integrations" && <small>{services.length}</small>}</button>; })}
+          {tabs.map((tab, index) => { const TabIcon = tab.icon; const selected = tab.id === activeTab; return <button type="button" key={tab.id} id={tabId(tab.id)} role="tab" aria-controls={panelId(tab.id)} aria-selected={selected} tabIndex={selected ? 0 : -1} className={selected ? "is-active" : ""} onClick={() => setActiveTab(tab.id)} onKeyDown={(event) => handleTabKeyDown(event, index)}><TabIcon size={17} /><span>{tab.label}</span></button>; })}
         </nav>
         <div className="settings-sidebar-note"><CircleDashed size={15} /><span><strong>Connected workspace</strong>Supported actions are saved by the backend. Unavailable controls are identified explicitly.</span></div>
       </aside>
@@ -310,85 +222,6 @@ export default function SettingsPage() {
         </div>}
 
         {activeTab === "team" && <div className="settings-tab-stack"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>People & roles</h3><p>{live ? "Everyone signed in to this workspace." : "Sample workspace members with the permissions their roles would carry."}</p></div><PreviewInfo className="button button--small" label="Invite member" message="Team invitations aren't wired up yet. No invitation has been sent." /></div><div className="settings-member-table" role="table" aria-label="Workspace team members"><div className="settings-member-head" role="row"><span>Person</span><span>Role</span><span>Permissions</span><span>Status</span><span>Last active</span><span /></div>{(live ? live.seats.map((s) => [s.initials, s.name, s.role, s.perms, "Active", s.active] as const) : members).map(([initials, name, role, permissions, status, activeAt]) => <div className="settings-member-row" role="row" key={name}><span className="settings-person"><i>{initials}</i><strong>{name}</strong></span><span><b className="settings-role-chip">{role}</b></span><span>{permissions}</span><span><b className="settings-status settings-status--green">{status}</b></span><span>{activeAt}</span><span><PreviewInfo className="settings-row-action" label="Manage" message={`Role changes and access removal for ${name} aren't wired up yet.`} /></span></div>)}</div></section><section className="settings-surface settings-team-note"><Users size={19} /><div><strong>Roles are previewed, not enforced</strong><p>Role changes and invitations aren't wired up yet. {live ? "Names and emails above are real." : "These names and roles are local demo content only."}</p></div></section></div>}
-
-        {activeTab === "integrations" && <div className="settings-tab-stack settings-integrations-panel"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Connect your site’s tools</h3><p>Bring site data into FIG and review supported fixes before they’re applied. Connection status comes from your workspace.</p></div></div>
-          {!liveProjectId && <div className="settings-integration-empty"><strong>Add a project to connect a platform</strong><p>CMS and analytics connections belong to a site. Create or select a project first.</p><a href="/projects" className="settings-row-action">Go to projects</a></div>}
-          {[
-            { title: "Publishing & repositories", description: "Connect your CMS or source repository. Available fixes depend on the platform and permissions you grant.", names: ["WordPress", "Shopify", "Webflow", "Wix", "GitHub"] },
-            { title: "Analytics & search", description: "Read-only connections for your traffic and search data.", names: ["Google Analytics", "Google Search Console"] },
-            { title: "Workspace services", description: "Backend-managed services. These are not site connections you can configure here.", names: ["Supabase", "OpenAI", "Anthropic", "Stripe", "Webhooks"] }
-          ].map(group => <section className="settings-integration-group" key={group.title} aria-label={group.title}><h4>{group.title}</h4><p>{group.description}</p><div className="settings-integration-list">{services.filter(service => group.names.includes(service.name)).map((service) => {
-                const ServiceIcon = service.icon;
-                const isGoogleAnalytics = service.name === "Google Analytics";
-                const isGoogleSearchConsole = service.name === "Google Search Console";
-                const isWordPress = service.name === "WordPress";
-                const isShopify = service.name === "Shopify";
-                const isWebflow = service.name === "Webflow";
-                const isWix = service.name === "Wix";
-                const isGithub = service.name === "GitHub";
-                const remote = liveApi(service.name);
-                const statusText = remote?.state || "Unavailable";
-                const tone = remote?.ok ? "green" : "neutral";
-                return (
-                  <article key={service.name}>
-                    <span className="settings-service-icon settings-integration-brand">{service.name === "Webhooks" ? <ServiceIcon size={21} /> : <IntegrationLogo name={service.name} />}</span>
-                    <div className="settings-integration-identity"><strong>{service.name}</strong><small>{remote?.account || "Account information unavailable"}</small><small>Connected since: {remote?.since && remote.since !== "—" ? remote.since : "Unavailable"}</small></div>
-                    <span className="settings-service-permission"><small>Access</small>{remote?.perms || "Unavailable"}</span>
-                    <b className={`settings-status settings-status--${tone}`}>{remote?.ok ? <Check size={12} /> : <CircleDashed size={12} />}{statusText}</b>
-                    {(isGoogleAnalytics || isGoogleSearchConsole) && liveProjectId ? (
-                      <a className="settings-row-action button button--small" href={apiUrl(`/oauth/google/start?site_id=${liveProjectId}`)}>{remote?.ok ? "Reconnect" : "Connect"}</a>
-                    ) : isWordPress && liveProjectId ? (
-                      <button type="button" className="settings-row-action button button--small" onClick={() => setWpFormOpen((open) => !open)}>{remote?.ok ? "Reconnect" : "Connect"}</button>
-                    ) : isShopify && liveProjectId ? (
-                      <button type="button" className="settings-row-action button button--small" onClick={() => setShopifyFormOpen((open) => !open)}>{remote?.ok ? "Reconnect" : "Connect"}</button>
-                    ) : isWebflow && liveProjectId ? (
-                      <a className="settings-row-action button button--small" href={apiUrl(`/oauth/webflow/start?site_id=${liveProjectId}`)}>{remote?.ok ? "Reconnect" : "Connect"}</a>
-                    ) : isWix && liveProjectId ? (
-                      <a className="settings-row-action button button--small" href={apiUrl(`/oauth/wix/start?site_id=${liveProjectId}`)}>{remote?.ok ? "Reconnect" : "Connect"}</a>
-                    ) : isGithub && liveProjectId ? (
-                      <button type="button" className="settings-row-action button button--small" onClick={() => setGithubFormOpen((open) => !open)}>{remote?.ok ? "Reconnect" : "Connect"}</button>
-                    ) : (
-                      <span className="settings-integration-managed">{isGoogleAnalytics || isGoogleSearchConsole || isWordPress || isShopify || isWebflow || isWix || isGithub ? "Project required" : "Backend managed"}</span>
-                    )}
-                  </article>
-                );
-              })}</div></section>)}
-              {wpFormOpen && liveProjectId && (
-                <IntegrationDialog title="Connect WordPress" busy={wpBusy} onClose={() => { setWpFormOpen(false); setWpError(""); }}><form onSubmit={submitWordPress} className="settings-connect-form">
-                  <div className="auth-fields">
-                    <label className="auth-field" htmlFor="wp-site-url"><span>Site URL</span><input id="wp-site-url" name="site-url" required placeholder="https://yoursite.com" /></label>
-                    <label className="auth-field" htmlFor="wp-username"><span>Username</span><input id="wp-username" name="username" required placeholder="your WordPress username" /></label>
-                    <label className="auth-field" htmlFor="wp-app-password"><span>Application password</span><input id="wp-app-password" name="app-password" type="password" autoComplete="off" required placeholder="Your WordPress application password" /></label>
-                  </div>
-                  <p>Use an Application Password, not your login password. Generate one in WordPress under Users → Profile → Application Passwords. FIG tests the connection before saving it.</p>
-                  {wpError && <p className="form-message" role="alert">{wpError}</p>}
-                  <div className="settings-connect-actions">
-                    <button className="button button--small" type="submit" disabled={wpBusy}>{wpBusy ? "Connecting…" : "Connect WordPress"}</button>
-                    <button className="secondary-button" type="button" onClick={() => setWpFormOpen(false)} disabled={wpBusy}>Cancel</button>
-                  </div>
-                </form></IntegrationDialog>
-              )}
-              {shopifyFormOpen && liveProjectId && (
-                <IntegrationDialog title="Connect Shopify" onClose={() => setShopifyFormOpen(false)}><form onSubmit={submitShopify} className="settings-connect-form">
-                  <label className="auth-field" htmlFor="shopify-store"><span>Store</span><input id="shopify-store" required placeholder="your-store or your-store.myshopify.com" value={shopifyShop} onChange={(event) => setShopifyShop(event.target.value)} /></label>
-                  <p>Use your store’s myshopify.com domain. You’ll continue to Shopify to review the requested access and approve the connection. Supported fixes require your approval in FIG.</p>
-                  <div className="settings-connect-actions">
-                    <button className="button button--small" type="submit">Continue to Shopify</button>
-                    <button className="secondary-button" type="button" onClick={() => setShopifyFormOpen(false)}>Cancel</button>
-                  </div>
-                </form></IntegrationDialog>
-              )}
-              {githubFormOpen && liveProjectId && (
-                <IntegrationDialog title="Connect GitHub" onClose={() => setGithubFormOpen(false)}><form onSubmit={submitGithub} className="settings-connect-form">
-                  <label className="auth-field" htmlFor="github-repo"><span>Repository</span><input id="github-repo" required placeholder="owner/repo or a github.com URL" value={githubRepo} onChange={(event) => setGithubRepo(event.target.value)} /></label>
-                  <p>Continue to GitHub to authorize access. Supported fixes open pull requests for your review rather than changing your default branch directly.</p><p className="settings-connect-warning">GitHub’s OAuth repo permission can cover all repositories your account can access—not only the repository entered here. Review the consent screen before continuing.</p>
-                  <div className="settings-connect-actions">
-                    <button className="button button--small" type="submit">Continue to GitHub</button>
-                    <button className="secondary-button" type="button" onClick={() => setGithubFormOpen(false)}>Cancel</button>
-                  </div>
-                </form></IntegrationDialog>
-              )}
-              </section><section className="settings-surface settings-integration-note"><LockKeyhole size={19} /><div><strong>You review access before connecting</strong><p>OAuth authorization happens on the provider’s site. WordPress uses an Application Password sent to FIG’s backend for verification and encrypted storage. Reconnect repeats authorization; connection status is not a last-sync report.</p></div></section></div>}
 
         {activeTab === "billing" && <div className="settings-tab-stack"><section className="settings-surface settings-billing-feature"><div><span className="settings-kicker">{live ? "Billing" : "Billing preview"}</span><h3>{live ? `${live.plan.name} plan for ${live.profile.name}` : "Pro plan for LaunchVault.ca"}</h3><p>{live ? `Billed ${live.plan.unit}. Monthly total: ${live.plan.monthly}.` : "Use the workspace freely as a visual prototype. Stripe billing, metering, and plan enforcement are not connected yet."}</p>{live ? (
           <button type="button" className="settings-link-button" onClick={live.plan.subscribed ? goToPortal : goToCheckout} disabled={billingBusy !== null}>

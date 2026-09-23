@@ -255,6 +255,103 @@ class PublishQueueEndpointTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["rows"], [])
 
+    def test_project_filter_scopes_to_one_site(self):
+        with Session(self.engine) as db:
+            db.add(Site(id="s2", account_id="a", hostname="two.example"))
+            db.commit()
+        r = self.client.get("/api/changes", params={"project": "s2"}, headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["rows"], [])
+        self.assertEqual(r.json()["sites"], 1)
+
+    def test_project_filter_for_a_site_you_dont_own_404s(self):
+        with Session(self.engine) as db:
+            db.add(Account(id="b", name="B", slug="b"))
+            db.add(Site(id="foreign", account_id="b", hostname="foreign.example"))
+            db.commit()
+        r = self.client.get("/api/changes", params={"project": "foreign"}, headers=self.headers)
+        self.assertEqual(r.status_code, 404)
+
+    def test_propose_with_a_project_only_proposes_for_that_site(self):
+        from app.models import Finding, Scan
+        with Session(self.engine) as db:
+            db.add(Site(id="s2", account_id="a", hostname="two.example"))
+            db.add(Scan(id="scan-2", site_id="s2", status="done"))
+            db.commit()
+            db.add(Finding(scan_id="scan-2", check="missing_title", summary="x"))
+            db.commit()
+        r = self.client.post("/api/changes/propose", params={"project": "s2"}, headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["changes"], 1)
+        # The already-proposed change on site "s" from setUp must not be
+        # counted or re-proposed by a call scoped to a different project.
+        rows = self.client.get("/api/changes", params={"project": "s2"}, headers=self.headers).json()["rows"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["site_id"], "s2")
+
+
+class ProjectIntegrationsEndpointTests(unittest.TestCase):
+    """GET /api/projects/{id}/integrations -- the real fix for Settings
+    always defaulting to account.sites[0] with no way to tell which
+    project it was even scoped to. This endpoint is explicit: one project,
+    named in the URL, ownership-checked."""
+
+    def setUp(self):
+        self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        Base.metadata.create_all(self.engine)
+        with Session(self.engine) as db:
+            db.add(Account(id="a", name="A", slug="a"))
+            db.add(Site(id="site-1", account_id="a", hostname="one.example"))
+            db.add(Site(id="site-2", account_id="a", hostname="two.example"))
+            db.commit()
+            from app.models import Integration
+            db.add(Integration(site_id="site-1", platform="wordpress", endpoint="https://one.example",
+                               connected_at=datetime.now(timezone.utc)))
+            db.commit()
+        app = FastAPI()
+        app.include_router(router)
+        def session():
+            with Session(self.engine) as db:
+                yield db
+        app.dependency_overrides[get_session] = session
+        self.auth = patch("app.webapp.current_account",
+                          side_effect=lambda request, db: db.get(Account, request.headers.get("x-test-account"))
+                          if request.headers.get("x-test-account") else None)
+        self.auth.start()
+        self.client = TestClient(app)
+        self.headers = {"x-test-account": "a"}
+
+    def tearDown(self):
+        self.client.close()
+        self.auth.stop()
+        self.engine.dispose()
+
+    def test_returns_only_that_projects_own_integrations(self):
+        r = self.client.get("/api/projects/site-1/integrations", headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        apis = r.json()["apis"]
+        wp = next(a for a in apis if a["name"] == "WordPress")
+        self.assertTrue(wp["ok"])
+
+        # The other real project, with no integration connected, must show
+        # WordPress as not connected -- proves this isn't reading site-1's
+        # connection for every project by accident.
+        r2 = self.client.get("/api/projects/site-2/integrations", headers=self.headers)
+        self.assertEqual(r2.status_code, 200)
+        wp2 = next(a for a in r2.json()["apis"] if a["name"] == "WordPress")
+        self.assertFalse(wp2["ok"])
+
+    def test_a_project_you_dont_own_404s(self):
+        with Session(self.engine) as db:
+            db.add(Account(id="b", name="B", slug="b"))
+            db.commit()
+        r = self.client.get("/api/projects/site-1/integrations", headers={"x-test-account": "b"})
+        self.assertEqual(r.status_code, 404)
+
+    def test_requires_authentication(self):
+        r = self.client.get("/api/projects/site-1/integrations")
+        self.assertEqual(r.status_code, 401)
+
 
 class TrialEnforcementTests(unittest.TestCase):
     """Scanning (adding a project, auditing one, auditing the estate) is the

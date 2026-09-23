@@ -1149,6 +1149,23 @@ def _actors(log: list[dict]) -> list[dict]:
             for k, v in sorted(tally.items(), key=lambda kv: -kv[1])]
 
 
+# --- 6b. one project's own connectors (the /projects/[id] page) -----------
+# Split out of settings() rather than added to it: Settings never scoped to
+# a specific project at all before this (see webapp.py:_project's default
+# to sites[0] -- the real bug that motivated this page), and a project's
+# own connectors belong with that project, not folded into an account-wide
+# settings screen that happened to pick one site arbitrarily.
+
+
+def project_integrations(session: Session, account: Account, site: Site) -> dict:
+    """Real connection status for one project's own integrations only --
+    reuses _api_rows(), the same row-shaping settings() uses, scoped to a
+    single site's Integration rows instead of every site in the account."""
+    integrations = list(session.scalars(
+        select(Integration).where(Integration.site_id == site.id)).all())
+    return {"apis": _api_rows(session, integrations)}
+
+
 # --- 7. settings ----------------------------------------------------------
 
 

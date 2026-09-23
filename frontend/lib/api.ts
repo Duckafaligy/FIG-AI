@@ -463,7 +463,15 @@ export const api = {
   settings: () => apiClient<ApiSettingsPage>("/api/settings"),
   // Client-fetched like projects()/settings() -- this page is its own
   // bespoke route, not one of the five overlay-driven LivePageKey pages.
-  changes: () => apiClient<ApiChangesPage>("/api/changes"),
+  // `project` scopes to one site's own changes (the /projects/[id] page);
+  // omitted, this is the account-wide /app/publish queue.
+  changes: (project = "") =>
+    apiClient<ApiChangesPage>(`/api/changes${project ? `?project=${encodeURIComponent(project)}` : ""}`),
+  // This project's own connectors only -- see app/pages.py:project_integrations
+  // for why this isn't folded into settings(), which never scoped to a
+  // specific project at all before this.
+  projectIntegrations: (project: string) =>
+    apiClient<{ apis: ApiSettingsPage["apis"] }>(`/api/projects/${encodeURIComponent(project)}/integrations`),
 };
 
 /* ------------------------------------------------- browser-side mutations */
@@ -499,7 +507,9 @@ export const actions = {
   proposeBriefs: () => apiSend<{ ok: true; briefs: number }>("/api/content/propose", "POST"),
   moveContent: (id: string, to: string) => apiSend<unknown>(`/api/content/${id}/move`, "POST", { to }),
   saveContent: (id: string, body: string) => apiSend<unknown>(`/api/content/${id}`, "PATCH", { body }),
-  proposeChanges: () => apiSend<{ ok: true; changes: number }>("/api/changes/propose", "POST"),
+  proposeChanges: (project = "") =>
+    apiSend<{ ok: true; changes: number }>(
+      `/api/changes/propose${project ? `?project=${encodeURIComponent(project)}` : ""}`, "POST"),
   changeAction: (id: string, action: "approve" | "reject" | "publish" | "revert") =>
     apiSend<unknown>(`/api/changes/${id}/${action}`, "POST"),
 };

@@ -221,10 +221,10 @@ export default function ProjectsPage() {
             visibleCards && visibleCards.length > 0 ? visibleCards.map((card) => (
               <article key={card.id} className="project-card project-card--selected">
                 <span className="project-card-check"><CheckCircle2 size={17} /></span>
-                <div className="project-card-heading"><span className="project-logo"><Zap size={20} fill="currentColor" /></span><div><Link href={`/app?project=${encodeURIComponent(card.id)}`}><strong>{card.name}</strong></Link><small>{card.tagline}</small><em>{card.hostname}</em></div><ProjectActions id={card.id} name={card.name} onChange={loadProjects} /></div>
+                <div className="project-card-heading"><span className="project-logo"><Zap size={20} fill="currentColor" /></span><div><Link href={`/projects/${encodeURIComponent(card.id)}`}><strong>{card.name}</strong></Link><small>{card.tagline}</small><em>{card.hostname}</em></div><ProjectActions id={card.id} name={card.name} onChange={loadProjects} /></div>
                 <span className="project-active"><i />{card.state}</span>
                 <div className="project-card-stats"><span><strong>{card.published}</strong><small>Published posts</small></span><span><strong>{fmt(card.impact)}</strong><small>Avg. impact score</small></span></div>
-                <Link href={`/app?project=${encodeURIComponent(card.id)}`}>Open project →</Link>
+                <Link href={`/projects/${encodeURIComponent(card.id)}`}>Open project →</Link>
               </article>
             )) : visibleCards && visibleCards.length === 0 && q ? (
               <div className="projects-no-results"><Search size={22} /><strong>No matching projects</strong><button type="button" onClick={() => setQuery("")}>Clear search</button></div>

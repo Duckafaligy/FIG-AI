@@ -585,10 +585,15 @@ def test_settings_integration_names_match_the_frontends_static_list():
     said "Search Console" on one side, "Google Search Console" on the
     other, and simply never matched) and is checked here for every service
     that has a real Connect button wired in Settings: connecting would have
-    kept showing "Not connected" forever, no matter how it actually went."""
-    frontend_src = (ROOT / "frontend" / "app" / "app" / "settings" / "page.tsx").read_text(encoding="utf-8")
-    start = frontend_src.index("const services: Service[] = [")
-    end = frontend_src.index("];", start)
+    kept showing "Not connected" forever, no matter how it actually went.
+
+    Per-project connectors (WordPress, Shopify, Webflow, Wix, GitHub, the two
+    Google services) moved out of Settings and into
+    `components/project-connectors.tsx`'s `GROUPS` array (2026-09-22) -- that
+    file, not settings/page.tsx, is now the frontend's static list for them."""
+    frontend_src = (ROOT / "frontend" / "components" / "project-connectors.tsx").read_text(encoding="utf-8")
+    start = frontend_src.index("const GROUPS: { title: string; description: string; services: Service[] }[] = [")
+    end = frontend_src.index("\n];", start)
     frontend_names = set(re.findall(r'name:\s*"([^"]+)"', frontend_src[start:end]))
 
     backend_names = {row["name"] for row in pages._api_rows(None, [])}

@@ -120,11 +120,24 @@ def propose(session: Session, site: Site) -> list[Change]:
     return made
 
 
-def queue(session: Session, account: Account, layer: str | None = None) -> dict:
-    """The publish console: what is waiting, per site, with its integration."""
+def queue(session: Session, account: Account, layer: str | None = None,
+         site_id: str | None = None) -> dict:
+    """The publish console: what is waiting, per site, with its integration.
+
+    `site_id` scopes to one project (the project detail page) -- omitted,
+    this is every active site in the account (the estate-wide /app/publish
+    page). Ownership isn't re-checked here: callers pass a site_id already
+    resolved through a real ownership check (e.g. webapp.py's `_project`),
+    same trust boundary as `overview`/`seo`/`geo` already use.
+    """
     sites = {s.id: s for s in account.sites if s.is_active}
+    if site_id:
+        sites = {sid: s for sid, s in sites.items() if sid == site_id}
     if not sites:
-        return {"rows": [], "counts": {}, "_integrations": [], "connected": 0}
+        # A site_id filter that matches nothing (foreign, deactivated, or
+        # never existed) reaches this the same way a genuinely empty
+        # account does -- both are "nothing to show", never an error.
+        return {"rows": [], "counts": {}, "_integrations": [], "connected": 0, "sites": 0}
 
     q = select(Change).where(Change.site_id.in_(list(sites)))
     if layer:

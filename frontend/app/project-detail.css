@@ -1,0 +1,20 @@
+.project-detail { display: flex; flex-direction: column; gap: 22px; }
+
+.project-detail-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.project-detail-kpis article { padding: 14px; border: 1px solid #e5e9f1; border-radius: 8px; background: #fbfcff; }
+.project-detail-kpis span { display: block; color: #7b87a2; font-size: 9.5px; }
+.project-detail-kpis strong { display: block; margin-top: 4px; color: #2d3a58; font-size: 20px; }
+
+.project-detail-links { display: flex; flex-wrap: wrap; gap: 10px; }
+.project-detail-links a {
+  padding: 9px 13px; display: inline-flex; align-items: center; gap: 7px;
+  color: #4a3fc4; border: 1px solid #e2ddfb; border-radius: 8px; background: #f8f7ff;
+  font-size: 11px; font-weight: 600; text-decoration: none;
+}
+.project-detail-links a:hover { background: #f0edff; }
+
+.project-detail-section h2 { margin: 0 0 12px; font-size: 15px; color: #2d3a58; }
+
+@media (max-width: 700px) {
+  .project-detail-kpis { grid-template-columns: 1fr; }
+}

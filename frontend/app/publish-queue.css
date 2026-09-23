@@ -1,4 +1,7 @@
 .publish-queue { display: flex; flex-direction: column; gap: 18px; }
+.publish-queue--embedded { gap: 14px; }
+.pq-embedded-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.pq-embedded-heading p { margin: 0; color: #6b7690; font-size: 11px; line-height: 1.6; max-width: 460px; }
 
 .pq-state { padding: 40px 0; color: #6e7a97; font-size: 12px; text-align: center; }
 .pq-state--error { color: #b3402f; }
