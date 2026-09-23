@@ -458,6 +458,78 @@ class TrialEnforcementTests(unittest.TestCase):
         self.assertEqual(self.client.post("/api/audit-all", headers=self.headers(config.DEMO_ACCOUNT_SLUG)).status_code, 200)
 
 
+class ReAddRemovedProjectTests(unittest.TestCase):
+    """`Site.hostname` is only unique per account in the database sense --
+    `remove_project` deactivates a row rather than deleting it, so the
+    (account_id, hostname) constraint still holds it after removal.
+    add_project's "already in this workspace" check queried
+    pages.sites_of(), which filters to active sites only, so a removed-then-
+    re-added hostname sailed past that check and hit the constraint as an
+    unhandled IntegrityError -- a real 500 in production
+    (FIG-AI-BACKEND-4), not simulated."""
+
+    def setUp(self):
+        self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        Base.metadata.create_all(self.engine)
+        with Session(self.engine) as db:
+            db.add(Account(id="a", name="Account A", slug="a"))
+            db.flush()
+            db.add(Site(id="site-1", account_id="a", hostname="launchvault.ca"))
+            db.commit()
+        app = FastAPI()
+        app.include_router(router)
+
+        def session():
+            with Session(self.engine) as db:
+                yield db
+        app.dependency_overrides[get_session] = session
+        self.auth = patch("app.webapp.current_account",
+                          side_effect=lambda request, db: db.get(Account, request.headers.get("x-test-account"))
+                          if request.headers.get("x-test-account") else None)
+        self.auth.start()
+        self.patch_hostname = patch("app.webapp.public_hostname", side_effect=lambda raw: raw.strip().lower())
+        self.patch_hostname.start()
+        self.patch_billing = patch.object(config, "BILLING_ENABLED", False)
+        self.patch_billing.start()
+        self.client = TestClient(app)
+        self.headers = {"x-test-account": "a"}
+
+    def tearDown(self):
+        self.client.close()
+        self.auth.stop()
+        self.patch_hostname.stop()
+        self.patch_billing.stop()
+        self.engine.dispose()
+
+    def test_removing_then_re_adding_the_same_hostname_revives_the_old_row(self):
+        removed = self.client.delete("/api/projects/site-1", headers=self.headers)
+        self.assertEqual(removed.status_code, 200, removed.text)
+
+        added = self.client.post("/api/projects", headers=self.headers, json={"hostname": "Launchvault.ca"})
+        self.assertEqual(added.status_code, 200, added.text)
+        self.assertEqual(added.json()["id"], "site-1", "should revive the removed row, not fork a new one")
+
+        with Session(self.engine) as db:
+            rows = db.query(Site).filter(Site.hostname == "launchvault.ca").all()
+            self.assertEqual(len(rows), 1, "must not leave two rows for one hostname")
+            self.assertTrue(rows[0].is_active)
+
+    def test_re_adding_an_already_active_project_still_409s(self):
+        added = self.client.post("/api/projects", headers=self.headers, json={"hostname": "launchvault.ca"})
+        self.assertEqual(added.status_code, 409)
+
+    def test_a_reactivated_project_keeps_its_client_name_if_none_is_given_again(self):
+        with Session(self.engine) as db:
+            db.query(Site).filter(Site.id == "site-1").update({"client_name": "Launch Vault"})
+            db.commit()
+        self.client.delete("/api/projects/site-1", headers=self.headers)
+
+        added = self.client.post("/api/projects", headers=self.headers, json={"hostname": "launchvault.ca"})
+        self.assertEqual(added.status_code, 200, added.text)
+        with Session(self.engine) as db:
+            self.assertEqual(db.get(Site, "site-1").client_name, "Launch Vault")
+
+
 class JsRenderingHealthTests(unittest.TestCase):
     """app.pages._js_rendering_health -- a pure function, so no app/DB needed.
     Only .pages is read, so a lightweight stand-in for Scan is enough."""

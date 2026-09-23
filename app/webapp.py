@@ -277,17 +277,36 @@ def add_project(request: Request, payload: dict = Body(...),
     # Site row that can only ever produce a failed scan.
     host = public_hostname(raw)
 
-    existing = next((s for s in pages.sites_of(session, account)
-                     if s.hostname == host), None)
-    if existing is not None:
+    # Checked against every row for this account, active or not: the
+    # database's own (account_id, hostname) uniqueness constraint doesn't
+    # care whether a prior Site was deactivated by `remove_project`, but
+    # `pages.sites_of()` only returns active ones -- comparing against that
+    # let a removed-then-re-added hostname reach the insert and hit the
+    # constraint as an unhandled IntegrityError (500), found live in
+    # production (FIG-AI-BACKEND-4).
+    existing = session.scalar(
+        select(Site).where(Site.account_id == account.id, Site.hostname == host))
+    if existing is not None and existing.is_active:
         raise HTTPException(409, f"{host} is already in this workspace")
 
-    site = Site(account_id=account.id, hostname=host,
-                client_name=(payload or {}).get("name") or None,
-                label=(payload or {}).get("label") or None)
-    session.add(site)
-    session.commit()
-    session.refresh(site)
+    if existing is not None:
+        # Re-adding a project you'd previously removed: revive the same
+        # row (and so its scan/finding history) rather than fail on the
+        # constraint or fork a second row for the same hostname.
+        site = existing
+        site.is_active = True
+        if (payload or {}).get("name"):
+            site.client_name = payload["name"]
+        if (payload or {}).get("label"):
+            site.label = payload["label"]
+        session.commit()
+    else:
+        site = Site(account_id=account.id, hostname=host,
+                    client_name=(payload or {}).get("name") or None,
+                    label=(payload or {}).get("label") or None)
+        session.add(site)
+        session.commit()
+        session.refresh(site)
 
     scan = enqueue_scan(session, site.id, trigger="manual")
     session.commit()
