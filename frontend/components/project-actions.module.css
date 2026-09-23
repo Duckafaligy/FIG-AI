@@ -1,0 +1,7 @@
+.actions { justify-self: end; z-index: 2; }
+.actions:has(details[open]) { z-index: 30; }
+.actions summary:focus-visible,.actions button:focus-visible { outline: 2px solid #7962bf; outline-offset: 3px; }
+.dialog { text-align: left; cursor: default; }
+.dialog form { display: grid; gap: 14px; }
+.dialog form p { margin: 0; line-height: 1.7; }
+.dialog h2 { margin-bottom: 20px; }

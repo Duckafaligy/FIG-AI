@@ -63,6 +63,18 @@ class LibraryTests(unittest.TestCase):
             self.assertNotEqual(user.account_id, 'a')
             self.assertEqual(pages.sites_of(db, db.get(Account, user.account_id)), [])
 
+    def test_remove_project_is_owned_soft_removal(self):
+        with patch('app.webapp.billing.try_sync') as sync:
+            self.assertEqual(self.client.delete('/api/projects/site-b', headers=self.headers).status_code, 404)
+            sync.assert_not_called()
+            self.assertEqual(self.client.delete('/api/projects/site-a', headers=self.headers).status_code, 200)
+            sync.assert_called_once()
+        with Session(self.engine) as db:
+            self.assertIsNotNone(db.get(Site, 'site-a'))
+            self.assertFalse(db.get(Site, 'site-a').is_active)
+            self.assertTrue(db.get(Site, 'site-b').is_active)
+            self.assertEqual(pages.sites_of(db, db.get(Account, 'a')), [])
+
     def create(self, title="My guide", account="a", site="site-a"):
         return self.client.post("/api/content", headers={"x-test-account": account}, json={"project_id": site, "title": title})
 
