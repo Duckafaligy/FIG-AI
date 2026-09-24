@@ -123,6 +123,11 @@ AI_PRICE_OUTPUT_PER_MTOK = float(os.environ.get("FIG_AI_PRICE_OUTPUT", "5.00"))
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_PRICE_ID = os.environ.get("STRIPE_PRICE_ID", "")   # per-site graduated price
+# The fixed-price self-serve catalogue's prices (Standard/Premium/Education,
+# PLAN-DECISIONS.md) are deliberately NOT env vars here -- app/billing.py
+# resolves each one from the live Stripe account by lookup_key at checkout
+# time (see _plan_price_id), so nothing plan-specific needs configuring per
+# deployment beyond STRIPE_SECRET_KEY, which every deployment already has.
 BILLING_ENABLED = bool(STRIPE_SECRET_KEY)
 PUBLIC_URL = os.environ.get("FIG_PUBLIC_URL", "http://127.0.0.1:8000")
 # Where the marketing site lives. The auth pages link back to it, and its

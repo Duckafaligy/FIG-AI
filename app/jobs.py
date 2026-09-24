@@ -16,7 +16,7 @@ from sqlalchemy import select
 
 from app.config import WORKER_COUNT
 from app.db import session_scope
-from app.models import Job, Scan, Site
+from app.models import Account, Job, Scan, Site
 
 log = logging.getLogger("fig.jobs")
 
@@ -35,20 +35,57 @@ def _now() -> datetime:
 def enqueue_scan(session, site_id: str, trigger: str = "manual",
                  max_pages: int | None = None) -> Scan:
     """Create the Scan row immediately so the caller has something to poll,
-    then queue the work."""
+    then queue the work. Every caller that creates a scan goes through here
+    -- a manual audit, audit_all's per-site loop, and app/scheduler.py's
+    Watch sweep -- which is what makes this the one place to reserve a plan's
+    scan quota (PLAN-DECISIONS.md: "monitoring counts toward the same
+    quota"). Reservation, not just counting after the fact, so a plan that's
+    out of scans can't be overrun by several requests racing in."""
     scan = Scan(site_id=site_id, status="queued", trigger=trigger)
     session.add(scan)
     session.flush()
     session.add(Job(kind="scan", payload={"scan_id": scan.id, "max_pages": max_pages}))
+    _reserve_quota(session, site_id)
     return scan
 
 
 def enqueue_estate(session, account_id: str, trigger: str = "manual") -> list[Scan]:
-    """Every active site on an account. This is the call an agency makes."""
+    """Every active site on an account. This is the call an agency makes.
+
+    On a plan with a scan quota, this caps how many sites actually get
+    enqueued to whatever quota remains, rather than reserving past it and
+    leaving the count negative -- "a bulk audit consumes one scan per
+    website" (PLAN-DECISIONS.md), and the remainder just doesn't run this
+    time. An account without a plan-based quota (None) is uncapped, as
+    before."""
     sites = session.scalars(
         select(Site).where(Site.account_id == account_id, Site.is_active.is_(True))
     ).all()
+    account = session.get(Account, account_id)
+    remaining = account.scans_remaining() if account else None
+    if remaining is not None:
+        sites = sites[:remaining]
     return [enqueue_scan(session, s.id, trigger=trigger) for s in sites]
+
+
+def _reserve_quota(session, site_id: str) -> None:
+    site = session.get(Site, site_id)
+    account = session.get(Account, site.account_id) if site else None
+    if account is not None and account.plan:
+        account.scans_used_this_period += 1
+
+
+def _release_quota(session, site_id: str | None) -> None:
+    """The mirror of `_reserve_quota`, for a scan that ultimately failed --
+    "failed jobs release reserved quota" (PLAN-DECISIONS.md). Not called for
+    a job that's merely being retried: the reservation should persist across
+    retries of the same scan, only releasing once it's given up for good."""
+    if not site_id:
+        return
+    site = session.get(Site, site_id)
+    account = session.get(Account, site.account_id) if site else None
+    if account is not None and account.plan and account.scans_used_this_period > 0:
+        account.scans_used_this_period -= 1
 
 
 # --- consume ------------------------------------------------------------
@@ -111,6 +148,7 @@ def _run(job_id: str) -> None:
                     if scan and scan.status not in ("done",):
                         scan.status = "failed"
                         scan.error = err
+                        _release_quota(s, scan.site_id)
 
 
 # A worker that dies mid-scan (a Render restart or deploy kills the process)
@@ -155,6 +193,7 @@ def reclaim_stale(now: datetime | None = None) -> dict:
                 job.status, job.error, job.finished_at = "failed", note, now
                 if scan is not None and scan.status != "done":
                     scan.status, scan.error = "failed", note
+                    _release_quota(s, scan.site_id)
                 out["failed"] += 1
     if out["requeued"] or out["failed"]:
         log.warning("reclaimed stale jobs: %s", out)

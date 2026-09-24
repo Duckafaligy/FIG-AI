@@ -123,6 +123,20 @@ class LaunchHardeningTests(unittest.TestCase):
         self.assertEqual(result["plan"]["state"], "Not subscribed")
         self.assertTrue(all(row["cap"] is None for row in result["usage"]))
 
+    def test_settings_reports_a_real_fixed_price_plan_not_the_legacy_block(self):
+        account = self.db.get(Account, "a")
+        account.plan, account.scans_used_this_period = "standard", 12
+        account.stripe_subscription_id = "sub_real"   # set on link, same as a legacy subscriber's
+        self.db.commit()
+        result = self.client.get("/api/settings", headers=self.headers).json()
+        self.assertEqual(result["plan"]["name"], "Standard")
+        self.assertEqual(result["plan"]["price"], "$49")
+        self.assertTrue(result["plan"]["subscribed"])
+        self.assertFalse(result["plan"]["checkout_available"])
+        usage = {row["label"]: row for row in result["usage"]}
+        self.assertEqual(usage["Projects"]["cap"], 2)
+        self.assertEqual(usage["Scans this period"], {"label": "Scans this period", "used": 12, "cap": 100})
+
     def test_frontend_signup_contract(self):
         from pathlib import Path
         source = (Path(__file__).parent / "frontend/components/auth-form.tsx").read_text(encoding="utf-8")

@@ -500,8 +500,6 @@ export const actions = {
   deleteAccount: (confirm: string) =>
     apiSend<{ deleted: true; sites: number; subscription_cancelled: boolean; sign_in_record_deleted: boolean }>(
       "/api/account/delete", "POST", { confirm }),
-  addProject: (hostname: string, name?: string) =>
-    apiSend<{ id: string; hostname: string; scan_id: string }>("/api/projects", "POST", { hostname, name }),
   removeProject: (id: string) => apiSend<{ ok: true }>(`/api/projects/${id}`, "DELETE"),
   auditProject: (id: string) => apiSend<{ ok: true; scan_id: string }>(`/api/projects/${id}/audit`, "POST"),
   shareProject: (id: string, isPublic: boolean) =>
@@ -509,7 +507,22 @@ export const actions = {
   connectIntegration: (projectId: string, platform: string, endpoint: string, credential: string) =>
     apiSend<{ id: string; platform: string; connected: boolean; hint: string | null; error: string | null }>(
       "/api/integrations", "POST", { project_id: projectId, platform, endpoint, credential }),
-  startCheckout: () => apiSend<{ url: string; quantity: number; trial_days: number }>("/api/billing/checkout", "POST"),
+  // Connecting a platform creates the project (2026-09-24) -- WordPress has
+  // no OAuth round trip, so its own form both creates the Site and attempts
+  // the connection in one call, unlike Shopify/Webflow/Wix/GitHub, which
+  // navigate the whole browser to /oauth/{platform}/start instead.
+  createProjectViaWordpress: (endpoint: string, credential: string) =>
+    apiSend<{ id: string; hostname: string; scan_id: string; connected: boolean; hint: string | null; error: string | null }>(
+      "/api/projects/connect/wordpress", "POST", { endpoint, credential }),
+  // The other half of that same flow for GitHub (no Pages custom domain
+  // found) and Wix (never discoverable) -- see app/oauth.py's "creating a
+  // project from a platform that can't tell us its own domain".
+  finishOauthCreate: (pending: string, hostname: string) =>
+    apiSend<{ id: string; hostname: string; scan_id: string }>(
+      "/api/projects/finish-oauth-create", "POST", { pending, hostname }),
+  startCheckout: (plan?: string) =>
+    apiSend<{ url: string; plan?: string; quantity?: number; trial_days: number }>(
+      "/api/billing/checkout", "POST", plan ? { plan } : undefined),
   startPortal: () => apiSend<{ url: string }>("/api/billing/portal", "POST"),
   auditAll: () => apiSend<{ ok: true; queued: number }>("/api/audit-all", "POST"),
   proposeBriefs: () => apiSend<{ ok: true; briefs: number }>("/api/content/propose", "POST"),

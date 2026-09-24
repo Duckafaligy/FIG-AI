@@ -12,8 +12,9 @@ that billing is off and the rest of the product is unaffected.
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app import config
@@ -78,11 +79,16 @@ def ensure_customer(session: Session, account: Account) -> str:
     return customer["id"]
 
 
-def start_checkout(session: Session, account: Account) -> dict:
-    """A subscription whose quantity is the number of active sites. Plain
-    function so both /v1 (partner, API-key auth) and /api (our own
-    frontend, session-cookie auth) can call the same implementation rather
-    than drifting into two."""
+def start_checkout(session: Session, account: Account, plan: str | None = None) -> dict:
+    """A subscription. Plain function so both /v1 (partner, API-key auth)
+    and /api (our own frontend, session-cookie auth) can call the same
+    implementation rather than drifting into two.
+
+    `plan` selects the fixed-price self-serve catalogue (Standard/Premium/
+    Education, PLAN-DECISIONS.md) -- this is the only path a "direct"
+    account can subscribe through. Omitting it keeps the legacy per-site
+    volume checkout, still used by partner/agency accounts and any existing
+    direct subscription that predates the plan catalogue."""
     # The Settings button already switches to the portal once subscribed, but
     # this is the function that takes the money, so it refuses on its own: a
     # second tab, a double click or a direct API call must not open a second
@@ -90,14 +96,15 @@ def start_checkout(session: Session, account: Account) -> dict:
     if account.stripe_subscription_id:
         raise HTTPException(409, "This workspace already has a subscription. "
                                  "Change or cancel it from the billing portal.")
-    # Direct customers see the new fixed-price catalogue. Never silently
-    # enroll them into the legacy per-site product. Existing subscriptions
-    # retain their portal/webhooks/quantity synchronization; partner contracts
-    # retain their versioned per-site checkout.
+    if plan:
+        return _start_plan_checkout(session, account, plan)
+    # Direct customers have no per-site estate to bill by volume -- they
+    # must pick one of the fixed-price plans above. Existing subscriptions
+    # retain their portal/webhooks/quantity synchronization; partner
+    # contracts retain their versioned per-site checkout below.
     if account.kind == "direct":
-        raise HTTPException(409, "Self-service checkout is not available while FIG's new plans "
-                                 "are being configured. Contact us through Pricing. "
-                                 "No payment has been taken.")
+        raise HTTPException(409, "Choose a plan to subscribe: Standard, Premium or Education. "
+                                 "See Pricing. No payment has been taken.")
     stripe = _stripe()
     if not config.STRIPE_PRICE_ID:
         raise HTTPException(503, "set STRIPE_PRICE_ID to the per-site recurring price")
@@ -127,6 +134,51 @@ def start_checkout(session: Session, account: Account) -> dict:
     return {"url": s["url"], "quantity": qty, "trial_days": trial_left}
 
 
+def _plan_price_id(stripe, plan: str) -> str | None:
+    """Resolved from the live Stripe account by lookup_key
+    (scripts/stripe_plans_setup.py creates each price with `fig_plan_{plan}`
+    as its lookup_key), not from an env var. This is deliberate: the price
+    id is meaningless config to duplicate per-deployment when Stripe already
+    holds the (key -> id) mapping itself, reachable with nothing more than
+    the STRIPE_SECRET_KEY every deployment already needs. Render, this
+    machine, or a teammate's laptop all resolve the same id from the same
+    account with zero extra configuration."""
+    found = stripe.Price.list(lookup_keys=[f"fig_plan_{plan}"], active=True, limit=1)
+    return found["data"][0]["id"] if found["data"] else None
+
+
+def _start_plan_checkout(session: Session, account: Account, plan: str) -> dict:
+    limits = Account.PLAN_LIMITS.get(plan)
+    if not limits:
+        raise HTTPException(400, f"unknown plan {plan!r}")
+    stripe = _stripe()
+    price_id = _plan_price_id(stripe, plan)
+    if not price_id:
+        raise HTTPException(503, f"no active Stripe price for {limits['label']} yet -- "
+                                 f"run scripts/stripe_plans_setup.py")
+    customer_id = ensure_customer(session, account)
+    trial_left = account.trial_days_left()
+    # fig_plan rides on the subscription itself (not just the Checkout
+    # Session) because the webhook events that actually grant the plan --
+    # customer.subscription.created/updated -- carry the subscription's own
+    # metadata, not the Checkout Session's. Reading it back from there means
+    # the plan is set from what was actually bought, never guessed from the
+    # price id.
+    sub_data = {"metadata": {"fig_account_id": account.id, "fig_plan": plan}}
+    if trial_left:
+        sub_data["trial_period_days"] = trial_left
+    s = stripe.checkout.Session.create(
+        mode="subscription",
+        customer=customer_id,
+        line_items=[{"price": price_id, "quantity": 1}],
+        subscription_data=sub_data,
+        success_url=f"{config.FRONTEND_URL}/projects/settings?tab=billing&checkout=done",
+        cancel_url=f"{config.FRONTEND_URL}/projects/settings?tab=billing&checkout=cancelled",
+        metadata={"fig_account_id": account.id, "fig_plan": plan},
+    )
+    return {"url": s["url"], "plan": plan, "trial_days": trial_left}
+
+
 def start_portal(session: Session, account: Account) -> dict:
     stripe = _stripe()
     customer_id = ensure_customer(session, account)
@@ -136,9 +188,10 @@ def start_portal(session: Session, account: Account) -> dict:
 
 
 @router.post("/checkout")
-def checkout(account: Account = Depends(require_account),
+def checkout(payload: dict = Body(default={}),
+             account: Account = Depends(require_account),
              session: Session = Depends(get_session)):
-    return start_checkout(session, account)
+    return start_checkout(session, account, plan=(payload or {}).get("plan"))
 
 
 @router.post("/portal")
@@ -242,6 +295,27 @@ SUBSCRIBED_STATUSES = frozenset({"active", "trialing", "past_due"})
 ENDED_STATUSES = frozenset({"canceled", "incomplete_expired", "unpaid"})
 
 
+def _apply_plan_and_period(account: Account, obj: dict) -> None:
+    """Read the fixed-price plan (if any) and the current billing period off
+    a subscription event, and reset the scan counter when the period has
+    moved on -- "reset each billing period, no rollover" (PLAN-DECISIONS.md)
+    without a separate cron job. A legacy per-site subscription carries no
+    fig_plan metadata, so this leaves `plan` untouched for those."""
+    fig_plan = (obj.get("metadata") or {}).get("fig_plan")
+    if fig_plan in Account.PLAN_LIMITS:
+        account.plan = fig_plan
+    period_end = obj.get("current_period_end")
+    if period_end:
+        # Naive-but-UTC, same convention as every other DateTime column here
+        # (see Account.trial_days_left's own comment) -- SQLite/Postgres both
+        # hand back naive values, so storing tz-aware would make every later
+        # comparison lie about how far apart two values really are.
+        new_end = datetime.fromtimestamp(period_end, tz=timezone.utc).replace(tzinfo=None)
+        if account.current_period_end is None or new_end != account.current_period_end:
+            account.current_period_end = new_end
+            account.scans_used_this_period = 0
+
+
 def _account_for_event(session: Session, obj: dict) -> Account | None:
     account_id = (obj.get("metadata") or {}).get("fig_account_id")
     account = session.get(Account, account_id) if account_id else None
@@ -291,6 +365,7 @@ def apply_event(session: Session, kind: str, obj: dict) -> str | None:
         if account is None:
             return None
         account.stripe_subscription_id = sub_id
+        _apply_plan_and_period(account, obj)
         session.commit()
         log.info("billing: linked account %s to %s", account.slug, sub_id)
         return "linked"
@@ -311,6 +386,7 @@ def _clear(session: Session, sub_id: str | None) -> str | None:
     if account is None:
         return None
     account.stripe_subscription_id = None
+    account.plan = None
     session.commit()
     log.info("billing: cleared %s from account %s", sub_id, account.slug)
     return "cleared"

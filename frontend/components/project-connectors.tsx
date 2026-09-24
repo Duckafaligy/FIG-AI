@@ -36,10 +36,17 @@ function IntegrationDialog({ title, busy = false, onClose, children }: { title: 
   </dialog>;
 }
 
-export function ProjectConnectors({ projectId, apis, onChanged, compact = false }: {
-  projectId: string;
-  apis: ApiSettingsPage["apis"];
-  onChanged: () => void | Promise<void>;
+export function ProjectConnectors({ projectId, apis = [], onChanged, compact = false, onCreated }: {
+  // Omitted (2026-09-24): there's no project yet -- connecting a platform
+  // IS how one gets created. Every OAuth platform's button then navigates
+  // the whole browser to /oauth/{platform}/start with no site_id, and the
+  // callback (app/oauth.py) creates the Site itself once it knows a real
+  // hostname. WordPress has no OAuth redirect to leave the page for, so its
+  // form calls `onCreated` directly once the new project exists.
+  projectId?: string;
+  apis?: ApiSettingsPage["apis"];
+  onChanged?: () => void | Promise<void>;
+  onCreated?: (project: { id: string; hostname: string }) => void;
   // A simple platform-picker button row instead of the full connected-status
   // list -- for a brand-new project (nothing could be connected yet, so a
   // status column has nothing to show) inside the "Add project" dialog,
@@ -50,6 +57,16 @@ export function ProjectConnectors({ projectId, apis, onChanged, compact = false 
   compact?: boolean;
 }) {
   const liveApi = (name: string) => apis.find((a) => a.name === name);
+
+  // Shared by every OAuth platform below: site_id only when reconnecting an
+  // existing project -- omitted entirely means "create a new one" to
+  // app/oauth.py's /start routes.
+  const startUrl = (platform: string, extra: Record<string, string> = {}) => {
+    const params = new URLSearchParams(extra);
+    if (projectId) params.set("site_id", projectId);
+    const qs = params.toString();
+    return apiUrl(`/oauth/${platform}/start${qs ? `?${qs}` : ""}`);
+  };
 
   const [wpFormOpen, setWpFormOpen] = useState(false);
   const [wpBusy, setWpBusy] = useState(false);
@@ -62,12 +79,24 @@ export function ProjectConnectors({ projectId, apis, onChanged, compact = false 
     const appPassword = String(form.get("app-password") ?? "").trim();
     setWpBusy(true);
     setWpError("");
-    const result = await actions.connectIntegration(projectId, "wordpress", siteUrl, `${username}:${appPassword}`);
-    setWpBusy(false);
-    if (!result.ok) { setWpError(result.error); return; }
-    if (!result.data.connected) { setWpError(result.data.error ?? "couldn't connect"); return; }
-    setWpFormOpen(false);
-    await onChanged();
+    const credential = `${username}:${appPassword}`;
+    if (projectId) {
+      const result = await actions.connectIntegration(projectId, "wordpress", siteUrl, credential);
+      setWpBusy(false);
+      if (!result.ok) { setWpError(result.error); return; }
+      setWpFormOpen(false);
+      if (!result.data.connected) { setWpError(result.data.error ?? "couldn't connect"); return; }
+      await onChanged?.();
+    } else {
+      const result = await actions.createProjectViaWordpress(siteUrl, credential);
+      setWpBusy(false);
+      if (!result.ok) { setWpError(result.error); return; }
+      setWpFormOpen(false);
+      // The project exists either way, even on a bad credential -- see
+      // app/webapp.py:add_project_via_wordpress. Retryable from that
+      // project's own Settings page, same as an existing project's reconnect.
+      onCreated?.({ id: result.data.id, hostname: result.data.hostname });
+    }
   };
 
   const [shopifyFormOpen, setShopifyFormOpen] = useState(false);
@@ -76,7 +105,7 @@ export function ProjectConnectors({ projectId, apis, onChanged, compact = false 
     event.preventDefault();
     const raw = shopifyShop.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
     const shop = raw.includes(".") ? raw : `${raw}.myshopify.com`;
-    window.location.href = apiUrl(`/oauth/shopify/start?site_id=${projectId}&shop=${encodeURIComponent(shop)}`);
+    window.location.href = startUrl("shopify", { shop });
   };
 
   const [githubFormOpen, setGithubFormOpen] = useState(false);
@@ -84,7 +113,7 @@ export function ProjectConnectors({ projectId, apis, onChanged, compact = false 
   const submitGithub = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const raw = githubRepo.trim().replace(/^https?:\/\/(www\.)?github\.com\//, "").replace(/\/$/, "");
-    window.location.href = apiUrl(`/oauth/github/start?site_id=${projectId}&repo=${encodeURIComponent(raw)}`);
+    window.location.href = startUrl("github", { repo: raw });
   };
 
   const picker = compact ? (
@@ -100,8 +129,8 @@ export function ProjectConnectors({ projectId, apis, onChanged, compact = false 
         const className = `button button--small${remote?.ok ? " is-connected" : ""}`;
         if (isWordPress) return <button key={service.name} type="button" className={className} onClick={() => setWpFormOpen((open) => !open)}><IntegrationLogo name={service.name} />{label}</button>;
         if (isShopify) return <button key={service.name} type="button" className={className} onClick={() => setShopifyFormOpen((open) => !open)}><IntegrationLogo name={service.name} />{label}</button>;
-        if (isWebflow) return <a key={service.name} className={className} href={apiUrl(`/oauth/webflow/start?site_id=${projectId}`)}><IntegrationLogo name={service.name} />{label}</a>;
-        if (isWix) return <a key={service.name} className={className} href={apiUrl(`/oauth/wix/start?site_id=${projectId}`)}><IntegrationLogo name={service.name} />{label}</a>;
+        if (isWebflow) return <a key={service.name} className={className} href={startUrl("webflow")}><IntegrationLogo name={service.name} />{label}</a>;
+        if (isWix) return <a key={service.name} className={className} href={startUrl("wix")}><IntegrationLogo name={service.name} />{label}</a>;
         if (isGithub) return <button key={service.name} type="button" className={className} onClick={() => setGithubFormOpen((open) => !open)}><IntegrationLogo name={service.name} />{label}</button>;
         return null;
       })}
@@ -139,9 +168,9 @@ export function ProjectConnectors({ projectId, apis, onChanged, compact = false 
                     ) : isShopify ? (
                       <button type="button" className="settings-row-action button button--small" onClick={() => setShopifyFormOpen((open) => !open)}>{remote?.ok ? "Reconnect" : "Connect"}</button>
                     ) : isWebflow ? (
-                      <a className="settings-row-action button button--small" href={apiUrl(`/oauth/webflow/start?site_id=${projectId}`)}>{remote?.ok ? "Reconnect" : "Connect"}</a>
+                      <a className="settings-row-action button button--small" href={startUrl("webflow")}>{remote?.ok ? "Reconnect" : "Connect"}</a>
                     ) : isWix ? (
-                      <a className="settings-row-action button button--small" href={apiUrl(`/oauth/wix/start?site_id=${projectId}`)}>{remote?.ok ? "Reconnect" : "Connect"}</a>
+                      <a className="settings-row-action button button--small" href={startUrl("wix")}>{remote?.ok ? "Reconnect" : "Connect"}</a>
                     ) : isGithub ? (
                       <button type="button" className="settings-row-action button button--small" onClick={() => setGithubFormOpen((open) => !open)}>{remote?.ok ? "Reconnect" : "Connect"}</button>
                     ) : <ServiceIcon size={14} />}

@@ -34,6 +34,23 @@ platforms -- nothing here can write to a site. A write-capable adapter
 (Shopify, WordPress, ...) follows the same pattern but its Integration row
 also needs `scopes` set deliberately, per the "nothing is written without
 approval" rule in app/publishing.py.
+
+**Connecting a platform is how a new project gets created (2026-09-24),
+not a step after one already exists.** Every site-scoped platform's
+`/start` now takes `site_id` as optional: given, this reconnects (or adds a
+second platform to) an existing project, exactly as before; omitted, this
+IS the project-creation flow -- there's no hostname box anywhere in that
+path. The callback discovers the real live domain from the platform itself
+where that's possible (Shopify's `shop.primaryDomain`, Webflow's
+`customDomains`/default `.webflow.io`), creates the Site via
+`app/webapp.py:create_project` (the same trial/cap/validation rules a
+manually-typed hostname goes through), and only then stores the
+Integration. Two platforms genuinely cannot discover their own domain --
+GitHub when Pages has no custom domain configured (most Vercel/Netlify/
+Cloudflare-deployed repos), and Wix, whose Site Properties API has no
+URL field at all (checked against dev.wix.com) -- see the
+"creating a project from a platform that can't tell us its own domain"
+section below for how those two finish instead.
 """
 from __future__ import annotations
 
@@ -59,6 +76,7 @@ from app.auth import current_account
 from app.db import get_session
 from app.models import Account, Integration, Site, _now
 from app.secrets_store import SecretsNotConfigured, delete_secret, store_secret
+from app.webapp import create_project
 
 log = logging.getLogger("fig.oauth")
 router = APIRouter(prefix="/oauth", tags=["oauth"])
@@ -108,14 +126,71 @@ def _site_return_url(hostname: str) -> str:
 GOOGLE_RETURN_URL = f"{config.FRONTEND_URL}/projects/settings"
 
 
-def _owned_site(session: Session, request: Request, site_id: str) -> Site:
+def _resolve_site_or_account(session: Session, request: Request,
+                             site_id: str | None) -> tuple[Site | None, Account]:
+    """`site_id` given: reconnecting (or connecting a second platform to) an
+    existing project -- the ownership check every platform's /start has
+    always done. `site_id` omitted (2026-09-24): connecting this platform
+    IS how a new project gets created -- there is no site yet, only the
+    signed-in account, and the callback below is what creates one once it
+    knows (or is told) a real hostname."""
     account = current_account(request, session)
     if account is None:
         raise HTTPException(401, "sign in required")
+    if not site_id:
+        return None, account
     site = session.get(Site, site_id)
     if site is None or site.account_id != account.id:
         raise HTTPException(404, "no such site in this workspace")
-    return site
+    return site, account
+
+
+# --- creating a project from a platform that can't tell us its own domain --
+# Shopify and Webflow can both discover the live domain they're connected to
+# (their own APIs say so -- see _shopify_primary_domain/_webflow_hostname
+# below); GitHub can too, but only when GitHub Pages has a custom domain
+# configured, which most Vercel/Netlify/Cloudflare-deployed repos don't; and
+# Wix's Site Properties API (checked against dev.wix.com, 2026-09-24) has no
+# URL/domain field at all. For those last two cases, the credential is
+# connected first and held in a short-lived signed token; the frontend shows
+# one "what's this deployed at?" field, and POST /api/projects/finish-oauth-create
+# (app/webapp.py) both creates the Site and attaches the already-connected
+# credential in one call, rather than falling back to the old "type a
+# hostname first" box for every platform just because two of them need it.
+# Reuses SESSION_SECRET like every other signed token in this file, under
+# its own salt so it can never be replayed as a `state` token or vice versa.
+PENDING_MAX_AGE = 900  # 15 minutes to type a URL and confirm
+
+
+def _pending_serializer() -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(config.SESSION_SECRET, salt="fig-oauth-pending-create")
+
+
+def _make_pending_create(account_id: str, platform: str, *, credential_ref: str,
+                         credential_hint: str | None = None, endpoint: str | None = None,
+                         scopes: list[str] | None = None) -> str:
+    return _pending_serializer().dumps({
+        "account_id": account_id, "platform": platform, "credential_ref": credential_ref,
+        "credential_hint": credential_hint, "endpoint": endpoint, "scopes": scopes,
+    })
+
+
+def resolve_pending_create(token: str, account_id: str) -> dict:
+    """Used by app/webapp.py:finish_oauth_create. Raises HTTPException(400)
+    on a bad, expired, or mismatched-account token -- one identical answer
+    for "doesn't exist" and "isn't yours" so a token can't be probed, same
+    rule app/content.py's `_owned` states for the same reason."""
+    try:
+        data = _pending_serializer().loads(token, max_age=PENDING_MAX_AGE)
+    except (BadSignature, SignatureExpired):
+        raise HTTPException(400, "this connection has expired -- reconnect the platform")
+    if data.get("account_id") != account_id:
+        raise HTTPException(400, "this connection has expired -- reconnect the platform")
+    return data
+
+
+def _confirm_hostname_url(pending: str, platform: str) -> str:
+    return f"{config.FRONTEND_URL}/projects/confirm-url?pending={quote(pending, safe='')}&platform={platform}"
 
 
 @router.get("/google/start")
@@ -272,21 +347,25 @@ def _valid_shop(shop: str) -> str | None:
 
 
 @router.get("/shopify/start")
-def shopify_start(request: Request, site_id: str = Query(...), shop: str = Query(...),
+def shopify_start(request: Request, shop: str = Query(...),
+                  site_id: str | None = Query(default=None),
                   session: Session = Depends(get_session)):
     """Redirects to the merchant's own store, not a fixed URL -- Shopify's
     OAuth authorize endpoint lives on https://{shop}.myshopify.com, so the
     caller has to say which store, unlike Google's one authorize URL for
-    everyone."""
+    everyone. `site_id` omitted means this connection creates a new project
+    (2026-09-24) -- the callback discovers the store's real live domain via
+    Shopify's own API rather than trusting `shop` itself, which is often
+    just the .myshopify.com id, not the storefront's actual domain."""
     if not config.SHOPIFY_OAUTH_ENABLED:
         raise HTTPException(503, "Shopify OAuth is not configured on this server "
                                  "(set SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET)")
     shop_domain = _valid_shop(shop)
     if shop_domain is None:
         raise HTTPException(422, "shop must look like your-store.myshopify.com")
-    site = _owned_site(session, request, site_id)
+    site, account = _resolve_site_or_account(session, request, site_id)
 
-    state = _serializer().dumps({"site_id": site.id, "account_id": site.account_id,
+    state = _serializer().dumps({"site_id": site.id if site else None, "account_id": account.id,
                                  "shop": shop_domain})
     params = {
         "client_id": config.SHOPIFY_CLIENT_ID,
@@ -343,8 +422,12 @@ def shopify_callback(request: Request, code: str = Query(default=""),
         # The store that approved the app isn't the one /start was sent for.
         return _return(integration=PLATFORM_SHOPIFY, error="shop_mismatch")
 
-    site = session.get(Site, payload.get("site_id"))
-    if site is None or site.account_id != payload.get("account_id"):
+    account = session.get(Account, payload.get("account_id"))
+    if account is None:
+        return _return(integration=PLATFORM_SHOPIFY, error="account_not_found")
+    site_id = payload.get("site_id")
+    site = session.get(Site, site_id) if site_id else None
+    if site_id and (site is None or site.account_id != account.id):
         return _return(integration=PLATFORM_SHOPIFY, error="site_not_found")
 
     try:
@@ -374,8 +457,22 @@ def shopify_callback(request: Request, code: str = Query(default=""),
                                      "shop": shop_domain,
                                      "scope": tokens.get("scope", "")})
     except SecretsNotConfigured as exc:
-        log.error("cannot store shopify token for site %s: %s", site.id, exc)
+        log.error("cannot store shopify token for account %s: %s", account.id, exc)
         return _return(integration=PLATFORM_SHOPIFY, error="secrets_not_configured")
+
+    if site is None:
+        # Neither branch below calls session.commit(): the secret stored
+        # just above is still only flushed, not durable, so returning here
+        # without committing discards it along with everything else this
+        # request touched -- no separate delete_secret cleanup needed.
+        hostname = _shopify_primary_domain(shop_domain, access_token)
+        if not hostname:
+            return _return(integration=PLATFORM_SHOPIFY, error="domain_discovery_failed")
+        try:
+            site, _scan = create_project(session, account, hostname)
+        except HTTPException as exc:
+            log.warning("could not create shopify project for account %s: %s", account.id, exc.detail)
+            return _return(integration=PLATFORM_SHOPIFY, error="project_creation_failed")
 
     integ = session.scalars(select(Integration).where(
         Integration.site_id == site.id, Integration.platform == PLATFORM_SHOPIFY)).first()
@@ -392,6 +489,29 @@ def shopify_callback(request: Request, code: str = Query(default=""),
     integ.last_error = None
     session.commit()
     return _return(_site_return_url(site.hostname), integration=PLATFORM_SHOPIFY, connected="1")
+
+
+def _shopify_primary_domain(shop_domain: str, access_token: str) -> str | None:
+    """shop.primaryDomain.host via the GraphQL Admin API -- the live
+    storefront domain, which can differ from {shop}.myshopify.com once a
+    custom domain is mapped. Checked against shopify.dev's Shop and Domain
+    object docs (2026-09-24); same API version app/shopify.py already
+    targets, so a future version bump only has to happen in one place."""
+    from app.shopify import API_VERSION
+    url = f"https://{shop_domain}/admin/api/{API_VERSION}/graphql.json"
+    try:
+        resp = httpx.post(url, json={"query": "{ shop { primaryDomain { host } } }"},
+                          headers={"X-Shopify-Access-Token": access_token}, timeout=15.0)
+    except httpx.HTTPError as exc:
+        log.warning("shopify shop domain lookup failed for %s: %s", shop_domain, exc)
+        return None
+    if resp.status_code != 200:
+        log.warning("shopify shop domain lookup rejected for %s: %s", shop_domain, resp.status_code)
+        return None
+    try:
+        return resp.json()["data"]["shop"]["primaryDomain"]["host"] or None
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 # --- webflow ----------------------------------------------------------------
@@ -418,14 +538,14 @@ PLATFORM_WEBFLOW = "webflow"
 
 
 @router.get("/webflow/start")
-def webflow_start(request: Request, site_id: str = Query(...),
+def webflow_start(request: Request, site_id: str | None = Query(default=None),
                   session: Session = Depends(get_session)):
     if not config.WEBFLOW_OAUTH_ENABLED:
         raise HTTPException(503, "Webflow OAuth is not configured on this server "
                                  "(set WEBFLOW_CLIENT_ID / WEBFLOW_CLIENT_SECRET)")
-    site = _owned_site(session, request, site_id)
+    site, account = _resolve_site_or_account(session, request, site_id)
 
-    state = _serializer().dumps({"site_id": site.id, "account_id": site.account_id})
+    state = _serializer().dumps({"site_id": site.id if site else None, "account_id": account.id})
     params = {
         "response_type": "code",
         "client_id": config.WEBFLOW_CLIENT_ID,
@@ -450,8 +570,12 @@ def webflow_callback(request: Request, code: str = Query(default=""),
     except BadSignature:
         return _return(integration=PLATFORM_WEBFLOW, error="invalid_state")
 
-    site = session.get(Site, payload.get("site_id"))
-    if site is None or site.account_id != payload.get("account_id"):
+    account = session.get(Account, payload.get("account_id"))
+    if account is None:
+        return _return(integration=PLATFORM_WEBFLOW, error="account_not_found")
+    site_id = payload.get("site_id")
+    site = session.get(Site, site_id) if site_id else None
+    if site_id and (site is None or site.account_id != account.id):
         return _return(integration=PLATFORM_WEBFLOW, error="site_not_found")
 
     try:
@@ -479,21 +603,35 @@ def webflow_callback(request: Request, code: str = Query(default=""),
     # adapter needs this to know what to call GET/PATCH against. No picker
     # yet if more than one was granted: first one wins, same limitation
     # app/ga.py and app/search_console.py already document for Google.
+    first_site: dict = {}
     try:
         sites_resp = httpx.get(WEBFLOW_SITES_URL,
                                headers={"Authorization": f"Bearer {access_token}"}, timeout=15.0)
-        webflow_site_id = (sites_resp.json().get("sites") or [{}])[0].get("id", "") \
-            if sites_resp.status_code == 200 else ""
+        if sites_resp.status_code == 200:
+            first_site = (sites_resp.json().get("sites") or [{}])[0]
     except httpx.HTTPError as exc:
-        log.warning("webflow site discovery failed for site %s: %s", site.id, exc)
-        webflow_site_id = ""
+        log.warning("webflow site discovery failed for account %s: %s", account.id, exc)
+    webflow_site_id = first_site.get("id", "")
 
     try:
         ref = store_secret(session, {"access_token": access_token,
                                      "scope": tokens.get("scope", WEBFLOW_SCOPE)})
     except SecretsNotConfigured as exc:
-        log.error("cannot store webflow token for site %s: %s", site.id, exc)
+        log.error("cannot store webflow token for account %s: %s", account.id, exc)
         return _return(integration=PLATFORM_WEBFLOW, error="secrets_not_configured")
+
+    if site is None:
+        # Neither branch below commits -- see the equivalent comment in
+        # shopify_callback above for why that's enough to discard the
+        # secret flushed just above, with no separate cleanup call needed.
+        hostname = _webflow_hostname(first_site)
+        if not hostname:
+            return _return(integration=PLATFORM_WEBFLOW, error="domain_discovery_failed")
+        try:
+            site, _scan = create_project(session, account, hostname)
+        except HTTPException as exc:
+            log.warning("could not create webflow project for account %s: %s", account.id, exc.detail)
+            return _return(integration=PLATFORM_WEBFLOW, error="project_creation_failed")
 
     integ = session.scalars(select(Integration).where(
         Integration.site_id == site.id, Integration.platform == PLATFORM_WEBFLOW)).first()
@@ -510,6 +648,19 @@ def webflow_callback(request: Request, code: str = Query(default=""),
     integ.last_error = None
     session.commit()
     return _return(_site_return_url(site.hostname), integration=PLATFORM_WEBFLOW, connected="1")
+
+
+def _webflow_hostname(site_obj: dict) -> str | None:
+    """A custom domain if one's mapped (Site.customDomains[].url, checked
+    against developers.webflow.com's Sites API docs, 2026-09-24), else
+    Webflow's own {shortName}.webflow.io default -- the long-standing
+    free-tier domain convention, not itself a documented API field, so this
+    is a reasonable default rather than a guaranteed one."""
+    domains = site_obj.get("customDomains") or []
+    if domains and domains[0].get("url"):
+        return domains[0]["url"]
+    short_name = site_obj.get("shortName")
+    return f"{short_name}.webflow.io" if short_name else None
 
 
 # --- wix ----------------------------------------------------------------
@@ -557,19 +708,25 @@ def _wix_verify_signed_instance(signed_instance: str, secret: str) -> dict:
 
 
 @router.get("/wix/start")
-def wix_start(request: Request, site_id: str = Query(...),
+def wix_start(request: Request, site_id: str | None = Query(default=None),
              session: Session = Depends(get_session)):
     """Redirects to Wix's fixed app-installer URL. There's no per-merchant
     domain to pick (unlike Shopify) and no consent-screen redirect_uri to
     register in advance (unlike Google/Webflow) -- `postInstallationUrl` is
     just passed as a query param, with FIG's signed `state` riding along on
-    it so /callback can tell which site this install was for."""
+    it so /callback can tell which site this install was for. `site_id`
+    omitted means this connects a new project -- Wix's Site Properties API
+    has no URL/domain field at all (checked against dev.wix.com,
+    2026-09-24), so the callback can never discover one on its own; it
+    always lands on the "what's this deployed at?" step (see the module
+    docstring's "creating a project from a platform that can't tell us its
+    own domain" section) rather than guessing."""
     if not config.WIX_OAUTH_ENABLED:
         raise HTTPException(503, "Wix is not configured on this server "
                                  "(set WIX_CLIENT_ID / WIX_CLIENT_SECRET / WIX_SHARE_URL_ID)")
-    site = _owned_site(session, request, site_id)
+    site, account = _resolve_site_or_account(session, request, site_id)
 
-    state = _serializer().dumps({"site_id": site.id, "account_id": site.account_id})
+    state = _serializer().dumps({"site_id": site.id if site else None, "account_id": account.id})
     callback_url = f"{config.WIX_OAUTH_REDIRECT_URI}?state={state}"
     params = {
         "appId": config.WIX_CLIENT_ID,
@@ -600,8 +757,12 @@ def wix_callback(request: Request, instanceId: str = Query(default=""),
     except BadSignature:
         return _return(integration=PLATFORM_WIX, error="invalid_state")
 
-    site = session.get(Site, payload.get("site_id"))
-    if site is None or site.account_id != payload.get("account_id"):
+    account = session.get(Account, payload.get("account_id"))
+    if account is None:
+        return _return(integration=PLATFORM_WIX, error="account_not_found")
+    site_id = payload.get("site_id")
+    site = session.get(Site, site_id) if site_id else None
+    if site_id and (site is None or site.account_id != account.id):
         return _return(integration=PLATFORM_WIX, error="site_not_found")
 
     try:
@@ -619,8 +780,16 @@ def wix_callback(request: Request, instanceId: str = Query(default=""),
     try:
         ref = store_secret(session, {"instance_id": verified_instance_id})
     except SecretsNotConfigured as exc:
-        log.error("cannot store wix instance id for site %s: %s", site.id, exc)
+        log.error("cannot store wix instance id for account %s: %s", account.id, exc)
         return _return(integration=PLATFORM_WIX, error="secrets_not_configured")
+
+    if site is None:
+        # No API tells us this site's live domain -- ask, rather than guess
+        # or fall back to a pre-connection URL box (see module docstring).
+        pending = _make_pending_create(account.id, PLATFORM_WIX, credential_ref=ref,
+                                       credential_hint="connected")
+        session.commit()   # the secret above is only flushed until this
+        return RedirectResponse(_confirm_hostname_url(pending, PLATFORM_WIX))
 
     integ = session.scalars(select(Integration).where(
         Integration.site_id == site.id, Integration.platform == PLATFORM_WIX)).first()
@@ -661,17 +830,22 @@ def _valid_repo(repo: str) -> str | None:
 
 
 @router.get("/github/start")
-def github_start(request: Request, site_id: str = Query(...), repo: str = Query(...),
+def github_start(request: Request, repo: str = Query(...),
+                 site_id: str | None = Query(default=None),
                  session: Session = Depends(get_session)):
+    """`site_id` omitted means this connects a new project. Picking a repo
+    is still required either way -- that's not the "type your site's URL"
+    complaint this create-mode otherwise removes, it's the platform's own
+    "which one" question, the same as Shopify's `shop` param."""
     if not config.GITHUB_OAUTH_ENABLED:
         raise HTTPException(503, "GitHub OAuth is not configured on this server "
                                  "(set GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET)")
     repo_name = _valid_repo(repo)
     if repo_name is None:
         raise HTTPException(422, "repo must look like owner/name")
-    site = _owned_site(session, request, site_id)
+    site, account = _resolve_site_or_account(session, request, site_id)
 
-    state = _serializer().dumps({"site_id": site.id, "account_id": site.account_id,
+    state = _serializer().dumps({"site_id": site.id if site else None, "account_id": account.id,
                                  "repo": repo_name})
     params = {
         "client_id": config.GITHUB_CLIENT_ID,
@@ -696,8 +870,12 @@ def github_callback(request: Request, code: str = Query(default=""),
     except BadSignature:
         return _return(integration=PLATFORM_GITHUB, error="invalid_state")
 
-    site = session.get(Site, payload.get("site_id"))
-    if site is None or site.account_id != payload.get("account_id"):
+    account = session.get(Account, payload.get("account_id"))
+    if account is None:
+        return _return(integration=PLATFORM_GITHUB, error="account_not_found")
+    site_id = payload.get("site_id")
+    site = session.get(Site, site_id) if site_id else None
+    if site_id and (site is None or site.account_id != account.id):
         return _return(integration=PLATFORM_GITHUB, error="site_not_found")
     repo_name = payload.get("repo", "")
 
@@ -733,8 +911,32 @@ def github_callback(request: Request, code: str = Query(default=""),
         ref = store_secret(session, {"access_token": access_token,
                                      "scope": tokens.get("scope", GITHUB_SCOPE)})
     except SecretsNotConfigured as exc:
-        log.error("cannot store github token for site %s: %s", site.id, exc)
+        log.error("cannot store github token for account %s: %s", account.id, exc)
         return _return(integration=PLATFORM_GITHUB, error="secrets_not_configured")
+
+    if site is None:
+        hostname = _github_pages_hostname(repo_name, access_token)
+        if not hostname:
+            # Common case, not an error: GitHub Pages isn't enabled at all
+            # (a Vercel/Netlify/Cloudflare-deployed repo) or has no custom
+            # domain -- nothing on GitHub's side can tell us this repo's
+            # live URL, so ask instead of falling back to a pre-connection
+            # URL box for every platform because of this one.
+            pending = _make_pending_create(account.id, PLATFORM_GITHUB, credential_ref=ref,
+                                           credential_hint=repo_name, endpoint=repo_name,
+                                           scopes=tokens.get("scope", GITHUB_SCOPE).split(","))
+            session.commit()   # the secret above is only flushed until this
+            return RedirectResponse(_confirm_hostname_url(pending, PLATFORM_GITHUB))
+        try:
+            site, _scan = create_project(session, account, hostname)
+        except HTTPException as exc:
+            # No commit has happened yet in this request (the pending-token
+            # branch above is the only one that commits before this point,
+            # and it already returned) -- the secret flushed earlier is
+            # discarded along with everything else, no separate cleanup call
+            # needed, same as shopify_callback/webflow_callback above.
+            log.warning("could not create github project for account %s: %s", account.id, exc.detail)
+            return _return(integration=PLATFORM_GITHUB, error="project_creation_failed")
 
     integ = session.scalars(select(Integration).where(
         Integration.site_id == site.id, Integration.platform == PLATFORM_GITHUB)).first()
@@ -751,3 +953,29 @@ def github_callback(request: Request, code: str = Query(default=""),
     integ.last_error = None
     session.commit()
     return _return(_site_return_url(site.hostname), integration=PLATFORM_GITHUB, connected="1")
+
+
+def _github_pages_hostname(repo: str, access_token: str) -> str | None:
+    """GET /repos/{owner}/{repo}/pages -- `cname` if a custom domain is
+    configured, else the default {owner}.github.io host parsed out of
+    `html_url`. A 404 means GitHub Pages isn't enabled for this repo at all
+    (the common case for a Vercel/Netlify/Cloudflare-deployed repo), which
+    is not an error -- it just means this repo can't tell us its own domain.
+    Checked against docs.github.com's Pages API (2026-09-24)."""
+    try:
+        resp = httpx.get(f"https://api.github.com/repos/{repo}/pages",
+                         headers={"Authorization": f"Bearer {access_token}",
+                                 "Accept": "application/vnd.github+json"}, timeout=15.0)
+    except httpx.HTTPError as exc:
+        log.warning("github pages lookup failed for %s: %s", repo, exc)
+        return None
+    if resp.status_code != 200:
+        return None
+    data = resp.json()
+    if data.get("cname"):
+        return data["cname"]
+    html_url = data.get("html_url") or ""
+    if html_url.startswith("http"):
+        from urllib.parse import urlparse
+        return urlparse(html_url).hostname
+    return None

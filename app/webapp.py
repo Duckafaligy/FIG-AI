@@ -29,7 +29,7 @@ from app import account_data, billing, config, content, ga, pages, publishing
 from app.auth import current_account, end_session, session_user, start_session
 from app.db import get_session
 from app.jobs import enqueue_estate, enqueue_scan, queue_depth
-from app.models import Account, Site, ContentPost, User
+from app.models import Account, ContentPost, Integration, Scan, Site, User, _now
 from app.api import public_hostname
 
 router = APIRouter(prefix="/api", tags=["workspace"])
@@ -61,6 +61,12 @@ def _require_scanning_allowed(account: Account) -> None:
             402,
             "Your free trial has ended. Subscribe in Settings → Billing "
             "to keep scanning sites.")
+    remaining = account.scans_remaining()
+    if remaining is not None and remaining <= 0:
+        raise HTTPException(
+            402,
+            "You've used all of this billing period's scans on your plan. "
+            "Upgrade or wait for the next billing period in Settings → Billing.")
 
 
 def _public(payload: dict) -> dict:
@@ -272,21 +278,24 @@ def update_profile(request: Request, payload: dict = Body(...),
 # --- things the frontend needs to be able to do --------------------------
 
 
-@router.post("/projects")
-def add_project(request: Request, payload: dict = Body(...),
-                session: Session = Depends(get_session)):
-    """Add a project and immediately queue its first audit."""
-    account = _account(request, session)
+def create_project(session: Session, account: Account, raw_hostname: str, *,
+                   name: str | None = None, label: str | None = None) -> tuple[Site, Scan]:
+    """The one place a new Site actually gets created. `add_project` below
+    (a manually-typed hostname) and every OAuth callback's create-a-project-
+    via-this-platform path (app/oauth.py, 2026-09-24 -- connecting a
+    platform IS how a project gets created now, not a step after) both call
+    this, so the trial gate, the plan's active-project cap, hostname
+    validation, and the first scan are enforced identically regardless of
+    which door someone came in through. Raises HTTPException on any
+    failure, same codes add_project always used."""
     _require_scanning_allowed(account)
-    raw = (payload or {}).get("hostname", "")
-    if not raw:
-        raise HTTPException(400, "a hostname is required")
     # Full validation (syntax + DNS resolves to a public address), not just
-    # syntax -- this is a real user submitting an arbitrary hostname, same
-    # trust level as the free /scan endpoint. The crawler re-checks on every
-    # request regardless, but failing here means a clear 422 instead of a
-    # Site row that can only ever produce a failed scan.
-    host = public_hostname(raw)
+    # syntax -- this is a real user-supplied hostname (typed, or read off a
+    # connected platform's own API), same trust level as the free /scan
+    # endpoint. The crawler re-checks on every request regardless, but
+    # failing here means a clear 422 instead of a Site row that can only
+    # ever produce a failed scan.
+    host = public_hostname(raw_hostname)
 
     # Checked against every row for this account, active or not: the
     # database's own (account_id, hostname) uniqueness constraint doesn't
@@ -300,21 +309,27 @@ def add_project(request: Request, payload: dict = Body(...),
     if existing is not None and existing.is_active:
         raise HTTPException(409, f"{host} is already in this workspace")
 
+    limit = account.project_limit()
+    if limit is not None and len(pages.sites_of(session, account)) >= limit:
+        raise HTTPException(
+            402,
+            f"Your plan allows up to {limit} active project"
+            f"{'s' if limit != 1 else ''}. Remove one or upgrade in Settings → Billing.")
+
     if existing is not None:
         # Re-adding a project you'd previously removed: revive the same
         # row (and so its scan/finding history) rather than fail on the
         # constraint or fork a second row for the same hostname.
         site = existing
         site.is_active = True
-        if (payload or {}).get("name"):
-            site.client_name = payload["name"]
-        if (payload or {}).get("label"):
-            site.label = payload["label"]
+        if name:
+            site.client_name = name
+        if label:
+            site.label = label
         session.commit()
     else:
         site = Site(account_id=account.id, hostname=host,
-                    client_name=(payload or {}).get("name") or None,
-                    label=(payload or {}).get("label") or None)
+                    client_name=name or None, label=label or None)
         session.add(site)
         session.commit()
         session.refresh(site)
@@ -323,6 +338,25 @@ def add_project(request: Request, payload: dict = Body(...),
     session.commit()
     # The subscription is billed per active site: keep its quantity in step.
     billing.try_sync(session, account)
+    return site, scan
+
+
+@router.post("/projects")
+def add_project(request: Request, payload: dict = Body(...),
+                session: Session = Depends(get_session)):
+    """Add a project from a manually-typed hostname, and immediately queue
+    its first audit. The OAuth-first paths in app/oauth.py cover every
+    platform that can either discover its own live domain (Shopify,
+    Webflow) or has no domain to discover at all until the user says so
+    (GitHub without a custom Pages domain, Wix) -- this route remains for
+    a site with no CMS/repo connection FIG has an adapter for."""
+    account = _account(request, session)
+    raw = (payload or {}).get("hostname", "")
+    if not raw:
+        raise HTTPException(400, "a hostname is required")
+    site, scan = create_project(session, account, raw,
+                                name=(payload or {}).get("name"),
+                                label=(payload or {}).get("label"))
     return {"id": site.id, "hostname": site.hostname, "scan_id": scan.id}
 
 
@@ -637,6 +671,59 @@ def select_analytics_property(project_id: str, request: Request, payload: dict =
     return {"selected": site.ga_property}
 
 
+@router.post("/projects/connect/wordpress")
+def add_project_via_wordpress(request: Request, payload: dict = Body(...),
+                              session: Session = Depends(get_session)):
+    """WordPress creates a project differently from every OAuth platform in
+    app/oauth.py: there's no OAuth round trip at all (Application
+    Passwords), and the site URL the form already asks for -- to know which
+    WordPress install to test the credential against -- IS the real
+    hostname, not a redundant question on top of one FIG could otherwise
+    discover. One request both creates the Site (via create_project, same
+    trial/cap/validation rules as every other path) and attempts the
+    connection; a bad password still leaves the project created, `connected:
+    false`, exactly like `connect` below already does for an existing
+    project -- retryable from that project's own Settings page."""
+    account = _account(request, session)
+    p = payload or {}
+    site_url = p.get("endpoint", "")
+    if not site_url:
+        raise HTTPException(400, "a site URL is required")
+    site, scan = create_project(session, account, site_url)
+    integration = publishing.connect(
+        session, account, site.id, "wordpress", site_url, p.get("credential", ""))
+    return {"id": site.id, "hostname": site.hostname, "scan_id": scan.id,
+            "connected": integration.is_connected(), "hint": integration.credential_hint,
+            "error": integration.last_error}
+
+
+@router.post("/projects/finish-oauth-create")
+def finish_oauth_create(request: Request, payload: dict = Body(...),
+                        session: Session = Depends(get_session)):
+    """The other half of app/oauth.py's "creating a project from a platform
+    that can't tell us its own domain" path (GitHub without a GitHub Pages
+    custom domain, Wix always -- see that module's docstring). The OAuth
+    round trip already finished and the credential is already connected,
+    held in a short-lived signed token rather than a database row, because
+    there's no Site to attach it to yet; this both creates the Site (same
+    rules as add_project) and attaches that credential in one call."""
+    from app.oauth import resolve_pending_create
+    account = _account(request, session)
+    pending = (payload or {}).get("pending", "")
+    hostname = ((payload or {}).get("hostname") or "").strip()
+    if not hostname:
+        raise HTTPException(400, "a site URL is required")
+    data = resolve_pending_create(pending, account.id)
+    site, scan = create_project(session, account, hostname)
+    integ = Integration(site_id=site.id, platform=data["platform"],
+                        endpoint=data.get("endpoint"), credential_ref=data["credential_ref"],
+                        credential_hint=data.get("credential_hint"), scopes=data.get("scopes"),
+                        connected_at=_now())
+    session.add(integ)
+    session.commit()
+    return {"id": site.id, "hostname": site.hostname, "scan_id": scan.id}
+
+
 @router.post("/integrations")
 def connect(request: Request, payload: dict = Body(...),
             session: Session = Depends(get_session)):
@@ -675,9 +762,10 @@ def disconnect(integration_id: str, request: Request,
 
 
 @router.post("/billing/checkout")
-def billing_checkout(request: Request, session: Session = Depends(get_session)):
+def billing_checkout(request: Request, payload: dict = Body(default={}),
+                     session: Session = Depends(get_session)):
     account = _account(request, session)
-    return billing.start_checkout(session, account)
+    return billing.start_checkout(session, account, plan=(payload or {}).get("plan"))
 
 
 @router.post("/billing/portal")

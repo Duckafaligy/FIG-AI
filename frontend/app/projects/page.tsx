@@ -4,13 +4,13 @@ import { ServiceUnavailable } from "@/components/service-unavailable";
 import { ProjectActions } from "@/components/project-actions";
 import { ProjectConnectors } from "@/components/project-connectors";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { WorkspaceTrendChart } from "@/components/visibility-chart";
 import calendarStyles from "./projects-calendar.module.css";
 import { chartRanges as trendRanges, type ChartRange } from "@/lib/chart-range";
-import { actions, api, apiClient, fmt, type ApiProjectsPage, type ApiSettingsPage } from "@/lib/api";
+import { api, apiClient, fmt, type ApiProjectsPage } from "@/lib/api";
 import {
   ArrowRight,
   BarChart3,
@@ -130,14 +130,7 @@ export default function ProjectsPage() {
     });
     return () => { cancelled = true; };
   }, []);
-  const [adding, setAdding] = useState(false);
-  const [addError, setAddError] = useState("");
   const projectDialog = useRef<HTMLDialogElement>(null);
-  // Once a project is created, the same dialog moves to an optional "connect
-  // a CMS now" step instead of closing -- the id it's for, and that
-  // project's own (initially all-unconnected) apis rows once fetched.
-  const [newProject, setNewProject] = useState<{ id: string; hostname: string } | null>(null);
-  const [newProjectApis, setNewProjectApis] = useState<ApiSettingsPage["apis"] | null>(null);
 
   const loadProjects = () => {
     api.projects().then((result) => {
@@ -148,47 +141,14 @@ export default function ProjectsPage() {
   };
   useEffect(loadProjects, []);
 
-  // Guards against a stale response landing after a newer one: submit for
-  // site A, then (before A's response arrives) close and reopen the dialog
-  // for site B -- without this, A's slower response could overwrite B's
-  // connector state with data for a project that isn't even open anymore.
-  const newProjectApisRequest = useRef(0);
-  const loadNewProjectApis = useCallback((id: string) => {
-    const requestId = ++newProjectApisRequest.current;
-    api.projectSettings(id).then((result) => {
-      if (requestId !== newProjectApisRequest.current) return;
-      if (result.ok) setNewProjectApis(result.data.apis);
-    });
-  }, []);
-
-  const submitNewProject = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const hostname = String(new FormData(event.currentTarget).get("hostname") ?? "").trim();
-    if (!hostname) return;
-    setAdding(true);
-    setAddError("");
-    const result = await actions.addProject(hostname);
-    setAdding(false);
-    if (!result.ok) {
-      setAddError(result.error);
-      return;
-    }
-    setNewProject({ id: result.data.id, hostname: result.data.hostname });
-    loadNewProjectApis(result.data.id);
-    loadProjects();
-  };
-
-  // The dialog's own onClose (fires for every dismissal -- the X button,
-  // Escape, or either button below) is the one place state resets, so
-  // reopening the dialog always starts fresh regardless of how it closed.
-  const resetProjectDialog = () => {
-    setNewProject(null);
-    setNewProjectApis(null);
-  };
-  const openNewProject = () => {
-    const hostname = newProject?.hostname;
+  // Connecting a platform IS how a project gets created (2026-09-24) --
+  // Shopify/Webflow/Wix/GitHub navigate the whole browser away to
+  // /oauth/{platform}/start, so this only ever fires for WordPress's own
+  // form, which has no OAuth redirect to leave the page for.
+  const handleProjectCreated = (project: { id: string; hostname: string }) => {
     projectDialog.current?.close();
-    if (hostname) router.push(`/projects/${encodeURIComponent(hostname)}`);
+    loadProjects();
+    router.push(`/projects/${encodeURIComponent(project.hostname)}`);
   };
 
   const q = query.toLowerCase().trim();
@@ -442,38 +402,16 @@ export default function ProjectsPage() {
         </div>
       </div>
       {live ? (
-        <dialog ref={projectDialog} className="preview-info-dialog" aria-labelledby="project-dialog-title" onClose={resetProjectDialog}>
-          {!newProject ? (
-            <>
-              <div><h2 id="project-dialog-title">Add a project</h2><button type="button" aria-label="Close" onClick={() => projectDialog.current?.close()}>×</button></div>
-              <form onSubmit={submitNewProject} className="auth-fields" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <label className="auth-field" htmlFor="new-project-hostname"><span>Website URL</span><input id="new-project-hostname" name="hostname" required placeholder="yoursite.com" autoFocus /></label>
-                <p style={{ fontSize: 13, opacity: 0.75, margin: 0 }}>This queues a real audit against the site right away.</p>
-                {addError && <p className="form-message" role="alert">{addError}</p>}
-                <button className="button" type="submit" disabled={adding}>{adding ? "Adding…" : "Continue"}{!adding && <ArrowRight size={16} />}</button>
-              </form>
-            </>
-          ) : (
-            <>
-              <div><h2 id="project-dialog-title">Connect a CMS</h2><button type="button" aria-label="Close" onClick={() => projectDialog.current?.close()}>×</button></div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                <p style={{ fontSize: 13, opacity: 0.75, margin: 0 }}>{newProject.hostname} was added. Connect a CMS now so FIG can publish approved fixes there, or skip and connect later from that project's Settings.</p>
-                {newProjectApis === null ? (
-                  <p role="status" className="pq-state">Loading connectors…</p>
-                ) : (
-                  <ProjectConnectors projectId={newProject.id} apis={newProjectApis} onChanged={() => loadNewProjectApis(newProject.id)} compact />
-                )}
-                <p className="project-connectors-compact-note">
-                  <BarChart3 size={13} />
-                  Google Analytics and Search Console aren&rsquo;t connected per project &mdash; one connection covers your whole workspace, from <Link href="/projects/settings">Account settings</Link>.
-                </p>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button className="secondary-button" type="button" onClick={() => projectDialog.current?.close()}>Skip for now</button>
-                  <button className="button" type="button" onClick={openNewProject}>Done<ArrowRight size={16} /></button>
-                </div>
-              </div>
-            </>
-          )}
+        <dialog ref={projectDialog} className="preview-info-dialog" aria-labelledby="project-dialog-title">
+          <div><h2 id="project-dialog-title">Add a project</h2><button type="button" aria-label="Close" onClick={() => projectDialog.current?.close()}>×</button></div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <p style={{ fontSize: 13, opacity: 0.75, margin: 0 }}>Connect the platform this site runs on. FIG creates the project from it and queues a real first audit right away.</p>
+            <ProjectConnectors apis={[]} compact onCreated={handleProjectCreated} />
+            <p className="project-connectors-compact-note">
+              <BarChart3 size={13} />
+              Google Analytics and Search Console aren&rsquo;t connected per project &mdash; one connection covers your whole workspace, from <Link href="/projects/settings">Account settings</Link>.
+            </p>
+          </div>
         </dialog>
       ) : (
         <dialog ref={projectDialog} className="preview-info-dialog" aria-labelledby="project-dialog-title"><div><h2 id="project-dialog-title">Your workspace</h2><button type="button" aria-label="Close" onClick={() => projectDialog.current?.close()}>×</button></div><p>This preview includes one project: LaunchVault.ca. You can explore its content, analytics, SEO, and GEO workspace now.</p><Link className="button" href="/projects">Open LaunchVault <ArrowRight size={16} /></Link></dialog>

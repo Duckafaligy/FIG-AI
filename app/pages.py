@@ -1213,6 +1213,51 @@ def settings(session: Session, account: Account) -> dict:
     rate = account.rate_override_cents or Account.rate_for(max(1, len(sites)))
     latest = site.latest_scan() if site else None
 
+    # The fixed-price catalogue (Standard/Premium/Education) reports its own
+    # real price and limits here, distinct from the legacy per-site block
+    # below -- a plan subscriber's stripe_subscription_id is set the same as
+    # a legacy one's, so account.plan (not stripe_subscription_id alone) is
+    # what decides which of the two this account is actually on.
+    plan_limits = account.plan_limits()
+    if plan_limits:
+        plan_block = {
+            "name": plan_limits["label"],
+            "price": f"${plan_limits['price_cents'] / 100:.0f}",
+            "unit": "per month",
+            "state": "Active",
+            "days": account.trial_days_left(),
+            "next": "—",
+            "monthly": f"${plan_limits['price_cents'] / 100:.2f}",
+            "features": [
+                f"Up to {plan_limits['max_projects']} active project"
+                f"{'s' if plan_limits['max_projects'] != 1 else ''}",
+                f"{plan_limits['scans_per_period']} scans per billing period",
+                "Website findings and reports", "Manual content review",
+                "Approval required for supported CMS fixes",
+            ],
+            "checkout_available": False,   # already subscribed
+            "subscribed": True,
+            "scans_used": account.scans_used_this_period,
+            "scans_remaining": account.scans_remaining(),
+        }
+    else:
+        plan_block = {
+            "name": "Legacy per-site" if account.stripe_subscription_id else "Trial" if account.on_trial() else "No subscription",
+            "price": f"${rate / 100:.0f}" if account.stripe_subscription_id else "—",
+            "unit": "per site / month" if account.stripe_subscription_id else "not subscribed",
+            "state": "Active" if account.stripe_subscription_id else "Trial" if account.on_trial() else "Trial ended" if account.trial_expired() else "Not subscribed",
+            "days": account.trial_days_left(),
+            "next": "—",
+            "monthly": f"${account.monthly_cents() / 100:.2f}" if account.stripe_subscription_id else "—",
+            "features": ["Website findings and reports", "Manual content review",
+                         "Approval required for supported CMS fixes"],
+            "checkout_available": bool(config.BILLING_ENABLED and config.STRIPE_PRICE_ID and account.kind != "direct"),
+            # Whether there's a real Stripe subscription to manage, or none
+            # yet to start -- decides whether a billing button should open
+            # checkout or the customer portal.
+            "subscribed": bool(account.stripe_subscription_id),
+        }
+
     return ctx | {
         "sharing": {
             "public": bool(site.reports_public) if site else False,
@@ -1237,29 +1282,17 @@ def settings(session: Session, account: Account) -> dict:
                              else _ago(u.created_at),
                    "initials": u.email[:2].upper()}
                   for i, u in enumerate(users)],
-        "plan": {
-            "name": "Legacy per-site" if account.stripe_subscription_id else "Trial" if account.on_trial() else "No subscription",
-            "price": f"${rate / 100:.0f}" if account.stripe_subscription_id else "—",
-            "unit": "per site / month" if account.stripe_subscription_id else "not subscribed",
-            "state": "Active" if account.stripe_subscription_id else "Trial" if account.on_trial() else "Trial ended" if account.trial_expired() else "Not subscribed",
-            "days": account.trial_days_left(),
-            "next": "—",
-            "monthly": f"${account.monthly_cents() / 100:.2f}" if account.stripe_subscription_id else "—",
-            "features": ["Website findings and reports", "Manual content review",
-                         "Approval required for supported CMS fixes"],
-            "checkout_available": bool(config.BILLING_ENABLED and config.STRIPE_PRICE_ID and account.kind != "direct"),
-            # Whether there's a real Stripe subscription to manage, or none
-            # yet to start -- decides whether a billing button should open
-            # checkout or the customer portal.
-            "subscribed": bool(account.stripe_subscription_id),
-        },
+        "plan": plan_block,
         "usage": [
             {"label": "Published Posts", "used": published, "cap": None},
             {"label": "API Credits Used",
              "used": demo.scaled("api", 48_200, .2) if demo.is_demo(account) else None,
              "cap": None},
             {"label": "Content Generations", "used": None, "cap": None},
-            {"label": "Projects", "used": len(sites), "cap": None},
+            {"label": "Projects", "used": len(sites),
+             "cap": plan_limits["max_projects"] if plan_limits else None},
+            *([{"label": "Scans this period", "used": account.scans_used_this_period,
+               "cap": plan_limits["scans_per_period"]}] if plan_limits else []),
         ],
         "apis": _api_rows(session, integrations),
         "keys": [{"label": k.label, "prefix": k.prefix,

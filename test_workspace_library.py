@@ -506,6 +506,102 @@ class TrialEnforcementTests(unittest.TestCase):
         self.assertEqual(self.client.post("/api/audit-all", headers=self.headers(config.DEMO_ACCOUNT_SLUG)).status_code, 200)
 
 
+class PlanQuotaEnforcementTests(unittest.TestCase):
+    """The fixed-price catalogue's own caps (PLAN-DECISIONS.md), enforced
+    alongside trial gating in the same `_require_scanning_allowed` choke
+    point, plus add_project's separate active-project cap."""
+
+    def setUp(self):
+        self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        Base.metadata.create_all(self.engine)
+        with Session(self.engine) as db:
+            db.add_all([
+                Account(id="at_cap", name="AtCap", slug="at_cap", kind="direct",
+                       plan="standard", stripe_subscription_id="sub_at_cap",
+                       trial_ends_at=datetime.now(timezone.utc) - timedelta(days=30)),
+                Account(id="room", name="Room", slug="room", kind="direct",
+                       plan="standard", stripe_subscription_id="sub_room",
+                       trial_ends_at=datetime.now(timezone.utc) - timedelta(days=30)),
+                Account(id="out_of_scans", name="OutOfScans", slug="out_of_scans", kind="direct",
+                       plan="standard", scans_used_this_period=100, stripe_subscription_id="sub_out",
+                       trial_ends_at=datetime.now(timezone.utc) - timedelta(days=30)),
+                Account(id="almost_out", name="AlmostOut", slug="almost_out", kind="direct",
+                       plan="standard", scans_used_this_period=98, stripe_subscription_id="sub_almost",
+                       trial_ends_at=datetime.now(timezone.utc) - timedelta(days=30)),
+            ])
+            db.flush()
+            # "at_cap" already has Standard's max of 2 active projects.
+            db.add(Site(id="at_cap-1", account_id="at_cap", hostname="one.example"))
+            db.add(Site(id="at_cap-2", account_id="at_cap", hostname="two.example"))
+            db.add(Site(id="out-1", account_id="out_of_scans", hostname="out.example"))
+            for n in range(5):
+                db.add(Site(id=f"almost-{n}", account_id="almost_out", hostname=f"almost{n}.example"))
+            db.commit()
+        app = FastAPI()
+        app.include_router(router)
+
+        def session():
+            with Session(self.engine) as db:
+                yield db
+        app.dependency_overrides[get_session] = session
+        self.auth = patch("app.webapp.current_account",
+                          side_effect=lambda request, db: db.get(Account, request.headers.get("x-test-account"))
+                          if request.headers.get("x-test-account") else None)
+        self.auth.start()
+        self.patch_hostname = patch("app.webapp.public_hostname", side_effect=lambda raw: raw.strip().lower())
+        self.patch_hostname.start()
+        self.patch_billing = patch.object(config, "BILLING_ENABLED", False)
+        self.patch_billing.start()
+        self.client = TestClient(app)
+
+    def tearDown(self):
+        self.client.close()
+        self.auth.stop()
+        self.patch_hostname.stop()
+        self.patch_billing.stop()
+        self.engine.dispose()
+
+    def headers(self, account):
+        return {"x-test-account": account}
+
+    def test_a_plan_at_its_project_cap_cannot_add_another(self):
+        r = self.client.post("/api/projects", headers=self.headers("at_cap"), json={"hostname": "three.example"})
+        self.assertEqual(r.status_code, 402)
+        self.assertIn("2 active project", r.json()["detail"])
+
+    def test_a_plan_under_its_project_cap_can_add_one(self):
+        r = self.client.post("/api/projects", headers=self.headers("room"), json={"hostname": "one.example"})
+        self.assertEqual(r.status_code, 200, r.text)
+
+    def test_a_plan_out_of_scans_is_blocked_from_all_three(self):
+        added = self.client.post("/api/projects", headers=self.headers("out_of_scans"), json={"hostname": "new.example"})
+        self.assertEqual(added.status_code, 402)
+        self.assertIn("billing period's scans", added.json()["detail"])
+        self.assertEqual(self.client.post("/api/projects/out-1/audit", headers=self.headers("out_of_scans")).status_code, 402)
+        self.assertEqual(self.client.post("/api/audit-all", headers=self.headers("out_of_scans")).status_code, 402)
+
+    def test_a_bulk_audit_is_capped_at_the_remaining_quota_not_refused_outright(self):
+        # 5 active sites, only 2 scans left this period -- the plan allows
+        # partial fulfillment rather than an all-or-nothing block.
+        r = self.client.post("/api/audit-all", headers=self.headers("almost_out"))
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json()["queued"], 2)
+        with Session(self.engine) as db:
+            self.assertEqual(db.get(Account, "almost_out").scans_used_this_period, 100)
+
+    def test_a_single_audit_reserves_one_scan_against_the_plan(self):
+        with Session(self.engine) as db:
+            db.add(Account(id="fresh_plan", name="Fresh", slug="fresh_plan", kind="direct", plan="standard",
+                          stripe_subscription_id="sub_fresh_plan",
+                          trial_ends_at=datetime.now(timezone.utc) - timedelta(days=30)))
+            db.add(Site(id="fresh_plan-1", account_id="fresh_plan", hostname="fp.example"))
+            db.commit()
+        r = self.client.post("/api/projects/fresh_plan-1/audit", headers=self.headers("fresh_plan"))
+        self.assertEqual(r.status_code, 200, r.text)
+        with Session(self.engine) as db:
+            self.assertEqual(db.get(Account, "fresh_plan").scans_used_this_period, 1)
+
+
 class ReAddRemovedProjectTests(unittest.TestCase):
     """`Site.hostname` is only unique per account in the database sense --
     `remove_project` deactivates a row rather than deleting it, so the

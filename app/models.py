@@ -66,6 +66,21 @@ class Account(Base):
     # quietly.
     trial_ends_at = Column(DateTime, nullable=True)
 
+    # The fixed-price self-serve catalogue (PLAN_LIMITS below) -- distinct
+    # from the legacy per-site volume model above, which partner/agency
+    # accounts still use. Set from the subscription's own metadata once a
+    # checkout for one of these plans actually completes (app/billing.py),
+    # never guessed from price alone. None means "no plan-based quota
+    # applies" -- a partner account, or a direct account with no active
+    # plan subscription.
+    plan = Column(String, nullable=True)
+    scans_used_this_period = Column(Integer, nullable=False, default=0)
+    # Mirrors the Stripe subscription's own current_period_end. Whenever a
+    # webhook reports a new value, the quota counter resets -- this is what
+    # "reset each billing period, no rollover" means in practice, with no
+    # separate cron job needed.
+    current_period_end = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=_now)
 
     api_keys = relationship("ApiKey", back_populates="account", cascade="all, delete-orphan")
@@ -91,6 +106,34 @@ class Account(Base):
         n = max(self.billable_sites(), self.site_floor)
         rate = self.rate_override_cents or self.rate_for(n)
         return n * rate
+
+    # The self-serve catalogue (PLAN-DECISIONS.md, owner-approved 2026-09-23).
+    # Each key is what `plan` is set to; Stripe price ids live in config,
+    # keyed the same way, so a plan is never enforced without also having a
+    # real price to have been bought.
+    PLAN_LIMITS = {
+        "standard": {"label": "Standard", "price_cents": 4900, "max_projects": 2, "scans_per_period": 100},
+        "premium": {"label": "Premium", "price_cents": 9900, "max_projects": 5, "scans_per_period": 250},
+        "education": {"label": "Education", "price_cents": 1900, "max_projects": 1, "scans_per_period": 200},
+    }
+
+    def plan_limits(self) -> dict | None:
+        return self.PLAN_LIMITS.get(self.plan)
+
+    def project_limit(self) -> int | None:
+        """None means uncapped -- a partner account, or a direct account with
+        no fixed-price plan (the legacy per-site model has no project cap of
+        its own; it just costs more as the estate grows)."""
+        limits = self.plan_limits()
+        return limits["max_projects"] if limits else None
+
+    def scans_remaining(self) -> int | None:
+        """None means no plan-based quota applies. A real plan can still read
+        0 -- that's the actual cap, not "unlimited"."""
+        limits = self.plan_limits()
+        if not limits:
+            return None
+        return max(0, limits["scans_per_period"] - self.scans_used_this_period)
 
     TRIAL_DAYS = 3
 

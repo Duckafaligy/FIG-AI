@@ -39,6 +39,24 @@ def dummy_stripe_settings():
     return patchers
 
 
+# The fixed-price plans are resolved by lookup_key against the live Stripe
+# account (app/billing.py:_plan_price_id), not an env var -- so exercising
+# that path means faking Price.list's lookup_keys response, not patching
+# config. One dummy price per plan, keyed the same way the real script's
+# lookup_key(plan) builds it.
+DUMMY_PLAN_PRICES = {
+    "fig_plan_standard": "price_standard_dummy",
+    "fig_plan_premium": "price_premium_dummy",
+    "fig_plan_education": "price_education_dummy",
+}
+
+
+def fake_price_list(lookup_keys, **kw):
+    key = lookup_keys[0]
+    price_id = DUMMY_PLAN_PRICES.get(key)
+    return {"data": [{"id": price_id}] if price_id else []}
+
+
 def event(kind: str, obj: dict) -> tuple[bytes, dict]:
     """A body plus the Stripe-Signature header Stripe would send for it."""
     body = json.dumps({"id": "evt_1", "object": "event", "api_version": "2024-06-20",
@@ -81,8 +99,13 @@ class WebhookTests(unittest.TestCase):
         with Session(self.engine) as db:
             return db.get(Account, "acct").stripe_subscription_id
 
-    def sub_obj(self, status, sub_id="sub_1"):
-        return {"id": sub_id, "object": "subscription", "customer": "cus_1", "status": status}
+    def sub_obj(self, status, sub_id="sub_1", metadata=None, current_period_end=None):
+        obj = {"id": sub_id, "object": "subscription", "customer": "cus_1", "status": status}
+        if metadata is not None:
+            obj["metadata"] = metadata
+        if current_period_end is not None:
+            obj["current_period_end"] = current_period_end
+        return obj
 
     # -- the door ----------------------------------------------------------
 
@@ -167,6 +190,194 @@ class WebhookTests(unittest.TestCase):
         r = self.send("invoice.paid", {"id": "in_1", "object": "invoice", "customer": "cus_1"})
         self.assertEqual(r.status_code, 200)
         self.assertIsNone(self.sub())
+
+
+class PlanWebhookTests(unittest.TestCase):
+    """The fixed-price catalogue (Standard/Premium/Education,
+    PLAN-DECISIONS.md) rides on the subscription's own metadata, read back
+    by the same webhook every legacy per-site subscription already goes
+    through -- same fixture shape as WebhookTests above, kept separate so
+    running one file doesn't silently double-run the other's cases."""
+
+    def setUp(self):
+        self.patchers = dummy_stripe_settings()
+        self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False},
+                                    poolclass=StaticPool)
+        Base.metadata.create_all(self.engine)
+        with Session(self.engine) as db:
+            db.add(Account(id="acct", name="Acme", slug="acme", stripe_customer_id="cus_1"))
+            db.commit()
+        app = FastAPI()
+        app.include_router(billing.router)
+
+        def session():
+            with Session(self.engine) as db:
+                yield db
+        app.dependency_overrides[get_session] = session
+        self.client = TestClient(app)
+
+    def tearDown(self):
+        self.client.close()
+        self.engine.dispose()
+        for p in self.patchers:
+            p.stop()
+
+    def send(self, kind, obj, headers=None):
+        body, sig = event(kind, obj)
+        return self.client.post("/v1/billing/webhook", content=body, headers=headers or sig)
+
+    def sub_obj(self, status, sub_id="sub_1", metadata=None, current_period_end=None):
+        obj = {"id": sub_id, "object": "subscription", "customer": "cus_1", "status": status}
+        if metadata is not None:
+            obj["metadata"] = metadata
+        if current_period_end is not None:
+            obj["current_period_end"] = current_period_end
+        return obj
+
+    def account(self):
+        with Session(self.engine) as db:
+            return db.get(Account, "acct")
+
+    def test_a_plan_subscription_sets_the_account_plan_and_period(self):
+        self.send("customer.subscription.created", self.sub_obj(
+            "active", metadata={"fig_account_id": "acct", "fig_plan": "standard"},
+            current_period_end=1_800_000_000))
+        account = self.account()
+        self.assertEqual(account.plan, "standard")
+        self.assertIsNotNone(account.current_period_end)
+
+    def test_a_legacy_per_site_subscription_carries_no_plan(self):
+        self.send("customer.subscription.created", self.sub_obj("active"))
+        self.assertIsNone(self.account().plan)
+
+    def test_an_unknown_plan_name_in_metadata_is_ignored(self):
+        self.send("customer.subscription.created", self.sub_obj(
+            "active", metadata={"fig_account_id": "acct", "fig_plan": "not_a_real_plan"}))
+        self.assertIsNone(self.account().plan)
+
+    def test_a_new_billing_period_resets_the_scan_counter(self):
+        with Session(self.engine) as db:
+            a = db.get(Account, "acct")
+            a.plan, a.scans_used_this_period = "standard", 87
+            db.commit()
+        self.send("customer.subscription.updated", self.sub_obj(
+            "active", metadata={"fig_account_id": "acct", "fig_plan": "standard"},
+            current_period_end=1_800_000_000))
+        self.assertEqual(self.account().scans_used_this_period, 0)
+
+    def test_the_same_billing_period_does_not_reset_the_counter_again(self):
+        with Session(self.engine) as db:
+            a = db.get(Account, "acct")
+            a.plan, a.scans_used_this_period = "standard", 40
+            db.commit()
+        self.send("customer.subscription.updated", self.sub_obj(
+            "active", metadata={"fig_account_id": "acct", "fig_plan": "standard"},
+            current_period_end=1_800_000_000))
+        with Session(self.engine) as db:
+            a = db.get(Account, "acct")
+            a.scans_used_this_period = 41   # a scan reserved after the first event
+            db.commit()
+        self.send("customer.subscription.updated", self.sub_obj(
+            "active", metadata={"fig_account_id": "acct", "fig_plan": "standard"},
+            current_period_end=1_800_000_000))
+        self.assertEqual(self.account().scans_used_this_period, 41)
+
+    def test_cancelling_a_plan_subscription_clears_the_plan(self):
+        self.send("customer.subscription.created", self.sub_obj(
+            "active", metadata={"fig_account_id": "acct", "fig_plan": "premium"}))
+        self.assertEqual(self.account().plan, "premium")
+        self.send("customer.subscription.deleted", self.sub_obj("canceled"))
+        self.assertIsNone(self.account().plan)
+
+
+class PlanCheckoutTests(unittest.TestCase):
+    """start_checkout's plan-selecting path -- the one a "direct" (self-serve)
+    account must use, since it has no per-site estate to bill by volume."""
+
+    def setUp(self):
+        self.patchers = dummy_stripe_settings()
+        self.engine = create_engine("sqlite://", poolclass=StaticPool,
+                                    connect_args={"check_same_thread": False})
+        Base.metadata.create_all(self.engine)
+        with Session(self.engine) as db:
+            db.add(Account(id="acct", name="Acme", slug="acme", kind="direct"))
+            db.commit()
+
+        class FakeCheckoutSession:
+            created = []
+
+            @staticmethod
+            def create(**kw):
+                FakeCheckoutSession.created.append(kw)
+                return {"url": "https://checkout.stripe.com/fake"}
+
+        class FakeCustomer:
+            @staticmethod
+            def create(**kw):
+                return {"id": "cus_new"}
+
+        class FakePrice:
+            @staticmethod
+            def list(lookup_keys, **kw):
+                return fake_price_list(lookup_keys, **kw)
+
+        class FakeStripeModule:
+            checkout = type("checkout", (), {"Session": FakeCheckoutSession})
+            Customer = FakeCustomer
+            Price = FakePrice
+
+        self.fake_checkout = FakeCheckoutSession
+        self.fake_checkout.created = []
+        p = patch.object(billing, "_stripe", return_value=FakeStripeModule)
+        p.start()
+        self.patchers.append(p)
+
+    def tearDown(self):
+        self.engine.dispose()
+        for p in self.patchers:
+            p.stop()
+
+    def account(self):
+        with Session(self.engine) as db:
+            return db.get(Account, "acct")
+
+    def test_a_direct_account_with_no_plan_chosen_is_refused(self):
+        with Session(self.engine) as db:
+            with self.assertRaises(HTTPException) as caught:
+                billing.start_checkout(db, db.get(Account, "acct"))
+            self.assertEqual(caught.exception.status_code, 409)
+            self.assertIn("plan", caught.exception.detail)
+
+    def test_an_unknown_plan_is_rejected(self):
+        with Session(self.engine) as db:
+            with self.assertRaises(HTTPException) as caught:
+                billing.start_checkout(db, db.get(Account, "acct"), plan="deluxe")
+            self.assertEqual(caught.exception.status_code, 400)
+
+    def test_a_plan_with_no_active_stripe_price_yet_refuses_rather_than_guess(self):
+        with patch.dict(DUMMY_PLAN_PRICES, {"fig_plan_standard": None}):
+            with Session(self.engine) as db:
+                with self.assertRaises(HTTPException) as caught:
+                    billing.start_checkout(db, db.get(Account, "acct"), plan="standard")
+                self.assertEqual(caught.exception.status_code, 503)
+
+    def test_a_valid_plan_opens_a_real_checkout_session_for_that_price(self):
+        with Session(self.engine) as db:
+            result = billing.start_checkout(db, db.get(Account, "acct"), plan="standard")
+        self.assertEqual(result["plan"], "standard")
+        self.assertEqual(result["url"], "https://checkout.stripe.com/fake")
+        created = self.fake_checkout.created[-1]
+        self.assertEqual(created["line_items"], [{"price": "price_standard_dummy", "quantity": 1}])
+        self.assertEqual(created["subscription_data"]["metadata"],
+                         {"fig_account_id": "acct", "fig_plan": "standard"})
+
+    def test_an_already_subscribed_account_cannot_check_out_a_plan_either(self):
+        with Session(self.engine) as db:
+            db.get(Account, "acct").stripe_subscription_id = "sub_existing"
+            db.commit()
+            with self.assertRaises(HTTPException) as caught:
+                billing.start_checkout(db, db.get(Account, "acct"), plan="standard")
+            self.assertEqual(caught.exception.status_code, 409)
 
 
 class CheckoutGuardTests(unittest.TestCase):

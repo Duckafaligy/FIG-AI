@@ -107,6 +107,98 @@ class ReclaimTests(unittest.TestCase):
         jobs.reclaim_stale(NOW)
         self.assertEqual(jobs.reclaim_stale(NOW), {"requeued": 0, "failed": 0})
 
+    def test_an_abandoned_job_releases_the_accounts_reserved_quota(self):
+        with Session(self.engine) as db:
+            db.get(Account, "a").plan = "standard"
+            db.get(Account, "a").scans_used_this_period = 1
+            db.commit()
+        self.running_job("spent", timedelta(minutes=45), attempts=3)
+        self.assertEqual(jobs.reclaim_stale(NOW), {"requeued": 0, "failed": 1})
+        with Session(self.engine) as db:
+            self.assertEqual(db.get(Account, "a").scans_used_this_period, 0)
+
+
+class QuotaTests(unittest.TestCase):
+    """Plan-based scan quota reservation and release (PLAN-DECISIONS.md:
+    "a bulk audit consumes one scan per website", "failed jobs release
+    reserved quota", "monitoring counts toward the same quota" -- the last
+    is why the reservation lives in `enqueue_scan` itself, the one function
+    every caller -- manual audit, audit_all, the Watch scheduler -- goes
+    through)."""
+
+    def setUp(self):
+        self.engine = create_engine("sqlite://", poolclass=StaticPool,
+                                    connect_args={"check_same_thread": False})
+        Base.metadata.create_all(self.engine)
+
+    def tearDown(self):
+        self.engine.dispose()
+
+    def seed(self, plan=None, scans_used=0):
+        with Session(self.engine) as db:
+            db.add(Account(id="a", name="A", slug="a", plan=plan, scans_used_this_period=scans_used))
+            db.add(Site(id="s", account_id="a", hostname="a.example"))
+            db.commit()
+
+    def used(self):
+        with Session(self.engine) as db:
+            return db.get(Account, "a").scans_used_this_period
+
+    def test_enqueue_scan_reserves_one_scan_for_a_plan_account(self):
+        self.seed(plan="standard", scans_used=5)
+        with Session(self.engine) as db:
+            jobs.enqueue_scan(db, "s")
+            db.commit()
+        self.assertEqual(self.used(), 6)
+
+    def test_enqueue_scan_does_not_touch_the_counter_without_a_plan(self):
+        self.seed(plan=None)
+        with Session(self.engine) as db:
+            jobs.enqueue_scan(db, "s")
+            db.commit()
+        self.assertEqual(self.used(), 0)
+
+    def test_enqueue_estate_caps_at_the_remaining_quota(self):
+        self.seed(plan="standard", scans_used=98)   # 2 remaining of 100
+        with Session(self.engine) as db:
+            db.add(Site(id="s2", account_id="a", hostname="b.example"))
+            db.add(Site(id="s3", account_id="a", hostname="c.example"))
+            db.commit()
+        with Session(self.engine) as db:
+            scans = jobs.enqueue_estate(db, "a")
+            db.commit()
+        self.assertEqual(len(scans), 2)
+        self.assertEqual(self.used(), 100)
+
+    def test_enqueue_estate_is_uncapped_without_a_plan(self):
+        self.seed(plan=None)
+        with Session(self.engine) as db:
+            db.add(Site(id="s2", account_id="a", hostname="b.example"))
+            db.commit()
+        with Session(self.engine) as db:
+            scans = jobs.enqueue_estate(db, "a")
+            db.commit()
+        self.assertEqual(len(scans), 2)
+
+    def test_a_finalized_failed_scan_releases_its_reserved_quota(self):
+        self.seed(plan="standard", scans_used=0)
+        with Session(self.engine) as db:
+            scan = jobs.enqueue_scan(db, "s")
+            db.commit()
+            site_id = scan.site_id
+        self.assertEqual(self.used(), 1)
+        with Session(self.engine) as db:
+            jobs._release_quota(db, site_id)
+            db.commit()
+        self.assertEqual(self.used(), 0)
+
+    def test_release_quota_never_goes_negative(self):
+        self.seed(plan="standard", scans_used=0)
+        with Session(self.engine) as db:
+            jobs._release_quota(db, "s")
+            db.commit()
+        self.assertEqual(self.used(), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -89,6 +89,9 @@ _ADDED_COLUMNS = (
     ("pages", "js_dependent", "BOOLEAN NOT NULL DEFAULT FALSE"),
     ("pages", "js_dependent_reason", "VARCHAR"),
     ("integrations", "account_id", "VARCHAR"),
+    ("accounts", "plan", "VARCHAR"),
+    ("accounts", "scans_used_this_period", "INTEGER NOT NULL DEFAULT 0"),
+    ("accounts", "current_period_end", "TIMESTAMP"),
 )
 
 # Column-nullability changes, run after _add_missing_columns() so the column

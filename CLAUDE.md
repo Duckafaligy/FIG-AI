@@ -589,6 +589,72 @@ with frontend work in flight):
   Google's code and the resulting access/refresh tokens never reach browser
   JS. Every other OAuth platform in the roadmap (all but WordPress, which
   uses Application Passwords, not OAuth) follows this same three-step shape.
+
+  **Connecting a platform is how a new project gets created (2026-09-24),
+  not a step after one already exists.** Found by dogfooding the actual
+  add-project flow: it required typing a hostname first, then *separately*
+  connecting a CMS — redundant for every platform that already knows (or
+  can find out) its own live domain, and confusing for GitHub specifically,
+  since a connected repo has nothing left to "also connect." Every
+  site-scoped platform's `/start` now takes `site_id` as optional
+  (`_resolve_site_or_account`): given, this reconnects an existing project
+  exactly as before; omitted, connecting the platform creates one, via a
+  new shared `app/webapp.py:create_project` (the same trial/cap/hostname
+  validation `add_project` always ran, now callable from either place).
+  Three platforms can discover their own real domain, checked against each
+  one's live docs rather than assumed:
+  - **Shopify**: `shop.primaryDomain.host` via the GraphQL Admin API — the
+    actual storefront domain, not the `{shop}.myshopify.com` id the user
+    types to reach Shopify's OAuth screen (checked against shopify.dev's
+    Shop/Domain objects).
+  - **Webflow**: the already-fetched `GET /v2/sites` response's
+    `customDomains[0].url` if a custom domain is mapped, else
+    `{shortName}.webflow.io` (checked against developers.webflow.com; the
+    fallback is the long-standing free-tier convention, not itself a
+    documented field, so it's a reasonable default, not a guaranteed one).
+  - **GitHub**: `GET /repos/{owner}/{repo}/pages` — `cname` if a custom
+    domain is configured, else the default `{owner}.github.io` host parsed
+    from `html_url`. A 404 (Pages not enabled — the common case for a
+    Vercel/Netlify/Cloudflare-deployed repo) is not an error, just "this
+    repo can't tell us its own domain."
+
+  Two genuinely can't, checked and confirmed rather than assumed: **Wix**'s
+  Site Properties API (`dev.wix.com`) has no URL/domain field anywhere in
+  its schema at all, and **GitHub** falls into the same bucket whenever
+  Pages isn't configured. Both land on one small "what's this deployed
+  at?" step instead (`/projects/confirm-url`,
+  `frontend/components/confirm-url-form.tsx`) rather than falling back to a
+  hostname box for every platform because two of them need it: the
+  credential is connected first and held in a short-lived signed token
+  (`_make_pending_create`/`resolve_pending_create`, its own salt, 15-minute
+  `PENDING_MAX_AGE` — never replayable as a `state` token or vice versa),
+  and `POST /api/projects/finish-oauth-create` both creates the Site and
+  attaches that already-connected credential once the person answers.
+  **WordPress creates a project differently again** — no OAuth round trip
+  at all, so `POST /api/projects/connect/wordpress`
+  (`add_project_via_wordpress`) uses the site URL its own form already
+  asks for (to know which install to test the Application Password
+  against) directly as the hostname, in one call; a bad credential still
+  leaves the project created (`connected: false`, retryable from that
+  project's own Settings page), same as reconnecting always allowed.
+  Two real bugs caught by `test_oauth_create_project.py` before either
+  shipped: the two pending-token branches (GitHub-without-Pages, Wix)
+  called `store_secret` but never `session.commit()`, so the credential
+  they claimed to have connected was silently discarded the moment the
+  request ended — `get_session` never auto-commits, unlike
+  `session_scope()`'s own `commit-on-success`, so nothing on this path was
+  going to persist without an explicit call. Caught by asserting a real
+  row existed in a fresh session after the redirect, not just that the
+  response looked right. `frontend/app/projects/page.tsx`'s "Add project"
+  dialog is now `ProjectConnectors` in create-mode (no `projectId`, so its
+  OAuth links omit `site_id` and its WordPress form calls
+  `createProjectViaWordpress` instead of `connectIntegration`) — the old
+  two-step "type a hostname, then optionally connect a CMS" dialog and its
+  backing state are gone, not left dead. **Not yet verified against a real
+  account on any of the three discovery paths** — same bar this file has
+  held every CMS adapter to before calling it more than tested: proven
+  against a fake network, not run against a real Shopify/Webflow/GitHub
+  connection yet.
 - `app/ga.py` — the GA4 Data API client `app/oauth.py` hands off to: reads
   the stored token via `app/secrets_store.py`, refreshes it against Google
   when expired, auto-discovers the connected account's GA4 property (no
