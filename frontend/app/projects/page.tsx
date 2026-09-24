@@ -463,6 +463,10 @@ export default function ProjectsPage() {
                 ) : (
                   <ProjectConnectors projectId={newProject.id} apis={newProjectApis} onChanged={() => loadNewProjectApis(newProject.id)} compact />
                 )}
+                <p className="project-connectors-compact-note">
+                  <BarChart3 size={13} />
+                  Google Analytics and Search Console aren&rsquo;t connected per project &mdash; one connection covers your whole workspace, from <Link href="/projects/settings">Account settings</Link>.
+                </p>
                 <div style={{ display: "flex", gap: 10 }}>
                   <button className="secondary-button" type="button" onClick={() => projectDialog.current?.close()}>Skip for now</button>
                   <button className="button" type="button" onClick={openNewProject}>Done<ArrowRight size={16} /></button>
