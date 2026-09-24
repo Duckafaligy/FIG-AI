@@ -447,7 +447,7 @@ export const api = {
   me: () => apiServer<ApiMe>("/api/me"),
   // projects(), settings() and projectSettings() are called from Client
   // Components (app/projects/page.tsx, app/projects/settings/page.tsx,
-  // app/app/settings/page.tsx -- all "use client", fetching in a
+  // app/projects/[id]/settings/page.tsx -- all "use client", fetching in a
   // useEffect), never from a Server Component. apiServer needs
   // next/headers, which does not exist in the browser -- calling it from
   // client-side code throws, so `live` state on these pages was never
@@ -468,15 +468,16 @@ export const api = {
   // Account-wide only (workspace profile, team, billing, ...) -- reached
   // from /projects' account menu, not from the per-project dashboard sidebar.
   settings: () => apiClient<ApiSettingsPage>("/api/settings"),
-  // /app/settings' real data: one project's own connectors, scoped the same
-  // way overview()/seo()/geo() are -- empty defaults to the account's first
-  // site (same as those three), a real id 404s if it isn't yours.
+  // /projects/[id]/settings' real data: one project's own connectors, scoped
+  // the same way overview()/seo()/geo() are -- empty defaults to the
+  // account's first site (same as those three), a real id 404s if it isn't
+  // yours.
   projectSettings: (project = "") =>
     apiClient<ApiProjectSettingsPage>(`/api/project-settings${project ? `?project=${encodeURIComponent(project)}` : ""}`),
   // Client-fetched like projects()/settings() -- this page is its own
   // bespoke route, not one of the five overlay-driven LivePageKey pages.
   // `project` scopes to one site's own changes; omitted, this is the
-  // account-wide /app/publish queue.
+  // account-wide queue across every site.
   changes: (project = "") =>
     apiClient<ApiChangesPage>(`/api/changes${project ? `?project=${encodeURIComponent(project)}` : ""}`),
 };

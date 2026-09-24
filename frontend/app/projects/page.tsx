@@ -188,7 +188,7 @@ export default function ProjectsPage() {
   const openNewProject = () => {
     const id = newProject?.id;
     projectDialog.current?.close();
-    if (id) router.push(`/app?project=${encodeURIComponent(id)}`);
+    if (id) router.push(`/projects/${encodeURIComponent(id)}`);
   };
 
   const q = query.toLowerCase().trim();
@@ -196,6 +196,13 @@ export default function ProjectsPage() {
     ? live.cards.filter((c) => `${c.name} ${c.hostname} ${c.tagline}`.toLowerCase().includes(q)).sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : 0)
     : null;
   const matchesProject = "launchvault.ca ai education prompts practical tools".includes(q);
+  // These estate-wide summary panels each "jump to" one project's dashboard
+  // -- there's no single project an aggregate view belongs to, so this picks
+  // the same one the old query-param-optional /app links used to default to
+  // server-side (the account's first project), now resolved here since a
+  // project id is a required path segment rather than an omittable param.
+  const firstProjectId = live?.cards[0]?.id;
+  const firstProjectHref = (suffix: string) => firstProjectId ? `/projects/${encodeURIComponent(firstProjectId)}${suffix}` : "/projects";
   const liveStats = live ? [
     { label: "Total projects", value: String(live.kpis.projects), change: "", icon: FileText, tone: "purple" },
     { label: "Published posts", value: String(live.kpis.published), change: "", icon: CheckCircle2, tone: "coral" },
@@ -233,7 +240,7 @@ export default function ProjectsPage() {
           <div className="projects-workspace"><span>{live ? live.initials : "LV"}</span>{live ? live.account.name : "LaunchVault.ca"}</div>
           <div className="projects-date"><CalendarDays size={15} />{live.range_label}</div>
           <button className="button button--small" type="button" onClick={() => projectDialog.current?.showModal()}><Plus size={15} />New project</button>
-          <Link className="projects-icon-button" href="/app/notifications" aria-label="Notifications"><Bell size={17} /></Link>
+          <Link className="projects-icon-button" href={firstProjectHref("/notifications")} aria-label="Notifications"><Bell size={17} /></Link>
           <Link className="projects-avatar" href="/projects/settings" aria-label="Account settings">JD</Link>
         </div>
       </header>
@@ -254,10 +261,10 @@ export default function ProjectsPage() {
             visibleCards && visibleCards.length > 0 ? visibleCards.map((card) => (
               <article key={card.id} className="project-card project-card--selected">
                 <span className="project-card-check"><CheckCircle2 size={17} /></span>
-                <div className="project-card-heading"><span className="project-logo"><Zap size={20} fill="currentColor" /></span><div><Link href={`/app?project=${encodeURIComponent(card.id)}`}><strong>{card.name}</strong></Link><small>{card.tagline}</small><em>{card.hostname}</em></div><ProjectActions id={card.id} name={card.name} onChange={loadProjects} /></div>
+                <div className="project-card-heading"><span className="project-logo"><Zap size={20} fill="currentColor" /></span><div><Link href={`/projects/${encodeURIComponent(card.id)}`}><strong>{card.name}</strong></Link><small>{card.tagline}</small><em>{card.hostname}</em></div><ProjectActions id={card.id} name={card.name} onChange={loadProjects} /></div>
                 <span className="project-active"><i />{card.state}</span>
                 <div className="project-card-stats"><span><strong>{card.published}</strong><small>Published posts</small></span><span><strong>{fmt(card.impact)}</strong><small>Avg. impact score</small></span></div>
-                <Link href={`/app?project=${encodeURIComponent(card.id)}`}>Open project →</Link>
+                <Link href={`/projects/${encodeURIComponent(card.id)}`}>Open project →</Link>
               </article>
             )) : visibleCards && visibleCards.length === 0 && q ? (
               <div className="projects-no-results"><Search size={22} /><strong>No matching projects</strong><button type="button" onClick={() => setQuery("")}>Clear search</button></div>
@@ -265,7 +272,7 @@ export default function ProjectsPage() {
               <div className="projects-no-results"><Search size={22} /><strong>No projects yet</strong><button type="button" onClick={() => projectDialog.current?.showModal()}>Add your first project</button></div>
             )
           ) : (
-            matchesProject ? <Link href="/app" className="project-card project-card--selected">
+            matchesProject ? <Link href={firstProjectHref("")} className="project-card project-card--selected">
               <span className="project-card-check"><CheckCircle2 size={17} /></span>
               <div className="project-card-heading"><span className="project-logo"><Zap size={20} fill="currentColor" /></span><div><strong>LaunchVault.ca</strong><small>AI education, prompts &amp; practical tools</small><em>launchvault.ca</em></div><MoreVertical size={17} /></div>
               <span className="project-active"><i />Active preview</span>
@@ -296,7 +303,7 @@ export default function ProjectsPage() {
           </section>
 
           <section className="projects-panel projects-panel--health">
-            <div className="projects-panel-heading"><div><Target size={17} /><strong>Overall SEO Health</strong></div><Link href="/app/seo">View details<ArrowRight size={12} /></Link></div>
+            <div className="projects-panel-heading"><div><Target size={17} /><strong>Overall SEO Health</strong></div><Link href={firstProjectHref("/seo")}>View details<ArrowRight size={12} /></Link></div>
             {live ? (
               <div className="projects-health-body">
                 <div className="projects-ring" style={{ "--score": `${live.seo_health.value ?? 0}%` } as CSSProperties}>
@@ -311,7 +318,7 @@ export default function ProjectsPage() {
           </section>
 
           <section className="projects-panel projects-panel--geo">
-            <div className="projects-panel-heading"><div><Sparkles size={17} /><strong>GEO Visibility Summary</strong></div><Link href="/app/geo">View details<ArrowRight size={12} /></Link></div>
+            <div className="projects-panel-heading"><div><Sparkles size={17} /><strong>GEO Visibility Summary</strong></div><Link href={firstProjectHref("/geo")}>View details<ArrowRight size={12} /></Link></div>
             {live ? (
               <div className="projects-health-body">
                 <div className="projects-ring projects-ring--blue"><strong>{fmt(live.geo_health.value, { suffix: live.geo_health.value === null ? "" : "%" })}</strong><span>{live.geo_health.value === null ? "—" : "Visible"}</span></div>
@@ -323,7 +330,7 @@ export default function ProjectsPage() {
           </section>
 
           <section className="projects-panel projects-panel--content">
-            <div className="projects-panel-heading"><div><FileText size={17} /><strong>Top Performing Content</strong></div><Link href="/app">View all<ArrowRight size={12} /></Link></div>
+            <div className="projects-panel-heading"><div><FileText size={17} /><strong>Top Performing Content</strong></div><Link href={firstProjectHref("")}>View all<ArrowRight size={12} /></Link></div>
             {live ? (
               <div className="projects-table projects-table--content"><div><span>#</span><span>Content</span><span>Traffic</span><span>Impact</span></div>
                 {live.top.length ? live.top.map((t, index) => <div key={t.title}><span>{index + 1}</span><strong>{t.title}</strong><span>{fmt(t.traffic, { compact: true })}</span><em>{fmt(t.impact)}</em></div>)
@@ -351,7 +358,7 @@ export default function ProjectsPage() {
           </section>
 
           <section className="projects-panel projects-panel--activity">
-            <div className="projects-panel-heading"><div><Clock3 size={17} /><strong>Recent Workspace Activity</strong></div><Link href="/app/history">View all<ArrowRight size={12} /></Link></div>
+            <div className="projects-panel-heading"><div><Clock3 size={17} /><strong>Recent Workspace Activity</strong></div><Link href={firstProjectHref("/history")}>View all<ArrowRight size={12} /></Link></div>
             <div className="projects-feed">{live ? (
               live.activity.length ? live.activity.map((a, index) => <article key={`${a.title}-${index}`}><span>{index + 1}</span><div><strong>{a.title}</strong><small>{a.sub}</small></div><time>{a.ago}</time></article>)
                 : <p className="projects-feed-empty">Nothing has happened yet — run your first audit to start building history.</p>
@@ -371,7 +378,7 @@ export default function ProjectsPage() {
           </section>
 
           <section className="projects-panel projects-panel--opportunities">
-            <div className="projects-panel-heading"><div><Sparkles size={17} /><strong>Top Opportunities</strong></div><Link href="/app/seo">View all<ArrowRight size={12}/></Link></div>
+            <div className="projects-panel-heading"><div><Sparkles size={17} /><strong>Top Opportunities</strong></div><Link href={firstProjectHref("/seo")}>View all<ArrowRight size={12}/></Link></div>
             <div className="projects-feed projects-feed--opportunities">{live ? (
               live.opportunities.length ? live.opportunities.map((o, index) => <article key={`${o.title}-${index}`}><span>{index + 1}</span><div><strong>{o.title}</strong><small>{o.sub}</small></div><em>{o.level}</em></article>)
                 : <p className="projects-feed-empty">No opportunities surfaced yet — they show up after an audit runs.</p>
@@ -393,7 +400,7 @@ export default function ProjectsPage() {
                 <button type="button" className={calendarStyles.calendarIconButton} aria-label="Next month" onClick={() => changeCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}><ChevronRight size={15}/></button>
               </div>
             </div>
-            <p className="panel-description">{calendarNotice} <Link href="/app/library">Open library</Link></p>
+            <p className="panel-description">{calendarNotice} <Link href={firstProjectHref("/library")}>Open library</Link></p>
             <div className={calendarStyles.calendarLayout}>
               <div className={calendarStyles.calendarGrid} role="group" aria-label={`${formatMonth(calendarMonth)} content calendar`}>
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((weekday) => <span key={weekday} className={calendarStyles.weekday}>{weekday}</span>)}
@@ -464,7 +471,7 @@ export default function ProjectsPage() {
           )}
         </dialog>
       ) : (
-        <dialog ref={projectDialog} className="preview-info-dialog" aria-labelledby="project-dialog-title"><div><h2 id="project-dialog-title">Your workspace</h2><button type="button" aria-label="Close" onClick={() => projectDialog.current?.close()}>×</button></div><p>This preview includes one project: LaunchVault.ca. You can explore its content, analytics, SEO, and GEO workspace now.</p><Link className="button" href="/app">Open LaunchVault <ArrowRight size={16} /></Link></dialog>
+        <dialog ref={projectDialog} className="preview-info-dialog" aria-labelledby="project-dialog-title"><div><h2 id="project-dialog-title">Your workspace</h2><button type="button" aria-label="Close" onClick={() => projectDialog.current?.close()}>×</button></div><p>This preview includes one project: LaunchVault.ca. You can explore its content, analytics, SEO, and GEO workspace now.</p><Link className="button" href="/projects">Open LaunchVault <ArrowRight size={16} /></Link></dialog>
       )}
     </main>
   );

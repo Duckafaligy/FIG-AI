@@ -4,8 +4,9 @@ import { api } from "@/lib/api";
 import { ServiceUnavailable } from "@/components/service-unavailable";
 
 // Shared by every route that needs the real dashboard chrome (sidebar +
-// topbar) around a signed-in page -- currently /app/* and /projects/settings.
-// One implementation so the auth gate can't drift between them.
+// topbar) around a signed-in page -- currently /projects/[id]/* and
+// /projects/settings. One implementation so the auth gate can't drift
+// between them.
 export async function AuthedDashboardShell({ children }: { children: React.ReactNode }) {
   const me = await api.me();
   if (!me.ok) return <ServiceUnavailable />;

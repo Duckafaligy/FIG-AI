@@ -124,9 +124,9 @@ def queue(session: Session, account: Account, layer: str | None = None,
          site_id: str | None = None) -> dict:
     """The publish console: what is waiting, per site, with its integration.
 
-    `site_id` scopes to one project (the project detail page) -- omitted,
-    this is every active site in the account (the estate-wide /app/publish
-    page). Ownership isn't re-checked here: callers pass a site_id already
+    `site_id` scopes to one project (/projects/[id]/publish) -- omitted,
+    this is every active site in the account (the estate-wide queue).
+    Ownership isn't re-checked here: callers pass a site_id already
     resolved through a real ownership check (e.g. webapp.py's `_project`),
     same trust boundary as `overview`/`seo`/`geo` already use.
     """

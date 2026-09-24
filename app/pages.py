@@ -926,31 +926,35 @@ def notifications(session: Session, account: Account) -> dict:
                                   ContentPost.state == "scheduled")
         .order_by(ContentPost.scheduled_for).limit(6)).all()) if ids else []
 
+    # Each row names the specific project it's about (site_id) -- point the
+    # action at that project's own page (/projects/{id}/...), not a generic
+    # link that used to silently default server-side to the account's first
+    # site regardless of which project the notification was actually for.
     feed = []
     for ch in waiting:
         feed.append({"kind": "approval", "tone": "a", "icon": "user",
                      "title": "Content approval needed",
                      "sub": f"“{ch.title[:52]}” is waiting for approval.",
                      "ago": _ago(ch.proposed_at), "at": _aware(ch.proposed_at),
-                     "action": "View", "href": "/app/seo"})
+                     "action": "View", "href": f"/projects/{ch.site_id}/seo"})
     for j in failed_jobs:
         feed.append({"kind": "automation", "tone": "r", "icon": "warn",
                      "title": f"{j.kind.replace('_',' ').title()} job failed",
                      "sub": (j.error or "No error recorded.")[:80],
                      "ago": _ago(j.finished_at), "at": _aware(j.finished_at),
-                     "action": "Resolve", "href": "/app/history"})
+                     "action": "Resolve", "href": "/projects"})
     for sc in failed_scans:
         feed.append({"kind": "sync", "tone": "r", "icon": "sync",
                      "title": "Audit failed",
                      "sub": f"{names.get(sc.site_id,'')} · {(sc.error or '')[:60]}",
                      "ago": _ago(sc.created_at), "at": _aware(sc.created_at),
-                     "action": "Resolve", "href": "/app/history"})
+                     "action": "Resolve", "href": f"/projects/{sc.site_id}/history"})
     for p in scheduled:
         feed.append({"kind": "reminder", "tone": "b", "icon": "cal",
                      "title": "Scheduled post ready",
                      "sub": f"“{p.title[:48]}” is scheduled for {_dt(p.scheduled_for)}.",
                      "ago": _ago(p.created_at), "at": _aware(p.created_at),
-                     "action": "View", "href": "/app/seo"})
+                     "action": "View", "href": f"/projects/{p.site_id}/seo"})
     feed = [f for f in feed if f["at"]]
     feed.sort(key=lambda f: f["at"], reverse=True)
 
@@ -1167,8 +1171,8 @@ def project_integrations(session: Session, account: Account, site: Site) -> dict
 
 
 def project_settings(session: Session, account: Account, site: Site | None) -> dict:
-    """/app/settings' real data: connectors for one project, chosen the same
-    way overview()/seo()/geo() choose one -- _chrome() defaults to the
+    """/projects/[id]/settings' real data: connectors for one project, chosen
+    the same way overview()/seo()/geo() choose one -- _chrome() defaults to the
     account's first site when `site` is None, and this stays None-safe past
     that in case the account has none at all yet."""
     ctx = _chrome(session, account, "settings", site)

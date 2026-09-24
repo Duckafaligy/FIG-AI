@@ -91,11 +91,18 @@ def _return(base: str | None = None, **params: str) -> RedirectResponse:
     return RedirectResponse(f"{base or config.OAUTH_RETURN_URL}?{urlencode(params)}")
 
 
+def _site_return_url(site_id: str) -> str:
+    """Where a site-scoped platform's callback sends the browser once it
+    knows which project it connected -- that project's own Settings/
+    connectors page (/projects/{id}/settings, 2026-09-23's URL structure)."""
+    return f"{config.FRONTEND_URL}/projects/{site_id}/settings"
+
+
 # Google is the one platform whose Connect button lives on account-wide
-# Settings, not a project's own -- every other platform's callback correctly
-# lands back on /app/settings?project=<site_id> (see each one's success
-# return below), but that page is per-project Settings now (2026-09-23) and
-# has no Google panel at all. Redirect there instead of the shared default.
+# Settings, not a project's own -- every other platform's callback lands
+# back on that project's own /projects/{site_id}/settings (_site_return_url
+# above), but Google has no per-project page to return to at all. Redirect
+# there instead of the shared default.
 GOOGLE_RETURN_URL = f"{config.FRONTEND_URL}/projects/settings"
 
 
@@ -382,7 +389,7 @@ def shopify_callback(request: Request, code: str = Query(default=""),
     integ.connected_at = _now()
     integ.last_error = None
     session.commit()
-    return _return(integration=PLATFORM_SHOPIFY, connected="1", project=integ.site_id)
+    return _return(_site_return_url(integ.site_id), integration=PLATFORM_SHOPIFY, connected="1")
 
 
 # --- webflow ----------------------------------------------------------------
@@ -500,7 +507,7 @@ def webflow_callback(request: Request, code: str = Query(default=""),
     integ.connected_at = _now()
     integ.last_error = None
     session.commit()
-    return _return(integration=PLATFORM_WEBFLOW, connected="1", project=integ.site_id)
+    return _return(_site_return_url(integ.site_id), integration=PLATFORM_WEBFLOW, connected="1")
 
 
 # --- wix ----------------------------------------------------------------
@@ -625,7 +632,7 @@ def wix_callback(request: Request, instanceId: str = Query(default=""),
     integ.connected_at = _now()
     integ.last_error = None
     session.commit()
-    return _return(integration=PLATFORM_WIX, connected="1", project=integ.site_id)
+    return _return(_site_return_url(integ.site_id), integration=PLATFORM_WIX, connected="1")
 
 
 # --- github ----------------------------------------------------------------
@@ -741,4 +748,4 @@ def github_callback(request: Request, code: str = Query(default=""),
     integ.connected_at = _now()
     integ.last_error = None
     session.commit()
-    return _return(integration=PLATFORM_GITHUB, connected="1", project=integ.site_id)
+    return _return(_site_return_url(integ.site_id), integration=PLATFORM_GITHUB, connected="1")

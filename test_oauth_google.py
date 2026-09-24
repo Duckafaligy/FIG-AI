@@ -129,9 +129,9 @@ class GoogleOAuthTests(unittest.TestCase):
         self.assertEqual(r.status_code, 307)
         self.assertIn("connected=1", r.headers["location"])
         # The Connect button for Google lives on /projects/settings (account-
-        # wide), not /app/settings (per-project since 2026-09-23, no Google
-        # panel at all) -- the shared OAUTH_RETURN_URL default would have
-        # sent the browser to the wrong page after a real connection.
+        # wide), not /projects/[id]/settings (per-project, no Google panel at
+        # all) -- the shared OAUTH_RETURN_URL default would have sent the
+        # browser to the wrong page after a real connection.
         self.assertTrue(r.headers["location"].startswith(f"{config.FRONTEND_URL}/projects/settings?"))
         with Session(self.engine) as db:
             rows = db.scalars(select(Integration)).all()

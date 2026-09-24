@@ -303,7 +303,7 @@ class PublishQueueEndpointTests(unittest.TestCase):
 
 
 class ProjectSettingsEndpointTests(unittest.TestCase):
-    """GET /api/project-settings?project= -- /app/settings' real data.
+    """GET /api/project-settings?project= -- /projects/[id]/settings' real data.
     Scoped the same way /api/overview, /api/seo and /api/geo already are:
     an explicit id is ownership-checked, empty defaults to the account's
     first site, and a zero-site account gets an empty, non-error shape
@@ -586,6 +586,53 @@ class JsRenderingHealthTests(unittest.TestCase):
     def test_a_scan_with_no_pages_at_all_does_not_divide_by_zero(self):
         h = pages._js_rendering_health(self.scan())
         self.assertEqual(h["state"], "All server-rendered")
+
+
+class NotificationHrefsPointAtTheRightProjectTests(unittest.TestCase):
+    """Each notification names a real project (site_id) -- its action link
+    must point at that project's own /projects/{id}/... page, not a generic
+    link that used to silently default server-side to the account's first
+    site regardless of which project the notification was actually about."""
+
+    def setUp(self):
+        self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        Base.metadata.create_all(self.engine)
+        with Session(self.engine) as db:
+            db.add(Account(id="a", name="A", slug="a"))
+            db.add(Site(id="site-1", account_id="a", hostname="one.example"))
+            db.add(Site(id="site-2", account_id="a", hostname="two.example"))
+            db.commit()
+        self.db = Session(self.engine)
+        self.account = self.db.get(Account, "a")
+
+    def tearDown(self):
+        self.db.close()
+        self.engine.dispose()
+
+    def test_a_pending_approval_links_to_its_own_projects_seo_page(self):
+        from app.models import Change
+        self.db.add(Change(site_id="site-2", kind="meta", title="Fix meta description"))
+        self.db.commit()
+        feed = pages.notifications(self.db, self.account)["feed"]
+        approval = next(f for f in feed if f["kind"] == "approval")
+        self.assertEqual(approval["href"], "/projects/site-2/seo")
+
+    def test_a_failed_scan_links_to_its_own_projects_history_page(self):
+        from app.models import Scan
+        self.db.add(Scan(site_id="site-1", status="failed", error="dns_failed"))
+        self.db.commit()
+        feed = pages.notifications(self.db, self.account)["feed"]
+        sync = next(f for f in feed if f["kind"] == "sync")
+        self.assertEqual(sync["href"], "/projects/site-1/history")
+
+    def test_two_different_projects_notifications_link_to_two_different_places(self):
+        from app.models import Change
+        self.db.add(Change(site_id="site-1", kind="meta", title="Fix A"))
+        self.db.add(Change(site_id="site-2", kind="meta", title="Fix B"))
+        self.db.commit()
+        feed = pages.notifications(self.db, self.account)["feed"]
+        hrefs = {f["href"] for f in feed if f["kind"] == "approval"}
+        self.assertEqual(hrefs, {"/projects/site-1/seo", "/projects/site-2/seo"})
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Bell,
@@ -42,29 +42,23 @@ import { ContentTemplatePreview } from "./content-template-preview";
 const DashboardSearchContext = createContext("");
 export function useDashboardSearch() { return useContext(DashboardSearchContext); }
 
+// Suffixes onto /projects/{id} -- every one of these pages lives under that
+// project's own path now (2026-09-23), not a fixed /app/* prefix scoped by
+// an invisible ?project= query param.
 const nav = [
-  { href: "/app/library", label: "Library", icon: FileText },
-  { href: "/app", label: "Overview", icon: Home },
-  { href: "/app/seo", label: "SEO", icon: Search },
-  { href: "/app/geo", label: "GEO", icon: Globe2 },
-  { href: "/app/publish", label: "Publish", icon: Upload },
-  { href: "/app/notifications", label: "Notifications", icon: Bell },
-  { href: "/app/history", label: "History", icon: History },
-  { href: "/app/settings", label: "Settings", icon: Settings }
+  { suffix: "/library", label: "Library", icon: FileText },
+  { suffix: "", label: "Overview", icon: Home },
+  { suffix: "/seo", label: "SEO", icon: Search },
+  { suffix: "/geo", label: "GEO", icon: Globe2 },
+  { suffix: "/publish", label: "Publish", icon: Upload },
+  { suffix: "/notifications", label: "Notifications", icon: Bell },
+  { suffix: "/history", label: "History", icon: History },
+  { suffix: "/settings", label: "Settings", icon: Settings }
 ];
-
-const searchCopy: Record<string, string> = {
-  "/app": "Search LaunchVault content…",
-  "/app/seo": "Search posts, keywords, or briefs…",
-  "/app/geo": "Search prompts, answers, or sources…",
-  "/app/notifications": "Search alerts and activity…",
-  "/app/history": "Search actions, content, or people…",
-  "/app/settings": "Search settings, APIs, or members…"
-};
 
 export function DashboardShell({ children, workspaceName = "Workspace" }: { children: React.ReactNode; workspaceName?: string }) {
   const pathname = usePathname();
-  const projectId = useSearchParams().get("project");
+  const { id: projectId } = useParams<{ id: string }>();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -125,9 +119,13 @@ export function DashboardShell({ children, workspaceName = "Workspace" }: { chil
         <Link className="dashboard-brand" href="/projects" aria-label="Your projects"><span><Zap size={14} fill="currentColor" /></span><strong>FIG</strong></Link>
         <nav aria-label="Dashboard navigation">
           {nav.map((item) => {
-            const exact = item.href === "/app" ? pathname === "/app" : pathname.startsWith(item.href);
+            // No current project (viewing account-wide /projects/settings,
+            // which has no [id] segment at all) -- fall back to the
+            // all-projects screen rather than link to a broken /undefined/ URL.
+            const href = projectId ? `/projects/${encodeURIComponent(projectId)}${item.suffix}` : "/projects";
+            const exact = Boolean(projectId) && pathname === href;
             const Icon = item.icon;
-            return <Link className={exact ? "active" : ""} aria-current={exact ? "page" : undefined} href={projectId ? `${item.href}?project=${encodeURIComponent(projectId)}` : item.href} key={item.href} onClick={() => setOpen(false)}><Icon size={18} /><span>{item.label}</span></Link>;
+            return <Link className={exact ? "active" : ""} aria-current={exact ? "page" : undefined} href={href} key={item.suffix} onClick={() => setOpen(false)}><Icon size={18} /><span>{item.label}</span></Link>;
           })}
         </nav>
         <div className="sidebar-bottom">
@@ -139,7 +137,7 @@ export function DashboardShell({ children, workspaceName = "Workspace" }: { chil
           <div className="dashboard-search"><Search size={17} /><input aria-label="Search current dashboard" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search workspace records…" />{search ? <button aria-label="Clear dashboard search" onClick={() => setSearch("")}><X size={13} /></button> : <kbd>Search</kbd>}</div>
           <div className="dashboard-top-actions">
             <div className="workspace-switch" aria-label="Current project"><span className="workspace-mark">{workspaceName.slice(0, 2).toUpperCase()}</span>{workspaceName}</div>
-            <Link className="icon-button" href="/app/notifications" aria-label="Notifications"><Bell size={18} /></Link>
+            <Link className="icon-button" href={projectId ? `/projects/${encodeURIComponent(projectId)}/notifications` : "/projects"} aria-label="Notifications"><Bell size={18} /></Link>
             <div style={{ position: "relative" }}>
               <button
                 className="avatar-button"
@@ -194,11 +192,12 @@ export function DashboardShell({ children, workspaceName = "Workspace" }: { chil
 
 export function DashboardHeader({ eyebrow, title, description, action = "Project settings" }: { eyebrow: string; title: string; description: string; action?: string }) {
   const [showAction, setShowAction] = useState(false);
+  const { id: projectId } = useParams<{ id: string }>();
   const settingsAction = action === "Project settings" || action === "Manage alerts";
   return (
     <div className="dashboard-heading-row">
       <div><span className="dashboard-eyebrow">{eyebrow}</span><h1>{title}</h1><p>{description}</p><span className="preview-source"><span />Demo data · LaunchVault.ca</span></div>
-      {settingsAction ? <Link className="button button--small" href="/app/settings"><Settings size={16} />{action}</Link> : <button className="button button--small" onClick={() => setShowAction(true)}><Plus size={16} />{action}</button>}
+      {settingsAction ? <Link className="button button--small" href={projectId ? `/projects/${encodeURIComponent(projectId)}/settings` : "/projects"}><Settings size={16} />{action}</Link> : <button className="button button--small" onClick={() => setShowAction(true)}><Plus size={16} />{action}</button>}
       {showAction && <HeaderActionDialog action={action} onClose={() => setShowAction(false)} />}
     </div>
   );

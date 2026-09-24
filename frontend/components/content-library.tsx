@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { apiClient, apiSend, fmt, type ApiProject } from "@/lib/api";
 import { BookOpen, Plus, RefreshCw, Search, X, LayoutGrid, List, FileText, ArrowRight, Monitor, Smartphone } from "lucide-react";
 import { ArticlePreview } from "./library-article-preview";
@@ -22,6 +22,11 @@ export function ContentLibrary() {
   const globalSearch = useDashboardSearch();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { id: pathProjectId } = useParams<{ id: string }>();
+  // This library is cross-project by default (the "All projects" filter
+  // below) -- the ?project= query param is that filter, deliberately
+  // independent of which project's sidebar you reached this page from
+  // (the [id] path segment, used only to rebuild this page's own base URL).
   const project = searchParams.get("project") ?? "";
   const [data, setData] = useState<Library | null>(null);
   const [query, setQuery] = useState("");
@@ -37,7 +42,7 @@ export function ContentLibrary() {
   const setProject = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set("project", value); else params.delete("project");
-    router.replace(`/app/library${params.size ? `?${params}` : ""}`, { scroll: false });
+    router.replace(`/projects/${encodeURIComponent(pathProjectId)}/library${params.size ? `?${params}` : ""}`, { scroll: false });
   };
   const load = useCallback(async () => {
     const id = ++request.current;

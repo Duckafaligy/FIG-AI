@@ -238,8 +238,14 @@ GITHUB_OAUTH_REDIRECT_URI = os.environ.get(
     "GITHUB_OAUTH_REDIRECT_URI", "http://localhost:8000/oauth/github/callback")
 GITHUB_OAUTH_ENABLED = bool(GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET)
 
-# Where a browser lands after the OAuth round trip finishes, success or not.
-OAUTH_RETURN_URL = os.environ.get("FIG_OAUTH_RETURN_URL", f"{FRONTEND_URL}/app/settings")
+# Where a browser lands after the OAuth round trip finishes, success or not,
+# for the failure paths that happen before a site is even resolved (a
+# forged/expired state, a site that no longer exists) -- there's no specific
+# project to send the browser back to, so this is the account's all-projects
+# screen, not any one project's settings. The success path (and any failure
+# after a site IS resolved) builds a real /projects/{site_id}/settings URL
+# instead -- see app/oauth.py's _site_return_url.
+OAUTH_RETURN_URL = os.environ.get("FIG_OAUTH_RETURN_URL", f"{FRONTEND_URL}/projects")
 
 # --- error tracking -------------------------------------------------------
 # Unset means sentry_sdk.init() is never called (app/main.py) -- same

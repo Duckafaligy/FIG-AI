@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ProjectConnectors } from "@/components/project-connectors";
 import { AnalyticsPropertyPicker } from "@/components/analytics-property-picker";
@@ -9,16 +9,16 @@ import { ServiceUnavailable } from "@/components/service-unavailable";
 import { api, type ApiProjectSettingsPage } from "@/lib/api";
 
 export default function ProjectSettingsPage() {
-  const projectParam = useSearchParams().get("project") ?? "";
+  const { id: projectId } = useParams<{ id: string }>();
   const [live, setLive] = useState<ApiProjectSettingsPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
-  const load = useCallback(() => api.projectSettings(projectParam).then((result) => {
+  const load = useCallback(() => api.projectSettings(projectId).then((result) => {
     if (result.ok) { setLive(result.data); setLoadError(""); }
     else setLoadError(result.error);
     setLoading(false);
-  }), [projectParam]);
+  }), [projectId]);
 
   useEffect(() => {
     setLoading(true);

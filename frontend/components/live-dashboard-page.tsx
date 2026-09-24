@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { applyOverlay, type Overlay } from "@/lib/live";
 import { dashboardPages } from "@/lib/dashboard-pages";
 import { LiveTrendChart, MetricCard, useDashboardSearch } from "./dashboard-shell";
@@ -7,10 +8,11 @@ import { ServiceUnavailable } from "./service-unavailable";
 
 export function LiveDashboardPage({ page, overlay }: { page: keyof typeof dashboardPages; overlay: Overlay | null }) {
   const search = useDashboardSearch().trim().toLowerCase();
+  const { id: projectId } = useParams<{ id: string }>();
   if (!overlay) return <ServiceUnavailable />;
   const data = applyOverlay(dashboardPages[page], overlay);
   return <div className={`dashboard-page dashboard-page--${data.layout}`}>
-    <div className="dashboard-heading-row"><div><span className="dashboard-eyebrow">{data.eyebrow}</span><h1>{data.title}</h1><p>{overlay.projectName || "Your workspace"} · Data from your connected services</p></div><Link className="button" href="/app/library">Open library</Link></div>
+    <div className="dashboard-heading-row"><div><span className="dashboard-eyebrow">{data.eyebrow}</span><h1>{data.title}</h1><p>{overlay.projectName || "Your workspace"} · Data from your connected services</p></div><Link className="button" href={`/projects/${encodeURIComponent(projectId)}/library`}>Open library</Link></div>
     <div className={`metric-grid metric-grid--${data.layout}`}>{data.metrics.map(metric => <MetricCard {...metric} key={metric.label} />)}</div>
     <div className={`dashboard-grid dashboard-grid--${data.layout}`}>
       {data.sections.map(section => {

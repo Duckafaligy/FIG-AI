@@ -380,8 +380,8 @@ def audit_project(project_id: str, request: Request,
 @router.get("/project-settings")
 def project_settings(request: Request, project: str = Query(default=""),
                      session: Session = Depends(get_session)):
-    """/app/settings is per-project (its connectors), the same `?project=`
-    scoping as /api/overview, /api/seo and /api/geo -- an explicit,
+    """/projects/[id]/settings is per-project (its connectors), the same
+    `?project=` scoping as /api/overview, /api/seo and /api/geo -- an explicit,
     non-empty id 404s if it isn't yours; empty defaults to the account's
     first site, same as those three, and a zero-site account gets an empty,
     non-error shape rather than a 404."""
