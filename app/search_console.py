@@ -128,8 +128,13 @@ def _matching_site_url(token: str, integ: Integration, session: Session, hostnam
     urls = [e["siteUrl"] for e in entries if e.get("siteUrl")]
     match = _pick_site_url(urls, hostname)
     if match is None:
-        integ.last_error = "No matching Search Console property for this project"
-        session.commit()
+        # Deliberately NOT written to integ.last_error: that field is now
+        # shared by every project on this account's one Google connection
+        # (2026-09-23), so "no matching property" is a fact about this one
+        # site, not the connection -- writing it here would last-write-wins
+        # clobber a genuine connection-level error (or get clobbered by
+        # another project's successful call moments later) with no relation
+        # to either. The caller already treats None as "not available".
         return None
     return match
 

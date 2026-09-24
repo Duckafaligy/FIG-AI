@@ -97,12 +97,12 @@ export function ProjectConnectors({ projectId, apis, onChanged, compact = false 
         const isGithub = service.name === "GitHub";
         const remote = liveApi(service.name);
         const label = remote?.ok ? `${service.name} connected` : service.name;
-        const props = { className: `button button--small${remote?.ok ? " is-connected" : ""}`, key: service.name };
-        if (isWordPress) return <button type="button" {...props} onClick={() => setWpFormOpen((open) => !open)}><IntegrationLogo name={service.name} />{label}</button>;
-        if (isShopify) return <button type="button" {...props} onClick={() => setShopifyFormOpen((open) => !open)}><IntegrationLogo name={service.name} />{label}</button>;
-        if (isWebflow) return <a {...props} href={apiUrl(`/oauth/webflow/start?site_id=${projectId}`)}><IntegrationLogo name={service.name} />{label}</a>;
-        if (isWix) return <a {...props} href={apiUrl(`/oauth/wix/start?site_id=${projectId}`)}><IntegrationLogo name={service.name} />{label}</a>;
-        if (isGithub) return <button type="button" {...props} onClick={() => setGithubFormOpen((open) => !open)}><IntegrationLogo name={service.name} />{label}</button>;
+        const className = `button button--small${remote?.ok ? " is-connected" : ""}`;
+        if (isWordPress) return <button key={service.name} type="button" className={className} onClick={() => setWpFormOpen((open) => !open)}><IntegrationLogo name={service.name} />{label}</button>;
+        if (isShopify) return <button key={service.name} type="button" className={className} onClick={() => setShopifyFormOpen((open) => !open)}><IntegrationLogo name={service.name} />{label}</button>;
+        if (isWebflow) return <a key={service.name} className={className} href={apiUrl(`/oauth/webflow/start?site_id=${projectId}`)}><IntegrationLogo name={service.name} />{label}</a>;
+        if (isWix) return <a key={service.name} className={className} href={apiUrl(`/oauth/wix/start?site_id=${projectId}`)}><IntegrationLogo name={service.name} />{label}</a>;
+        if (isGithub) return <button key={service.name} type="button" className={className} onClick={() => setGithubFormOpen((open) => !open)}><IntegrationLogo name={service.name} />{label}</button>;
         return null;
       })}
     </div>

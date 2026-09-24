@@ -87,8 +87,16 @@ def _serializer() -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(config.SESSION_SECRET, salt="fig-oauth-state")
 
 
-def _return(**params: str) -> RedirectResponse:
-    return RedirectResponse(f"{config.OAUTH_RETURN_URL}?{urlencode(params)}")
+def _return(base: str | None = None, **params: str) -> RedirectResponse:
+    return RedirectResponse(f"{base or config.OAUTH_RETURN_URL}?{urlencode(params)}")
+
+
+# Google is the one platform whose Connect button lives on account-wide
+# Settings, not a project's own -- every other platform's callback correctly
+# lands back on /app/settings?project=<site_id> (see each one's success
+# return below), but that page is per-project Settings now (2026-09-23) and
+# has no Google panel at all. Redirect there instead of the shared default.
+GOOGLE_RETURN_URL = f"{config.FRONTEND_URL}/projects/settings"
 
 
 def _owned_site(session: Session, request: Request, site_id: str) -> Site:
@@ -142,18 +150,18 @@ def google_callback(request: Request, code: str = Query(default=""),
     server-side only -- the authorization code and the resulting token never
     reach frontend JS."""
     if error:
-        return _return(integration=PLATFORM, error=error)
+        return _return(GOOGLE_RETURN_URL, integration=PLATFORM, error=error)
 
     try:
         payload = _serializer().loads(state, max_age=STATE_MAX_AGE)
     except SignatureExpired:
-        return _return(integration=PLATFORM, error="expired_state")
+        return _return(GOOGLE_RETURN_URL, integration=PLATFORM, error="expired_state")
     except BadSignature:
-        return _return(integration=PLATFORM, error="invalid_state")
+        return _return(GOOGLE_RETURN_URL, integration=PLATFORM, error="invalid_state")
 
     account = session.get(Account, payload.get("account_id"))
     if account is None:
-        return _return(integration=PLATFORM, error="account_not_found")
+        return _return(GOOGLE_RETURN_URL, integration=PLATFORM, error="account_not_found")
 
     try:
         resp = httpx.post(GOOGLE_TOKEN_URL, data={
@@ -165,11 +173,11 @@ def google_callback(request: Request, code: str = Query(default=""),
         }, timeout=15.0)
     except httpx.HTTPError as exc:
         log.warning("google token exchange request failed: %s", exc)
-        return _return(integration=PLATFORM, error="token_request_failed")
+        return _return(GOOGLE_RETURN_URL, integration=PLATFORM, error="token_request_failed")
 
     if resp.status_code != 200:
         log.warning("google token exchange rejected: %s %s", resp.status_code, resp.text[:300])
-        return _return(integration=PLATFORM, error="token_exchange_failed")
+        return _return(GOOGLE_RETURN_URL, integration=PLATFORM, error="token_exchange_failed")
 
     tokens = resp.json()
     if not tokens.get("refresh_token"):
@@ -193,7 +201,7 @@ def google_callback(request: Request, code: str = Query(default=""),
         # often because the underlying API isn't enabled for the project.
         log.warning("google token exchange for account %s granted no scope FIG asked for: %r",
                    account.id, granted)
-        return _return(integration=PLATFORM, error="no_scope_granted")
+        return _return(GOOGLE_RETURN_URL, integration=PLATFORM, error="no_scope_granted")
 
     connected_platforms = []
     for platform, scope_label in to_connect:
@@ -206,7 +214,7 @@ def google_callback(request: Request, code: str = Query(default=""),
             })
         except SecretsNotConfigured as exc:
             log.error("cannot store google tokens for account %s: %s", account.id, exc)
-            return _return(integration=PLATFORM, error="secrets_not_configured")
+            return _return(GOOGLE_RETURN_URL, integration=PLATFORM, error="secrets_not_configured")
 
         integ = session.scalars(select(Integration).where(
             Integration.account_id == account.id, Integration.platform == platform)).first()
@@ -225,7 +233,7 @@ def google_callback(request: Request, code: str = Query(default=""),
         connected_platforms.append(platform)
 
     session.commit()
-    return _return(integration=",".join(connected_platforms), connected="1")
+    return _return(GOOGLE_RETURN_URL, integration=",".join(connected_platforms), connected="1")
 
 
 # --- shopify --------------------------------------------------------------

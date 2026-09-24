@@ -148,8 +148,15 @@ export default function ProjectsPage() {
   };
   useEffect(loadProjects, []);
 
+  // Guards against a stale response landing after a newer one: submit for
+  // site A, then (before A's response arrives) close and reopen the dialog
+  // for site B -- without this, A's slower response could overwrite B's
+  // connector state with data for a project that isn't even open anymore.
+  const newProjectApisRequest = useRef(0);
   const loadNewProjectApis = useCallback((id: string) => {
+    const requestId = ++newProjectApisRequest.current;
     api.projectSettings(id).then((result) => {
+      if (requestId !== newProjectApisRequest.current) return;
       if (result.ok) setNewProjectApis(result.data.apis);
     });
   }, []);

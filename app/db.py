@@ -16,7 +16,7 @@ import logging
 import os
 from contextlib import contextmanager
 
-from sqlalchemy import create_engine, event, inspect, text
+from sqlalchemy import create_engine, event, inspect, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import DATABASE_URL, SQLITE_URL
@@ -103,11 +103,26 @@ _RELAXED_NOT_NULL = (
     ("integrations", "site_id"),
 )
 
+# Constraints declared on the ORM model (app/models.py's __table_args__) but
+# never applied to the one already-deployed database, for the same reason as
+# the two migrations above -- create_all() never alters an existing table.
+# Without this, nothing at the database level stops two concurrent/retried
+# /oauth/google/callback requests from creating two account_id-scoped rows
+# for the same (account, platform); a plain UNIQUE constraint is correct
+# here even though account_id is nullable -- Postgres treats each NULL as
+# distinct, so the many legitimate site_id-scoped rows (account_id NULL)
+# never collide with each other under it.
+_ADDED_UNIQUE_CONSTRAINTS = (
+    ("integrations", "uq_integration_account_platform", ("account_id", "platform")),
+)
+
 
 def init_db() -> None:
     Base.metadata.create_all(engine)
     _add_missing_columns()
     _relax_not_null_columns()
+    _add_missing_unique_constraints()
+    _migrate_site_scoped_google_integrations()
 
 
 def _add_missing_columns() -> None:
@@ -135,6 +150,95 @@ def _relax_not_null_columns() -> None:
         with engine.begin() as conn:
             conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN {column} DROP NOT NULL"))
         log.info("relaxed NOT NULL on %s.%s", table, column)
+
+
+def _add_missing_unique_constraints() -> None:
+    if engine.dialect.name != "postgresql":
+        return          # SQLite: every test/local db is created fresh from the current model
+    inspector = inspect(engine)
+    for table, name, columns in _ADDED_UNIQUE_CONSTRAINTS:
+        if not inspector.has_table(table):
+            continue
+        existing = {c["name"] for c in inspector.get_unique_constraints(table)}
+        if name in existing:
+            continue
+        col_list = ", ".join(columns)
+        with engine.begin() as conn:
+            conn.execute(text(f"ALTER TABLE {table} ADD CONSTRAINT {name} UNIQUE ({col_list})"))
+        log.info("added unique constraint %s on %s(%s)", name, table, col_list)
+
+
+def _migrate_site_scoped_google_integrations() -> None:
+    """Data migration, not schema (2026-09-23): Google Analytics/Search
+    Console moved from site_id-scoped to account_id-scoped Integration rows
+    (see Integration's docstring in app/models.py). Without this, an account
+    that connected Google before this deploy keeps a live refresh token in a
+    row the new account_id-scoped lookup in app/ga.py and
+    app/search_console.py can never find again -- silently orphaned, not
+    merely stale. Idempotent: once no site-scoped Google row remains, every
+    later boot's query returns nothing and this is a no-op.
+
+    An account can have several such rows (the old model let every project
+    connect Google separately) -- the most recently connected one is
+    promoted in place to the account-scoped row; the rest, and their stored
+    secrets, are removed the same way disconnect() removes any other
+    integration. If an account-scoped row already exists (a real reconnect
+    already happened since deploy), the old rows are superseded, not merged
+    -- all of them are removed rather than guessing which is authoritative.
+    """
+    from datetime import datetime
+
+    from app.models import Integration, Site
+    from app.secrets_store import SecretsNotConfigured, delete_secret
+
+    with session_scope() as session:
+        rows = list(session.scalars(
+            select(Integration).where(
+                Integration.site_id.isnot(None),
+                Integration.platform.in_(("google_analytics", "google_search_console")),
+            )
+        ).all())
+        if not rows:
+            return
+
+        site_ids = {r.site_id for r in rows}
+        sites = {s.id: s for s in session.scalars(
+            select(Site).where(Site.id.in_(site_ids))).all()}
+
+        groups: dict[tuple[str, str], list[Integration]] = {}
+        for row in rows:
+            site = sites.get(row.site_id)
+            if site is None:
+                # The site itself is gone; nothing left to scope this to.
+                session.delete(row)
+                continue
+            groups.setdefault((site.account_id, row.platform), []).append(row)
+
+        def _drop(integ: Integration, account_id: str, why: str) -> None:
+            if integ.credential_ref:
+                try:
+                    delete_secret(session, integ.credential_ref)
+                except SecretsNotConfigured:
+                    pass
+            session.delete(integ)
+            log.info("google integration migration: removed %s integration %s for account %s (%s)",
+                     integ.platform, integ.id, account_id, why)
+
+        for (account_id, platform), group in groups.items():
+            already = session.scalars(select(Integration).where(
+                Integration.account_id == account_id, Integration.platform == platform)).first()
+            if already is not None:
+                for row in group:
+                    _drop(row, account_id, "account-scoped row already exists")
+                continue
+            group.sort(key=lambda r: r.connected_at or datetime.min, reverse=True)
+            winner, *losers = group
+            winner.site_id = None
+            winner.account_id = account_id
+            log.info("google integration migration: promoted %s integration %s to account-scoped for account %s",
+                     platform, winner.id, account_id)
+            for row in losers:
+                _drop(row, account_id, "superseded by a more recently connected row")
 
 
 @contextmanager

@@ -393,15 +393,16 @@ class Integration(Base):
       expose the rest.
     - Google Analytics/Search Console are `account_id`-scoped (2026-09-23):
       read-only, and Google's own OAuth grant is already per-account, not
-      per-site -- one workspace connection, not one per project. The
-      trade-off this accepts: an agency account with several client sites
-      sees GA4 data from whichever property that one connection resolves to
-      first (no property picker exists yet -- see app/ga.py), same
-      already-documented limitation as before, now shared across every
-      project instead of one. Search Console avoids the equivalent problem
-      by matching a property to each site's own hostname at read time
-      (app/search_console.py's `_pick_site_url`) rather than caching one
-      match on the shared row.
+      per-site -- one workspace connection, not one per project. Two
+      different fixes for the same "which property, for which project"
+      question this creates: GA4 has no reliable per-site signal to match
+      on, so `Site.ga_property` is an explicit, admin-selected choice from
+      `app/ga.py:available_properties()` (never an auto-guessed default,
+      and unselected reads stay unavailable rather than showing another
+      project's numbers). Search Console doesn't need that -- a property IS
+      a hostname, so `app/search_console.py`'s `_pick_site_url` matches one
+      to each site automatically at read time, fetched fresh every call
+      rather than cached on the shared row.
     """
 
     __tablename__ = "integrations"
