@@ -580,30 +580,41 @@ def test_wordpress_title_fix_refuses_without_drafted_text():
 def test_settings_integration_names_match_the_frontends_static_list():
     """The workspace API's connection state is looked up by the frontend as
     `live.apis.find(a => a.name === service.name)` -- a string comparison
-    between two files that don't import each other, so nothing but a test
+    between files that don't import each other, so nothing but a test
     catches a drift. This already happened for real once (Search Console
     said "Search Console" on one side, "Google Search Console" on the
     other, and simply never matched) and is checked here for every service
-    that has a real Connect button wired in Settings: connecting would have
-    kept showing "Not connected" forever, no matter how it actually went.
+    that has a real Connect button somewhere: connecting would have kept
+    showing "Not connected" forever, no matter how it actually went.
 
-    Per-project connectors (WordPress, Shopify, Webflow, Wix, GitHub, the two
-    Google services) moved out of Settings and into
-    `components/project-connectors.tsx`'s `GROUPS` array (2026-09-22) -- that
-    file, not settings/page.tsx, is now the frontend's static list for them."""
-    frontend_src = (ROOT / "frontend" / "components" / "project-connectors.tsx").read_text(encoding="utf-8")
-    start = frontend_src.index("const GROUPS: { title: string; description: string; services: Service[] }[] = [")
-    end = frontend_src.index("\n];", start)
-    frontend_names = set(re.findall(r'name:\s*"([^"]+)"', frontend_src[start:end]))
+    Two static lists now, not one, split by scope (2026-09-23): per-project
+    connectors (WordPress, Shopify, Webflow, Wix, GitHub) are
+    `components/project-connectors.tsx`'s `GROUPS` array, reached from a
+    project's own Settings. Google Analytics/Search Console moved to
+    account-wide `app/projects/settings/page.tsx` -- Google's OAuth grant is
+    per-account, not per-project (see Integration's docstring in
+    app/models.py), so they no longer belong on the per-project page at all."""
+    project_connectors_src = (ROOT / "frontend" / "components" / "project-connectors.tsx").read_text(encoding="utf-8")
+    start = project_connectors_src.index("const GROUPS: { title: string; description: string; services: Service[] }[] = [")
+    end = project_connectors_src.index("\n];", start)
+    project_scoped_frontend_names = set(re.findall(r'name:\s*"([^"]+)"', project_connectors_src[start:end]))
+
+    account_settings_src = (ROOT / "frontend" / "app" / "projects" / "settings" / "page.tsx").read_text(encoding="utf-8")
+    start = account_settings_src.index('(["Google Analytics", "Google Search Console"] as const)')
+    account_scoped_frontend_names = set(re.findall(r'"([^"]+)"', account_settings_src[start:start + 60]))
 
     backend_names = {row["name"] for row in pages._api_rows(None, [])}
 
-    wired_in_frontend = {"Google Analytics", "Google Search Console", "WordPress", "Shopify",
-                        "Webflow", "Wix", "GitHub"}
-    missing_from_frontend = wired_in_frontend - frontend_names
-    assert not missing_from_frontend, \
-        f"expected a static row for {missing_from_frontend} in settings/page.tsx"
-    missing_from_backend = wired_in_frontend - backend_names
+    project_scoped = {"WordPress", "Shopify", "Webflow", "Wix", "GitHub"}
+    account_scoped = {"Google Analytics", "Google Search Console"}
+
+    missing_from_project_page = project_scoped - project_scoped_frontend_names
+    assert not missing_from_project_page, \
+        f"expected a static row for {missing_from_project_page} in project-connectors.tsx"
+    missing_from_account_page = account_scoped - account_scoped_frontend_names
+    assert not missing_from_account_page, \
+        f"expected a static row for {missing_from_account_page} in projects/settings/page.tsx"
+    missing_from_backend = (project_scoped | account_scoped) - backend_names
     assert not missing_from_backend, \
         f"_api_rows() has no matching row for {missing_from_backend} -- Connect would never show as connected"
 
@@ -1369,9 +1380,9 @@ def test_search_console_picks_the_matching_verified_property():
     urls2 = ["https://launchvault.ca/", "https://other.com/"]
     assert search_console._pick_site_url(urls2, "launchvault.ca") == "https://launchvault.ca/"
 
-    # No exact match: falls back to the first verified property (no picker UI yet).
+    # No exact match: never show an unrelated website's data.
     urls3 = ["https://first-seen.com/", "https://second.com/"]
-    assert search_console._pick_site_url(urls3, "launchvault.ca") == "https://first-seen.com/"
+    assert search_console._pick_site_url(urls3, "launchvault.ca") is None
 
     assert search_console._pick_site_url([], "launchvault.ca") is None
 

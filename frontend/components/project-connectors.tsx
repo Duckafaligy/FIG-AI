@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { BarChart3, Check, CircleDashed, Github, Globe2, LayoutTemplate, Layers, LockKeyhole, Search, ShoppingBag } from "lucide-react";
+import { Check, CircleDashed, Github, Globe2, LayoutTemplate, Layers, LockKeyhole, ShoppingBag } from "lucide-react";
 import { actions, apiUrl, type ApiSettingsPage } from "@/lib/api";
 import { IntegrationLogo } from "@/components/integration-logo";
 
 type Service = { name: string; detail: string; icon: React.ComponentType<{ size?: number }> };
 
-// Only the two groups that are genuinely per-project (every Integration row
-// is owned by one site_id in the database) -- account-wide services
-// (Supabase, Anthropic, Stripe, Webhooks) live in Settings, not here.
+// Only the one group that's genuinely per-project (every Integration row
+// here is owned by one site_id in the database). Google Analytics/Search
+// Console moved to account-wide Settings (2026-09-23, see
+// Integration's docstring in app/models.py) -- Google's own OAuth grant is
+// per-account, not per-project, so they no longer belong on this page.
 const GROUPS: { title: string; description: string; services: Service[] }[] = [
   {
     title: "Publishing & repositories",
@@ -20,14 +22,6 @@ const GROUPS: { title: string; description: string; services: Service[] }[] = [
       { name: "Webflow", detail: "Publishing destination", icon: Layers },
       { name: "Wix", detail: "Publishing destination", icon: LayoutTemplate },
       { name: "GitHub", detail: "Self-hosted / Git-deployed sites", icon: Github },
-    ],
-  },
-  {
-    title: "Analytics & search",
-    description: "Read-only connections for this project's traffic and search data.",
-    services: [
-      { name: "Google Analytics", detail: "Traffic and conversions", icon: BarChart3 },
-      { name: "Google Search Console", detail: "Queries and indexing", icon: Search },
     ],
   },
 ];
@@ -42,10 +36,18 @@ function IntegrationDialog({ title, busy = false, onClose, children }: { title: 
   </dialog>;
 }
 
-export function ProjectConnectors({ projectId, apis, onChanged }: {
+export function ProjectConnectors({ projectId, apis, onChanged, compact = false }: {
   projectId: string;
   apis: ApiSettingsPage["apis"];
   onChanged: () => void | Promise<void>;
+  // A simple platform-picker button row instead of the full connected-status
+  // list -- for a brand-new project (nothing could be connected yet, so a
+  // status column has nothing to show) inside the "Add project" dialog,
+  // which also isn't wrapped in the dashboard's own chrome, so the fuller
+  // layout's `.dashboard-shell`-scoped styling wouldn't apply there anyway.
+  // Reuses every handler and dialog below unchanged -- those are already
+  // styled without needing that ancestor.
+  compact?: boolean;
 }) {
   const liveApi = (name: string) => apis.find((a) => a.name === name);
 
@@ -85,8 +87,27 @@ export function ProjectConnectors({ projectId, apis, onChanged }: {
     window.location.href = apiUrl(`/oauth/github/start?site_id=${projectId}&repo=${encodeURIComponent(raw)}`);
   };
 
-  return (
-    <div className="settings-tab-stack settings-integrations-panel">
+  const picker = compact ? (
+    <div className="project-connectors-compact-row">
+      {GROUPS.flatMap(group => group.services).map((service) => {
+        const isWordPress = service.name === "WordPress";
+        const isShopify = service.name === "Shopify";
+        const isWebflow = service.name === "Webflow";
+        const isWix = service.name === "Wix";
+        const isGithub = service.name === "GitHub";
+        const remote = liveApi(service.name);
+        const label = remote?.ok ? `${service.name} connected` : service.name;
+        const props = { className: `button button--small${remote?.ok ? " is-connected" : ""}`, key: service.name };
+        if (isWordPress) return <button type="button" {...props} onClick={() => setWpFormOpen((open) => !open)}><IntegrationLogo name={service.name} />{label}</button>;
+        if (isShopify) return <button type="button" {...props} onClick={() => setShopifyFormOpen((open) => !open)}><IntegrationLogo name={service.name} />{label}</button>;
+        if (isWebflow) return <a {...props} href={apiUrl(`/oauth/webflow/start?site_id=${projectId}`)}><IntegrationLogo name={service.name} />{label}</a>;
+        if (isWix) return <a {...props} href={apiUrl(`/oauth/wix/start?site_id=${projectId}`)}><IntegrationLogo name={service.name} />{label}</a>;
+        if (isGithub) return <button type="button" {...props} onClick={() => setGithubFormOpen((open) => !open)}><IntegrationLogo name={service.name} />{label}</button>;
+        return null;
+      })}
+    </div>
+  ) : (
+    <>
       {GROUPS.map(group => (
         <section className="settings-surface" key={group.title}>
           <div className="settings-integration-group" aria-label={group.title}>
@@ -95,8 +116,6 @@ export function ProjectConnectors({ projectId, apis, onChanged }: {
             <div className="settings-integration-list">
               {group.services.map((service) => {
                 const ServiceIcon = service.icon;
-                const isGoogleAnalytics = service.name === "Google Analytics";
-                const isGoogleSearchConsole = service.name === "Google Search Console";
                 const isWordPress = service.name === "WordPress";
                 const isShopify = service.name === "Shopify";
                 const isWebflow = service.name === "Webflow";
@@ -115,9 +134,7 @@ export function ProjectConnectors({ projectId, apis, onChanged }: {
                     </div>
                     <span className="settings-service-permission"><small>Access</small>{remote?.perms || "Unavailable"}</span>
                     <b className={`settings-status settings-status--${tone}`}>{remote?.ok ? <Check size={12} /> : <CircleDashed size={12} />}{statusText}</b>
-                    {(isGoogleAnalytics || isGoogleSearchConsole) ? (
-                      <a className="settings-row-action button button--small" href={apiUrl(`/oauth/google/start?site_id=${projectId}`)}>{remote?.ok ? "Reconnect" : "Connect"}</a>
-                    ) : isWordPress ? (
+                    {isWordPress ? (
                       <button type="button" className="settings-row-action button button--small" onClick={() => setWpFormOpen((open) => !open)}>{remote?.ok ? "Reconnect" : "Connect"}</button>
                     ) : isShopify ? (
                       <button type="button" className="settings-row-action button button--small" onClick={() => setShopifyFormOpen((open) => !open)}>{remote?.ok ? "Reconnect" : "Connect"}</button>
@@ -135,6 +152,12 @@ export function ProjectConnectors({ projectId, apis, onChanged }: {
           </div>
         </section>
       ))}
+    </>
+  );
+
+  return (
+    <div className={compact ? "project-connectors-compact" : "settings-tab-stack settings-integrations-panel"}>
+      {picker}
 
       {wpFormOpen && (
         <IntegrationDialog title="Connect WordPress" busy={wpBusy} onClose={() => { setWpFormOpen(false); setWpError(""); }}>
@@ -179,10 +202,14 @@ export function ProjectConnectors({ projectId, apis, onChanged }: {
         </IntegrationDialog>
       )}
 
-      <section className="settings-surface settings-integration-note">
-        <LockKeyhole size={19} />
-        <div><strong>You review access before connecting</strong><p>OAuth authorization happens on the provider's site. WordPress uses an Application Password sent to FIG's backend for verification and encrypted storage. Reconnect repeats authorization; connection status is not a last-sync report.</p></div>
-      </section>
+      {compact ? (
+        <p className="project-connectors-compact-note"><LockKeyhole size={13} />OAuth authorization happens on the provider's site. WordPress uses an Application Password sent to FIG's backend.</p>
+      ) : (
+        <section className="settings-surface settings-integration-note">
+          <LockKeyhole size={19} />
+          <div><strong>You review access before connecting</strong><p>OAuth authorization happens on the provider's site. WordPress uses an Application Password sent to FIG's backend for verification and encrypted storage. Reconnect repeats authorization; connection status is not a last-sync report.</p></div>
+        </section>
+      )}
     </div>
   );
 }

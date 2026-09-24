@@ -12,10 +12,12 @@ and Search Console (read-only) share the same OAuth client -- GOOGLE_SCOPE
 requests both scopes together, and google_callback connects whichever the
 user's account actually grants, as two independent Integration rows (each
 can be reconnected or fail separately later; see app/ga.py and
-app/search_console.py). Shopify and Webflow follow this same three-step
-shape once they have a client id/secret, except WordPress, which uses
-Application Passwords instead of OAuth and needs no /start or /callback at
-all:
+app/search_console.py). Unlike every platform below, Google is
+account-scoped, not site-scoped (2026-09-23): one connection per workspace,
+not one per project -- see Integration's docstring in app/models.py.
+Shopify and Webflow follow this same three-step shape once they have a
+client id/secret, except WordPress, which uses Application Passwords
+instead of OAuth and needs no /start or /callback at all:
 
     1. /start   -- build the platform's authorize URL, redirect the browser.
     2. /callback -- verify `state`, exchange `code` for a token server-side
@@ -55,7 +57,7 @@ from sqlalchemy.orm import Session
 from app import config
 from app.auth import current_account
 from app.db import get_session
-from app.models import Integration, Site, _now
+from app.models import Account, Integration, Site, _now
 from app.secrets_store import SecretsNotConfigured, delete_secret, store_secret
 
 log = logging.getLogger("fig.oauth")
@@ -100,11 +102,13 @@ def _owned_site(session: Session, request: Request, site_id: str) -> Site:
 
 
 @router.get("/google/start")
-def google_start(request: Request, site_id: str = Query(...),
-                  session: Session = Depends(get_session)):
-    """Redirects the browser to Google's consent screen. The site has to
-    belong to whoever is signed in -- this is what stops one user connecting
-    analytics onto a site they don't own.
+def google_start(request: Request, session: Session = Depends(get_session)):
+    """Redirects the browser to Google's consent screen. Account-scoped, not
+    site-scoped (2026-09-23): one Google connection per workspace, not one
+    per project -- Google's own OAuth grant is already per-account, and an
+    agency managing several client sites from one Google login only ever
+    needed to go through consent once. See Integration's docstring in
+    app/models.py for the trade-off this accepts.
 
     One consent screen covers both Google platforms: GOOGLE_SCOPE requests
     Analytics and Search Console together, and google_callback below
@@ -112,9 +116,11 @@ def google_start(request: Request, site_id: str = Query(...),
     if not config.GOOGLE_OAUTH_ENABLED:
         raise HTTPException(503, "Google OAuth is not configured on this server "
                                  "(set GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET)")
-    site = _owned_site(session, request, site_id)
+    account = current_account(request, session)
+    if account is None:
+        raise HTTPException(401, "sign in required")
 
-    state = _serializer().dumps({"site_id": site.id, "account_id": site.account_id})
+    state = _serializer().dumps({"account_id": account.id})
     params = {
         "client_id": config.GOOGLE_CLIENT_ID,
         "redirect_uri": config.GOOGLE_OAUTH_REDIRECT_URI,
@@ -145,9 +151,9 @@ def google_callback(request: Request, code: str = Query(default=""),
     except BadSignature:
         return _return(integration=PLATFORM, error="invalid_state")
 
-    site = session.get(Site, payload.get("site_id"))
-    if site is None or site.account_id != payload.get("account_id"):
-        return _return(integration=PLATFORM, error="site_not_found")
+    account = session.get(Account, payload.get("account_id"))
+    if account is None:
+        return _return(integration=PLATFORM, error="account_not_found")
 
     try:
         resp = httpx.post(GOOGLE_TOKEN_URL, data={
@@ -170,7 +176,7 @@ def google_callback(request: Request, code: str = Query(default=""),
         # Happens when a user who already granted consent goes through this
         # again without `prompt=consent` actually forcing a new grant screen
         # -- Google only hands back a refresh token on the first consent.
-        log.warning("google token exchange for site %s returned no refresh_token", site.id)
+        log.warning("google token exchange for account %s returned no refresh_token", account.id)
 
     granted = tokens.get("scope", "")
     # A dict per platform actually granted -- a token dict per Integration,
@@ -185,8 +191,8 @@ def google_callback(request: Request, code: str = Query(default=""),
         # Google always echoes back what it actually granted; an empty
         # match here means the consent screen showed neither scope, most
         # often because the underlying API isn't enabled for the project.
-        log.warning("google token exchange for site %s granted no scope FIG asked for: %r",
-                   site.id, granted)
+        log.warning("google token exchange for account %s granted no scope FIG asked for: %r",
+                   account.id, granted)
         return _return(integration=PLATFORM, error="no_scope_granted")
 
     connected_platforms = []
@@ -199,13 +205,13 @@ def google_callback(request: Request, code: str = Query(default=""),
                 "scope": granted,
             })
         except SecretsNotConfigured as exc:
-            log.error("cannot store google tokens for site %s: %s", site.id, exc)
+            log.error("cannot store google tokens for account %s: %s", account.id, exc)
             return _return(integration=PLATFORM, error="secrets_not_configured")
 
         integ = session.scalars(select(Integration).where(
-            Integration.site_id == site.id, Integration.platform == platform)).first()
+            Integration.account_id == account.id, Integration.platform == platform)).first()
         if integ is None:
-            integ = Integration(site_id=site.id, platform=platform)
+            integ = Integration(account_id=account.id, platform=platform)
             session.add(integ)
         # Reconnecting stores a fresh token; the one it replaces would be left
         # orphaned in the secrets table, so remove it.
@@ -368,7 +374,7 @@ def shopify_callback(request: Request, code: str = Query(default=""),
     integ.connected_at = _now()
     integ.last_error = None
     session.commit()
-    return _return(integration=PLATFORM_SHOPIFY, connected="1")
+    return _return(integration=PLATFORM_SHOPIFY, connected="1", project=integ.site_id)
 
 
 # --- webflow ----------------------------------------------------------------
@@ -486,7 +492,7 @@ def webflow_callback(request: Request, code: str = Query(default=""),
     integ.connected_at = _now()
     integ.last_error = None
     session.commit()
-    return _return(integration=PLATFORM_WEBFLOW, connected="1")
+    return _return(integration=PLATFORM_WEBFLOW, connected="1", project=integ.site_id)
 
 
 # --- wix ----------------------------------------------------------------
@@ -611,7 +617,7 @@ def wix_callback(request: Request, instanceId: str = Query(default=""),
     integ.connected_at = _now()
     integ.last_error = None
     session.commit()
-    return _return(integration=PLATFORM_WIX, connected="1")
+    return _return(integration=PLATFORM_WIX, connected="1", project=integ.site_id)
 
 
 # --- github ----------------------------------------------------------------
@@ -727,4 +733,4 @@ def github_callback(request: Request, code: str = Query(default=""),
     integ.connected_at = _now()
     integ.last_error = None
     session.commit()
-    return _return(integration=PLATFORM_GITHUB, connected="1")
+    return _return(integration=PLATFORM_GITHUB, connected="1", project=integ.site_id)

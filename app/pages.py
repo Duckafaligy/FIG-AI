@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app import charts, config, demo, ga, search_console
@@ -1188,9 +1188,14 @@ def settings(session: Session, account: Account) -> dict:
     users = list(session.scalars(
         select(User).where(User.account_id == account.id)).all())
 
+    # Site-scoped CMS integrations across every project, plus the account's
+    # own account_id-scoped ones (Google Analytics/Search Console,
+    # 2026-09-23 -- see Integration's docstring in app/models.py).
+    integration_conditions = [Integration.account_id == account.id]
+    if sites:
+        integration_conditions.append(Integration.site_id.in_([s.id for s in sites]))
     integrations = list(session.scalars(
-        select(Integration).where(
-            Integration.site_id.in_([s.id for s in sites]))).all()) if sites else []
+        select(Integration).where(or_(*integration_conditions))).all())
 
     keys = list(session.scalars(
         select(ApiKey).where(ApiKey.account_id == account.id,
@@ -1229,27 +1234,28 @@ def settings(session: Session, account: Account) -> dict:
                    "initials": u.email[:2].upper()}
                   for i, u in enumerate(users)],
         "plan": {
-            "name": "Trial" if account.on_trial() else "Pay as you go",
-            "price": f"${rate / 100:.0f}", "unit": "per site / month",
-            "state": "Trial" if account.on_trial() else "Active",
+            "name": "Legacy per-site" if account.stripe_subscription_id else "Trial" if account.on_trial() else "No subscription",
+            "price": f"${rate / 100:.0f}" if account.stripe_subscription_id else "—",
+            "unit": "per site / month" if account.stripe_subscription_id else "not subscribed",
+            "state": "Active" if account.stripe_subscription_id else "Trial" if account.on_trial() else "Trial ended" if account.trial_expired() else "Not subscribed",
             "days": account.trial_days_left(),
             "next": "—",
-            "monthly": f"${account.monthly_cents() / 100:.2f}",
-            "features": ["Unlimited audits", "SEO + GEO reports",
-                         "Publish queue with approval", "REST API and keys",
-                         "Per-site billing, no seats"],
+            "monthly": f"${account.monthly_cents() / 100:.2f}" if account.stripe_subscription_id else "—",
+            "features": ["Website findings and reports", "Manual content review",
+                         "Approval required for supported CMS fixes"],
+            "checkout_available": bool(config.BILLING_ENABLED and config.STRIPE_PRICE_ID and account.kind != "direct"),
             # Whether there's a real Stripe subscription to manage, or none
             # yet to start -- decides whether a billing button should open
             # checkout or the customer portal.
             "subscribed": bool(account.stripe_subscription_id),
         },
         "usage": [
-            {"label": "Published Posts", "used": published, "cap": 500},
+            {"label": "Published Posts", "used": published, "cap": None},
             {"label": "API Credits Used",
              "used": demo.scaled("api", 48_200, .2) if demo.is_demo(account) else None,
-             "cap": 100_000},
-            {"label": "Content Generations", "used": 0, "cap": 1_000_000},
-            {"label": "Projects", "used": len(sites), "cap": 100},
+             "cap": None},
+            {"label": "Content Generations", "used": None, "cap": None},
+            {"label": "Projects", "used": len(sites), "cap": None},
         ],
         "apis": _api_rows(session, integrations),
         "keys": [{"label": k.label, "prefix": k.prefix,

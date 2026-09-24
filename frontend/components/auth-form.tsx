@@ -51,7 +51,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
     pendingSession.current = null;
     setCanRetrySession(false);
     // A full navigation avoids reusing a prefetched, signed-out App Router tree.
-    window.location.replace("/app");
+    window.location.replace("/projects");
   };
   const retrySession = async () => {
     if (busy || !pendingSession.current) return;
@@ -90,7 +90,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
             // Without this the confirmation link goes to Supabase's Site URL,
             // which was still localhost:3000. It must also be allow-listed in
             // Supabase -> Authentication -> URL Configuration -> Redirect URLs.
-            options: { data: { full_name: fullName }, emailRedirectTo: `${window.location.origin}/signin` },
+            options: { data: { full_name: fullName, company }, emailRedirectTo: `${window.location.origin}/signin` },
           })
         : await supabase.auth.signInWithPassword({ email, password });
 
@@ -132,7 +132,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
         {signup && <label className="auth-field" htmlFor="full-name"><span>Full name</span><input id="full-name" name="full-name" required autoComplete="name" placeholder="LaunchVault team" /></label>}
         <label className="auth-field" htmlFor="email"><span>{signup ? "Work email" : "Email"}</span><div className="input-with-icon"><Mail size={18} aria-hidden="true" /><input id="email" name="email" value={email} onChange={(event) => setEmail(event.target.value)} required type="email" autoComplete="email" placeholder="you@company.com" /></div></label>
         {signup && <label className="auth-field" htmlFor="company"><span>Company name</span><input id="company" name="company" required autoComplete="organization" placeholder="LaunchVault" /></label>}
-        {signup && <label className="auth-field" htmlFor="website"><span>Website URL</span><input id="website" name="website" required type="url" placeholder="https://launchvault.ca" /></label>}
+        {signup && <p className="auth-note">You’ll add your first website after creating your account. New workspaces start with no projects.</p>}
         <label className="auth-field" htmlFor="password"><span>Password</span><div className="input-with-icon input-with-icon--password"><LockKeyhole size={18} aria-hidden="true" /><input id="password" name="password" required minLength={signup ? 8 : undefined} type={showPassword ? "text" : "password"} autoComplete={signup ? "new-password" : "current-password"} placeholder={signup ? "Create a password" : "Enter your password"} /><button className="password-toggle" type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label>
       </div>
 

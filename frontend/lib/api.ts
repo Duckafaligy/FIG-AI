@@ -413,7 +413,7 @@ export type ApiSettingsPage = ApiChrome & {
   profile: { name: string; slug: string; kind: string; created: string; email: string; white_label: boolean };
   counts: { members: number; services: number; projects: number; published: number };
   seats: { name: string; email: string; role: string; perms: string; active: string; initials: string }[];
-  plan: { name: string; price: string; unit: string; state: string; days: number; monthly: string; features: string[]; subscribed: boolean };
+  plan: { name: string; price: string; unit: string; state: string; days: number; monthly: string; features: string[]; subscribed: boolean; checkout_available?: boolean };
   usage: { label: string; used: Nullable<number>; cap: Nullable<number> }[];
   apis: { name: string; account: string; state: string; ok: boolean; perms: string; since: string }[];
   keys: { label: string; prefix: string; created: string; used: string }[];

@@ -140,6 +140,22 @@ class DeleteWorkspaceTests(Fixture):
             self.assertEqual([i.site_id for i in remaining], ["site-b"])
             self.assertEqual(count(db, Secret), 1)
 
+    def test_an_account_scoped_integration_and_its_credential_are_also_deleted(self):
+        """Google Analytics/Search Console are account_id-scoped, not
+        site_id-scoped (2026-09-23) -- the site_ids-only cleanup above would
+        never reach these, leaking the stored token the same way disconnect()
+        once did for the site-scoped kind."""
+        with Session(self.engine) as db:
+            ref = store_secret(db, {"refresh_token": "account-level-secret"})
+            db.add(Integration(account_id="a", platform="google_analytics", credential_ref=ref))
+            db.commit()
+            self.assertEqual(count(db, Secret), 3)
+        self.delete("a")
+        with Session(self.engine) as db:
+            remaining = db.scalars(select(Integration)).all()
+            self.assertEqual([(i.site_id, i.account_id) for i in remaining], [("site-b", None)])
+            self.assertEqual(count(db, Secret), 1)
+
     def test_a_wrong_confirmation_deletes_nothing_and_does_not_touch_stripe(self):
         stripe = FakeStripe()
         with self.assertRaises(account_data.DeletionRefused) as caught:
@@ -376,6 +392,70 @@ class MigrationTests(unittest.TestCase):
             user = session.get(User, "existing")
             self.assertEqual(user.session_epoch, 0)             # the ORM reads the old row fine
         engine.dispose()
+
+    def test_the_integrations_account_id_column_is_added_to_an_existing_database(self):
+        """Production predates account_id-scoped integrations (2026-09-23,
+        Google Analytics/Search Console moving off site_id) -- same story as
+        the columns above."""
+        from sqlalchemy import inspect, text
+        from app import db as app_db
+        engine = create_engine("sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False})
+        with engine.begin() as conn:
+            conn.execute(text("CREATE TABLE integrations (id VARCHAR PRIMARY KEY, "
+                              "site_id VARCHAR NOT NULL, platform VARCHAR NOT NULL, endpoint VARCHAR, "
+                              "credential_ref VARCHAR, credential_hint VARCHAR, "
+                              "auto_publish BOOLEAN NOT NULL DEFAULT 0, scopes JSON, "
+                              "connected_at DATETIME, last_publish_at DATETIME, last_error TEXT, "
+                              "created_at DATETIME)"))
+            conn.execute(text("INSERT INTO integrations (id, site_id, platform) VALUES ('existing', 'site-1', 'wordpress')"))
+        with patch.object(app_db, "engine", engine):
+            app_db._add_missing_columns()
+            app_db._add_missing_columns()                       # idempotent
+        self.assertIn("account_id", {c["name"] for c in inspect(engine).get_columns("integrations")})
+        with Session(engine) as session:
+            integ = session.get(Integration, "existing")
+            self.assertIsNone(integ.account_id)                 # the ORM reads the old row fine
+
+    def test_relaxing_site_id_not_null_is_skipped_on_sqlite_not_attempted(self):
+        """SQLite has no ALTER COLUMN at all -- if the dialect gate in
+        _relax_not_null_columns() were ever removed, this would raise
+        (SQLite rejects the syntax outright) instead of quietly doing
+        nothing, so a real sqlite engine (every test in this file, and every
+        local/dev run) proves the gate rather than assuming it."""
+        from sqlalchemy import inspect, text
+        from app import db as app_db
+        engine = create_engine("sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False})
+        with engine.begin() as conn:
+            conn.execute(text("CREATE TABLE integrations (id VARCHAR PRIMARY KEY, "
+                              "site_id VARCHAR NOT NULL, platform VARCHAR NOT NULL)"))
+        with patch.object(app_db, "engine", engine):
+            app_db._relax_not_null_columns()                    # must not raise
+        self.assertFalse(inspect(engine).get_columns("integrations")[1]["nullable"])
+
+    def test_relaxing_site_id_not_null_runs_on_postgres(self):
+        """The real target: a Postgres engine gets the ALTER, run
+        idempotently (the gate re-checks nullability so a second call is a
+        no-op) -- verified against the actual SQL text this emits, not just
+        that some function ran, since no real Postgres is reachable here."""
+        from unittest.mock import MagicMock
+        from app import db as app_db
+        engine = create_engine("sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False})
+        with engine.begin() as conn:
+            from sqlalchemy import text as sql_text
+            conn.execute(sql_text("CREATE TABLE integrations (id VARCHAR PRIMARY KEY, "
+                                  "site_id VARCHAR NOT NULL, platform VARCHAR NOT NULL)"))
+        object.__setattr__(engine.dialect, "name", "postgresql")
+        executed = []
+        fake_conn = MagicMock()
+        fake_conn.execute.side_effect = lambda stmt: executed.append(str(stmt))
+        fake_begin = MagicMock()
+        fake_begin.__enter__.return_value = fake_conn
+        fake_begin.__exit__.return_value = False
+        with patch.object(app_db, "engine", engine), \
+                patch.object(engine, "begin", return_value=fake_begin):
+            app_db._relax_not_null_columns()
+        self.assertEqual(len(executed), 1)
+        self.assertIn("ALTER TABLE integrations ALTER COLUMN site_id DROP NOT NULL", executed[0])
 
     def test_the_js_dependent_columns_are_added_to_an_existing_database(self):
         """Same story for `pages`: production predates js_dependent/

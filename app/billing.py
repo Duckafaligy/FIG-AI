@@ -83,9 +83,6 @@ def start_checkout(session: Session, account: Account) -> dict:
     function so both /v1 (partner, API-key auth) and /api (our own
     frontend, session-cookie auth) can call the same implementation rather
     than drifting into two."""
-    stripe = _stripe()
-    if not config.STRIPE_PRICE_ID:
-        raise HTTPException(503, "set STRIPE_PRICE_ID to the per-site recurring price")
     # The Settings button already switches to the portal once subscribed, but
     # this is the function that takes the money, so it refuses on its own: a
     # second tab, a double click or a direct API call must not open a second
@@ -93,6 +90,17 @@ def start_checkout(session: Session, account: Account) -> dict:
     if account.stripe_subscription_id:
         raise HTTPException(409, "This workspace already has a subscription. "
                                  "Change or cancel it from the billing portal.")
+    # Direct customers see the new fixed-price catalogue. Never silently
+    # enroll them into the legacy per-site product. Existing subscriptions
+    # retain their portal/webhooks/quantity synchronization; partner contracts
+    # retain their versioned per-site checkout.
+    if account.kind == "direct":
+        raise HTTPException(409, "Self-service checkout is not available while FIG's new plans "
+                                 "are being configured. Contact us through Pricing. "
+                                 "No payment has been taken.")
+    stripe = _stripe()
+    if not config.STRIPE_PRICE_ID:
+        raise HTTPException(503, "set STRIPE_PRICE_ID to the per-site recurring price")
     customer_id = ensure_customer(session, account)
     qty = max(account.billable_sites(), account.site_floor, 1)
     # Carry over whatever is left of the free week rather than restarting it
@@ -112,8 +120,8 @@ def start_checkout(session: Session, account: Account) -> dict:
         customer=customer_id,
         line_items=[{"price": config.STRIPE_PRICE_ID, "quantity": qty}],
         subscription_data=sub_data or None,
-        success_url=f"{config.FRONTEND_URL}/app/settings?tab=billing&checkout=done",
-        cancel_url=f"{config.FRONTEND_URL}/app/settings?tab=billing&checkout=cancelled",
+        success_url=f"{config.FRONTEND_URL}/projects/settings?tab=billing&checkout=done",
+        cancel_url=f"{config.FRONTEND_URL}/projects/settings?tab=billing&checkout=cancelled",
         metadata={"fig_account_id": account.id},
     )
     return {"url": s["url"], "quantity": qty, "trial_days": trial_left}
@@ -123,7 +131,7 @@ def start_portal(session: Session, account: Account) -> dict:
     stripe = _stripe()
     customer_id = ensure_customer(session, account)
     s = stripe.billing_portal.Session.create(
-        customer=customer_id, return_url=f"{config.FRONTEND_URL}/app/settings?tab=billing")
+        customer=customer_id, return_url=f"{config.FRONTEND_URL}/projects/settings?tab=billing")
     return {"url": s["url"]}
 
 

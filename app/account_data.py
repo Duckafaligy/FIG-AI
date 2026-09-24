@@ -98,6 +98,18 @@ def delete_workspace(session: Session, account: Account, user: User, *, confirm:
     site_ids = [s.id for s in sites]
     scan_ids = [x for (x,) in session.execute(select(Scan.id).where(Scan.site_id.in_(site_ids)))] if site_ids else []
 
+    # Account-scoped integrations (Google Analytics/Search Console --
+    # site_id is None for these, so the site_ids-only queries below would
+    # never reach them, leaking their stored tokens the same way disconnect()
+    # once did for site-scoped ones) plus every site-scoped one.
+    account_integrations = list(session.scalars(
+        select(Integration).where(Integration.account_id == account.id)))
+    for integ in account_integrations:
+        if integ.credential_ref:
+            delete_secret(session, integ.credential_ref)
+    if account_integrations:
+        session.query(Integration).filter(Integration.account_id == account.id).delete(synchronize_session=False)
+
     if site_ids:
         # Stored credentials first: once the Integration row is gone nothing
         # would ever point at them again.

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ProjectConnectors } from "@/components/project-connectors";
+import { AnalyticsPropertyPicker } from "@/components/analytics-property-picker";
 import { ServiceUnavailable } from "@/components/service-unavailable";
 import { api, type ApiProjectSettingsPage } from "@/lib/api";
 
@@ -46,5 +47,6 @@ export default function ProjectSettingsPage() {
     </div>
     {loadError && <p className="form-message" role="alert">{loadError}</p>}
     <ProjectConnectors projectId={live.project.id} apis={live.apis} onChanged={load} />
+    <AnalyticsPropertyPicker key={live.project.id} projectId={live.project.id} />
   </>;
 }

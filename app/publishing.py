@@ -361,8 +361,14 @@ def disconnect(session: Session, account: Account, integration_id: str) -> None:
     integ = session.get(Integration, integration_id)
     if integ is None:
         raise HTTPException(404, "no such integration")
-    site = session.get(Site, integ.site_id)
-    if site is None or site.account_id != account.id:
+    if integ.site_id is not None:
+        site = session.get(Site, integ.site_id)
+        owned = site is not None and site.account_id == account.id
+    else:
+        # Account-scoped (Google Analytics/Search Console, 2026-09-23) --
+        # there's no Site to check ownership through at all.
+        owned = integ.account_id == account.id
+    if not owned:
         raise HTTPException(404, "no such integration")
     # Disconnecting has to mean it: delete the stored token or password, not
     # just the row that points at it. Otherwise "disconnect" leaves a live

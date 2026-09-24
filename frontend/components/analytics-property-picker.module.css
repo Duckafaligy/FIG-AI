@@ -1,0 +1,8 @@
+.panel { display: grid; gap: 14px; min-width: 0; }
+.panel h3 { margin: 0 0 8px; }
+.panel p { margin: 0; line-height: 1.6; color: var(--muted, #66728a); }
+.panel label { font-weight: 600; }
+.panel select { width: 100%; min-width: 0; padding: 12px; border: 1px solid #dce2ee; border-radius: 8px; background: white; color: #14213d; font: inherit; }
+.panel > button { justify-self: start; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.panel :focus-visible { outline: 2px solid #6246ea; outline-offset: 3px; }

@@ -36,8 +36,13 @@ PLATFORM = "google_search_console"
 
 
 def _integration(session: Session, site: Site) -> Integration | None:
+    # Account-scoped, not site-scoped (2026-09-23) -- one Google connection
+    # per workspace. See Integration's docstring in app/models.py. Unlike
+    # app/ga.py, this stays correct per site anyway: _matching_site_url
+    # below matches a property to each site's own hostname at read time
+    # rather than caching one match on the shared row.
     integ = session.scalars(select(Integration).where(
-        Integration.site_id == site.id, Integration.platform == PLATFORM)).first()
+        Integration.account_id == site.account_id, Integration.platform == PLATFORM)).first()
     return integ if integ and integ.is_connected() else None
 
 
@@ -49,7 +54,7 @@ def _access_token(session: Session, integ: Integration) -> str | None:
     try:
         creds = read_secret(session, integ.credential_ref)
     except (SecretsNotConfigured, KeyError) as exc:
-        log.warning("gsc: cannot read stored token for site %s: %s", integ.site_id, exc)
+        log.warning("gsc: cannot read stored token for account %s: %s", integ.account_id, exc)
         return None
 
     if creds.get("expires_at", 0) > time.time() + 60:
@@ -69,11 +74,11 @@ def _access_token(session: Session, integ: Integration) -> str | None:
             "grant_type": "refresh_token",
         }, timeout=15.0)
     except httpx.HTTPError as exc:
-        log.warning("gsc: token refresh request failed for site %s: %s", integ.site_id, exc)
+        log.warning("gsc: token refresh request failed for account %s: %s", integ.account_id, exc)
         return None
     if resp.status_code != 200:
-        log.warning("gsc: token refresh rejected for site %s: %s %s",
-                    integ.site_id, resp.status_code, resp.text[:200])
+        log.warning("gsc: token refresh rejected for account %s: %s %s",
+                    integ.account_id, resp.status_code, resp.text[:200])
         integ.last_error = f"Search Console token refresh failed: HTTP {resp.status_code}"
         session.commit()
         return None
@@ -90,8 +95,7 @@ def _pick_site_url(urls: list[str], hostname: str) -> str | None:
     """Which of the account's verified Search Console properties is this FIG
     site? Pure and DB-free so it's directly testable. Tries an exact host
     match first (domain property, then https/http URL-prefix properties,
-    with and without www); falls back to the first verified property the
-    account can see, since there's no picker UI yet."""
+    with and without www). Never substitute a different site's data."""
     if not urls:
         return None
     host = hostname.lower().removeprefix("www.")
@@ -100,32 +104,33 @@ def _pick_site_url(urls: list[str], hostname: str) -> str | None:
         f"https://{host}/", f"https://www.{host}/",
         f"http://{host}/", f"http://www.{host}/",
     }
-    return next((u for u in urls if u in candidates), None) or urls[0]
+    return next((u for u in urls if u in candidates), None)
 
 
 def _matching_site_url(token: str, integ: Integration, session: Session, hostname: str) -> str | None:
-    """Cached on Integration.endpoint once found, same pattern app/ga.py
-    uses for a GA4 property."""
-    if integ.endpoint:
-        return integ.endpoint
+    """Deliberately NOT cached on Integration.endpoint (2026-09-23, unlike
+    app/ga.py's property caching): this Integration is now account-scoped,
+    shared by every site in the account, so caching one match on it would
+    serve one site's property to every other site too. The account's list of
+    verified properties is fetched fresh and re-matched to this specific
+    hostname every call -- one extra lightweight metadata request per page
+    load, in exchange for staying correct per project."""
     try:
         resp = httpx.get(SITES_URL, headers={"Authorization": f"Bearer {token}"}, timeout=15.0)
     except httpx.HTTPError as exc:
-        log.warning("gsc: site discovery failed for site %s: %s", integ.site_id, exc)
+        log.warning("gsc: site discovery failed for account %s: %s", integ.account_id, exc)
         return None
     if resp.status_code != 200:
-        log.warning("gsc: site discovery rejected for site %s: %s %s",
-                    integ.site_id, resp.status_code, resp.text[:200])
+        log.warning("gsc: site discovery rejected for account %s: %s %s",
+                    integ.account_id, resp.status_code, resp.text[:200])
         return None
     entries = resp.json().get("siteEntry", [])
     urls = [e["siteUrl"] for e in entries if e.get("siteUrl")]
     match = _pick_site_url(urls, hostname)
     if match is None:
-        integ.last_error = "No Search Console property visible to this Google account"
+        integ.last_error = "No matching Search Console property for this project"
         session.commit()
         return None
-    integ.endpoint = match
-    session.commit()
     return match
 
 

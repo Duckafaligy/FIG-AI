@@ -144,6 +144,7 @@ class WixOAuthTests(unittest.TestCase):
         r = self.callback(instance_id="wix-instance-real", state=state)
         self.assertEqual(r.status_code, 307)
         self.assertIn("connected=1", r.headers["location"])
+        self.assertIn("project=site-a", r.headers["location"])  # lands back on the connected project, not the account default
         with Session(self.engine) as db:
             integ = db.scalars(select(Integration).where(Integration.site_id == "site-a")).one()
             self.assertEqual(integ.platform, "wix")

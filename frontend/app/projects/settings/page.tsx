@@ -25,8 +25,9 @@ import {
 } from "lucide-react";
 import { DashboardHeader } from "@/components/dashboard-shell";
 import { AccountControls } from "@/components/account-controls";
+import { IntegrationLogo } from "@/components/integration-logo";
 import { PreviewInfo } from "@/components/preview-info";
-import { actions, api, fmt, type ApiSettingsPage } from "@/lib/api";
+import { actions, api, apiUrl, fmt, type ApiSettingsPage } from "@/lib/api";
 
 type Icon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
 type TabId = "workspace" | "team" | "billing" | "security" | "notifications" | "defaults" | "webhooks";
@@ -55,12 +56,12 @@ function LocalToggle({ label, description, checked, onChange }: { label: string;
   return <div className="settings-toggle-row"><div><strong>{label}</strong><span>{description}</span></div><button type="button" className={`settings-switch${checked ? " is-on" : ""}`} aria-label={`${checked ? "Disable" : "Enable"} ${label} in local preview`} aria-pressed={checked} onClick={onChange}><i /></button></div>;
 }
 
-function UsageCards({ rows }: { rows: { label: string; value: string; percent: string }[] }) {
-  return <div className="settings-usage-cards">{rows.map(({ label, value, percent }) => <article key={label}><div><span>{label}</span><strong>{value}</strong></div><small>{percent} of allowance</small><i><b style={{ width: percent }} /></i></article>)}</div>;
+function UsageCards({ rows }: { rows: { label: string; value: string; percent: string | null }[] }) {
+  return <div className="settings-usage-cards">{rows.map(({ label, value, percent }) => <article key={label}><div><span>{label}</span><strong>{value}</strong></div>{percent === null ? <small>Allowance unavailable</small> : <><small>{percent} of allowance</small><i><b style={{ width: percent }} /></i></>}</article>)}</div>;
 }
 
-function usagePercent(used: number | null, cap: number): string {
-  if (used === null || cap <= 0) return "0%";
+function usagePercent(used: number | null, cap: number): string | null {
+  if (used === null || cap <= 0) return null;
   return `${Math.min(100, Math.round((used / cap) * 100))}%`;
 }
 
@@ -121,6 +122,10 @@ export default function WorkspaceSettingsPage() {
   const [billingBusy, setBillingBusy] = useState<"checkout" | "portal" | null>(null);
   const [billingError, setBillingError] = useState("");
   const goToCheckout = async () => {
+    if (!live?.plan.checkout_available) {
+      window.location.href = "/pricing";
+      return;
+    }
     setBillingBusy("checkout");
     setBillingError("");
     const result = await actions.startCheckout();
@@ -188,7 +193,7 @@ export default function WorkspaceSettingsPage() {
           <section className="settings-surface settings-workspace-surface"><div className="settings-surface-heading"><div><h3>Workspace profile</h3><p>{live ? "The account behind this workspace." : "The core details shown throughout this frontend preview."}</p></div><PreviewInfo className="settings-link-button" label="Edit profile" message="Workspace editing isn't wired up yet. No change is sent to Supabase or any connected service." /></div><div className="settings-workspace-profile"><span className="settings-profile-logo">{live ? live.initials : "LV"}</span><div><strong>{live ? live.profile.name : "LaunchVault.ca"}</strong>{!live && <p>Plain-English AI lessons, prompts, courses, and practical workflows.</p>}<span><BadgeCheck size={13} />{live ? (live.profile.kind === "Direct" ? "Direct workspace" : live.profile.kind) : "Preview workspace"}</span></div></div><div className="settings-fact-grid"><article><span>Workspace ID</span><strong>{live ? live.profile.slug : "lv_workspace_01"}</strong></article><article><span>Owner</span><strong>{live ? (live.seats[0]?.email ?? "—") : "Jordan Davis"}</strong></article><article><span>Industry</span><strong>{live ? "—" : "Education & technology"}</strong></article><article><span>Timezone</span><strong>{live ? "—" : "Eastern Time"}</strong></article><article><span>Website</span><strong>{live ? (live.project?.hostname ?? "—") : "launchvault.ca"}</strong></article><article><span>Created</span><strong>{live ? live.profile.created : "Sep 13, 2026"}</strong></article></div></section>
           <div className="settings-two-column"><section className="settings-surface"><div className="settings-surface-heading"><div><h3>Workspace at a glance</h3><p>{live ? "Real counters for this workspace." : "Sample counters for this one project."}</p></div></div><div className="settings-glance-grid"><article><Users size={18} /><strong>{live ? live.counts.members : 5}</strong><span>Team members</span></article><article><Link2 size={18} /><strong>{live ? live.counts.services : 8}</strong><span>Services connected</span></article><article><FileText size={18} /><strong>{live ? live.counts.projects : 1500}</strong><span>{live ? "Projects" : "Library items"}</span></article><article><BrainCircuit size={18} /><strong>{live ? live.counts.published : 50}</strong><span>{live ? "Published posts" : "Topics"}</span></article></div></section><section className="settings-surface settings-plan-surface"><div className="settings-surface-heading"><div><h3>Current plan</h3><p>{live ? (live.plan.state === "Trial" ? `${live.plan.days} day${live.plan.days === 1 ? "" : "s"} left in trial.` : "Billed per site.") : "Billing is not connected."}</p></div>{live ? (
               <button type="button" className="settings-link-button" onClick={live.plan.subscribed ? goToPortal : goToCheckout} disabled={billingBusy !== null}>
-                {billingBusy ? "Redirecting…" : live.plan.subscribed ? "Manage billing" : "Subscribe"}
+                {billingBusy ? "Redirecting…" : live.plan.subscribed ? "Manage billing" : live.plan.checkout_available ? "Subscribe" : "Explore plans & contact us"}
               </button>
             ) : (
               <PreviewInfo className="settings-link-button" label="Manage billing" message="Stripe checkout and the customer portal aren't wired up from this page yet." />
@@ -218,6 +223,35 @@ export default function WorkspaceSettingsPage() {
               </div>
             )}
           </section>
+
+          {live && (
+            <section className="settings-surface">
+              <div className="settings-surface-heading">
+                <div><h3>Analytics & search</h3><p>One Google connection for this workspace, shared by every project — not one per site.</p></div>
+                <Globe2 size={19} aria-hidden="true" />
+              </div>
+              <div className="settings-integration-list">
+                {(["Google Analytics", "Google Search Console"] as const).map((name) => {
+                  const remote = live.apis.find((a) => a.name === name);
+                  const statusText = remote?.state || "Unavailable";
+                  const tone = remote?.ok ? "green" : "neutral";
+                  return (
+                    <article key={name}>
+                      <span className="settings-service-icon settings-integration-brand"><IntegrationLogo name={name} /></span>
+                      <div className="settings-integration-identity">
+                        <strong>{name}</strong>
+                        <small>{remote?.account || "Account information unavailable"}</small>
+                        <small>Connected since: {remote?.since && remote.since !== "—" ? remote.since : "Unavailable"}</small>
+                      </div>
+                      <span className="settings-service-permission"><small>Access</small>{remote?.perms || "Unavailable"}</span>
+                      <b className={`settings-status settings-status--${tone}`}>{remote?.ok ? <Check size={12} /> : <CircleDashed size={12} />}{statusText}</b>
+                      <a className="settings-row-action button button--small" href={apiUrl("/oauth/google/start")}>{remote?.ok ? "Reconnect" : "Connect"}</a>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          )}
           {live && <AccountControls currentName={live.profile.name} email={live.profile.email} />}
         </div>}
 
@@ -225,7 +259,7 @@ export default function WorkspaceSettingsPage() {
 
         {activeTab === "billing" && <div className="settings-tab-stack"><section className="settings-surface settings-billing-feature"><div><span className="settings-kicker">{live ? "Billing" : "Billing preview"}</span><h3>{live ? `${live.plan.name} plan for ${live.profile.name}` : "Pro plan for LaunchVault.ca"}</h3><p>{live ? `Billed ${live.plan.unit}. Monthly total: ${live.plan.monthly}.` : "Use the workspace freely as a visual prototype. Stripe billing, metering, and plan enforcement are not connected yet."}</p>{live ? (
           <button type="button" className="settings-link-button" onClick={live.plan.subscribed ? goToPortal : goToCheckout} disabled={billingBusy !== null}>
-            {billingBusy ? "Redirecting…" : live.plan.subscribed ? "View billing details & invoices" : "Subscribe"}
+            {billingBusy ? "Redirecting…" : live.plan.subscribed ? "View billing details & invoices" : live.plan.checkout_available ? "Subscribe" : "Explore plans & contact us"}
           </button>
         ) : (
           <PreviewInfo className="settings-link-button" label="View billing details" message="The Stripe customer portal isn't linked from this page yet — see app/billing.py." />

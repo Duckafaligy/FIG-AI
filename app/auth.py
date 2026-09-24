@@ -151,6 +151,12 @@ def link_user(session: Session, supabase_user: dict,
     """
     uid = supabase_user["id"]
     email = (supabase_user.get("email") or "").strip().lower()
+    # Signup can require email confirmation before a session exists. Carry
+    # the company through verified Supabase metadata, not browser storage.
+    metadata = supabase_user.get("user_metadata") or {}
+    signup_company = metadata.get("company") if isinstance(metadata, dict) else None
+    if not account_name and isinstance(signup_company, str):
+        account_name = signup_company
 
     user = session.scalars(select(User).where(User.supabase_uid == uid)).first()
     if user is None and email:

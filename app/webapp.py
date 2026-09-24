@@ -25,7 +25,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
-from app import account_data, billing, config, content, pages, publishing
+from app import account_data, billing, config, content, ga, pages, publishing
 from app.auth import current_account, end_session, session_user, start_session
 from app.db import get_session
 from app.jobs import enqueue_estate, enqueue_scan, queue_depth
@@ -594,6 +594,36 @@ def change_action(change_id: str, action: str, request: Request,
 
 
 # --- integrations --------------------------------------------------------
+
+
+@router.get("/projects/{project_id}/analytics-properties")
+def analytics_properties(project_id: str, request: Request,
+                         session: Session = Depends(get_session)):
+    site = _project(session, _account(request, session), project_id)
+    try:
+        choices = ga.available_properties(session, site)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    return {"selected": site.ga_property, "properties": choices}
+
+
+@router.patch("/projects/{project_id}/analytics-property")
+def select_analytics_property(project_id: str, request: Request, payload: dict = Body(...),
+                              session: Session = Depends(get_session)):
+    site = _project(session, _account(request, session), project_id)
+    selected = payload.get("property")
+    if selected is not None:
+        if not isinstance(selected, str):
+            raise HTTPException(422, "Choose a Google Analytics property or clear the selection.")
+        try:
+            choices = ga.available_properties(session, site)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        if selected not in {choice["id"] for choice in choices}:
+            raise HTTPException(422, "That property is not available to the connected Google account.")
+    site.ga_property = selected
+    session.commit()
+    return {"selected": site.ga_property}
 
 
 @router.post("/integrations")

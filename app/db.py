@@ -82,17 +82,32 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
 # create_all only ever creates missing tables -- it never alters one -- so an
 # additive, nullable column has to be added here. Idempotent.
 _ADDED_COLUMNS = (
+    ("sites", "ga_property", "VARCHAR"),
     ("scans", "trace", "JSON"),
     ("sites", "reports_public", "BOOLEAN DEFAULT FALSE"),
     ("users", "session_epoch", "INTEGER NOT NULL DEFAULT 0"),
     ("pages", "js_dependent", "BOOLEAN NOT NULL DEFAULT FALSE"),
     ("pages", "js_dependent_reason", "VARCHAR"),
+    ("integrations", "account_id", "VARCHAR"),
+)
+
+# Column-nullability changes, run after _add_missing_columns() so the column
+# exists first. SQLite has no ALTER COLUMN at all (no-op, harmless -- a
+# database created from today's model already has the right nullability,
+# and every test starts from a fresh create_all()); Postgres runs this for
+# real, idempotently, against the one already-deployed database that
+# predates account_id-scoped integrations (2026-09-23: Google Analytics/
+# Search Console moved from site_id-scoped to account_id-scoped, so
+# integrations.site_id can no longer be NOT NULL).
+_RELAXED_NOT_NULL = (
+    ("integrations", "site_id"),
 )
 
 
 def init_db() -> None:
     Base.metadata.create_all(engine)
     _add_missing_columns()
+    _relax_not_null_columns()
 
 
 def _add_missing_columns() -> None:
@@ -105,6 +120,21 @@ def _add_missing_columns() -> None:
         with engine.begin() as conn:
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {sql_type}"))
         log.info("added column %s.%s", table, column)
+
+
+def _relax_not_null_columns() -> None:
+    if engine.dialect.name != "postgresql":
+        return
+    inspector = inspect(engine)
+    for table, column in _RELAXED_NOT_NULL:
+        if not inspector.has_table(table):
+            continue
+        columns = {c["name"]: c for c in inspector.get_columns(table)}
+        if column not in columns or columns[column]["nullable"]:
+            continue
+        with engine.begin() as conn:
+            conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN {column} DROP NOT NULL"))
+        log.info("relaxed NOT NULL on %s.%s", table, column)
 
 
 @contextmanager

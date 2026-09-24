@@ -6,15 +6,15 @@ Nothing here estimates or fabricates a value: a site with no connected
 integration, an expired refresh token, or a failed API call all return
 `None`, and `app/pages.py` keeps that as `null` rather than guessing.
 
-No property picker exists yet, so `_property_name` uses whatever GA4
-property the connected Google account can see first and caches it on the
-Integration row (`endpoint`). Fine for the common one-property case; a
-Google account with several GA4 properties needs a real picker before this
-is more broadly useful.
+Google authorization is account-scoped. Reporting selections are explicitly
+stored on each Site; the old shared Integration.endpoint is never used as a
+reporting fallback. Unselected projects return unavailable, not another site's
+numbers.
 """
 from __future__ import annotations
 
 import logging
+import re
 import time
 
 import httpx
@@ -43,8 +43,9 @@ METRICS = [
 
 
 def _integration(session: Session, site: Site) -> Integration | None:
+    # Authorization is shared; Site.ga_property selects the reporting source.
     integ = session.scalars(select(Integration).where(
-        Integration.site_id == site.id, Integration.platform == PLATFORM)).first()
+        Integration.account_id == site.account_id, Integration.platform == PLATFORM)).first()
     return integ if integ and integ.is_connected() else None
 
 
@@ -59,7 +60,7 @@ def _access_token(session: Session, integ: Integration) -> str | None:
     try:
         creds = read_secret(session, integ.credential_ref)
     except (SecretsNotConfigured, KeyError) as exc:
-        log.warning("ga: cannot read stored token for site %s: %s", integ.site_id, exc)
+        log.warning("ga: cannot read stored token for account %s: %s", integ.account_id, exc)
         return None
 
     if creds.get("expires_at", 0) > time.time() + 60:
@@ -79,11 +80,11 @@ def _access_token(session: Session, integ: Integration) -> str | None:
             "grant_type": "refresh_token",
         }, timeout=15.0)
     except httpx.HTTPError as exc:
-        log.warning("ga: token refresh request failed for site %s: %s", integ.site_id, exc)
+        log.warning("ga: token refresh request failed for account %s: %s", integ.account_id, exc)
         return None
     if resp.status_code != 200:
-        log.warning("ga: token refresh rejected for site %s: %s %s",
-                    integ.site_id, resp.status_code, resp.text[:200])
+        log.warning("ga: token refresh rejected for account %s: %s %s",
+                    integ.account_id, resp.status_code, resp.text[:200])
         integ.last_error = f"Google Analytics token refresh failed: HTTP {resp.status_code}"
         session.commit()
         return None
@@ -96,29 +97,45 @@ def _access_token(session: Session, integ: Integration) -> str | None:
     return creds["access_token"]
 
 
-def _property_name(token: str, integ: Integration, session: Session) -> str | None:
-    if integ.endpoint:
-        return integ.endpoint
-    try:
-        resp = httpx.get(f"{ADMIN_API}/accountSummaries",
-                         headers={"Authorization": f"Bearer {token}"}, timeout=15.0)
-    except httpx.HTTPError as exc:
-        log.warning("ga: property discovery failed for site %s: %s", integ.site_id, exc)
-        return None
-    if resp.status_code != 200:
-        log.warning("ga: property discovery rejected for site %s: %s %s",
-                    integ.site_id, resp.status_code, resp.text[:200])
-        return None
-    for account in resp.json().get("accountSummaries", []):
-        for prop in account.get("propertySummaries", []):
-            name = prop.get("property")  # "properties/123456789"
-            if name:
-                integ.endpoint = name
-                session.commit()
-                return name
-    integ.last_error = "No GA4 property visible to this Google account"
-    session.commit()
-    return None
+def available_properties(session: Session, site: Site) -> list[dict]:
+    """Real authorized choices. Refuse incomplete discovery rather than save
+    an arbitrary id. Bounded pagination avoids an unbounded provider request.
+    API: developers.google.com/analytics/devguides/config/admin/v1/rest/v1beta/accountSummaries/list
+    """
+    integ = _integration(session, site)
+    if integ is None:
+        raise ValueError("Connect Google Analytics in workspace settings first.")
+    token = _access_token(session, integ)
+    if not token:
+        raise ValueError("Google Analytics authorization is unavailable. Reconnect and retry.")
+    choices: dict[str, dict] = {}
+    page_token = ""
+    seen = set()
+    for _ in range(20):
+        params = {"pageSize": 200}
+        if page_token:
+            params["pageToken"] = page_token
+        try:
+            resp = httpx.get(f"{ADMIN_API}/accountSummaries", params=params,
+                             headers={"Authorization": f"Bearer {token}"}, timeout=15.0)
+            if resp.status_code != 200:
+                raise ValueError("Google Analytics could not list properties. Check permissions and retry.")
+            data = resp.json()
+            for account in data.get("accountSummaries", []):
+                for prop in account.get("propertySummaries", []):
+                    name = prop.get("property", "")
+                    if isinstance(name, str) and re.fullmatch(r"properties/\d+", name):
+                        choices[name] = {"id": name, "name": prop.get("displayName") or name,
+                                         "account": account.get("displayName") or ""}
+            page_token = data.get("nextPageToken", "")
+        except (httpx.HTTPError, TypeError, AttributeError) as exc:
+            raise ValueError("Google Analytics property discovery is unavailable. Retry shortly.") from exc
+        if not page_token:
+            return list(choices.values())
+        if page_token in seen:
+            break
+        seen.add(page_token)
+    raise ValueError("Google returned an incomplete property list. Retry before selecting a property.")
 
 
 def _fmt(key: str, raw: str) -> str:
@@ -146,8 +163,8 @@ def fetch_overview_metrics(session: Session, site: Site) -> list[dict] | None:
     token = _access_token(session, integ)
     if token is None:
         return None
-    prop = _property_name(token, integ, session)
-    if prop is None:
+    prop = site.ga_property
+    if not prop or not re.fullmatch(r"properties/\d+", prop):
         return None
 
     body = {

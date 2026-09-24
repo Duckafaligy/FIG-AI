@@ -156,6 +156,8 @@ class Site(Base):
     hostname = Column(String, nullable=False)
     label = Column(String, nullable=True)
     client_name = Column(String, nullable=True)
+    # Google authorization is account-wide; the reporting property is not.
+    ga_property = Column(String, nullable=True)
 
     is_active = Column(Boolean, nullable=False, default=True)
     monitor = Column(Boolean, nullable=False, default=False)
@@ -376,23 +378,41 @@ PLATFORMS = ("wordpress", "shopify", "webflow", "ghost", "custom")
 
 
 class Integration(Base):
-    """A CMS FIG is allowed to write back to.
+    """A CMS or data source FIG is connected to.
 
     The whole point of the product is that a finding comes with a fix; an
     integration is what turns the fix into a change on the actual site instead
     of a task in somebody's backlog.
 
-    Credentials are stored per site, never per account: an agency holds keys
-    for forty different clients and one leaking must not expose the rest.
+    Two shapes share this table, told apart by which of `site_id`/`account_id`
+    is set (exactly one, never both, never neither):
+
+    - Write-capable CMS platforms (WordPress, Shopify, Webflow, Wix, GitHub)
+      are `site_id`-scoped, one credential per site, never per account: an
+      agency holds keys for forty different clients and one leaking must not
+      expose the rest.
+    - Google Analytics/Search Console are `account_id`-scoped (2026-09-23):
+      read-only, and Google's own OAuth grant is already per-account, not
+      per-site -- one workspace connection, not one per project. The
+      trade-off this accepts: an agency account with several client sites
+      sees GA4 data from whichever property that one connection resolves to
+      first (no property picker exists yet -- see app/ga.py), same
+      already-documented limitation as before, now shared across every
+      project instead of one. Search Console avoids the equivalent problem
+      by matching a property to each site's own hostname at read time
+      (app/search_console.py's `_pick_site_url`) rather than caching one
+      match on the shared row.
     """
 
     __tablename__ = "integrations"
     __table_args__ = (
         UniqueConstraint("site_id", "platform", name="uq_integration_site_platform"),
+        UniqueConstraint("account_id", "platform", name="uq_integration_account_platform"),
     )
 
     id = Column(String, primary_key=True, default=_uuid)
-    site_id = Column(String, ForeignKey("sites.id"), nullable=False, index=True)
+    site_id = Column(String, ForeignKey("sites.id"), nullable=True, index=True)
+    account_id = Column(String, ForeignKey("accounts.id"), nullable=True, index=True)
     platform = Column(String, nullable=False)
 
     endpoint = Column(String, nullable=True)          # admin/API base URL
@@ -412,6 +432,7 @@ class Integration(Base):
     created_at = Column(DateTime, default=_now)
 
     site = relationship("Site")
+    account = relationship("Account")
 
     def is_connected(self) -> bool:
         return bool(self.credential_ref and self.connected_at)

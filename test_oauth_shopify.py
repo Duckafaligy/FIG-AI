@@ -131,6 +131,7 @@ class ShopifyOAuthTests(unittest.TestCase):
             r = self.client.get("/oauth/shopify/callback", params=self.callback_params(state))
         self.assertEqual(r.status_code, 307)
         self.assertIn("connected=1", r.headers["location"])
+        self.assertIn("project=site-a", r.headers["location"])  # lands back on the connected project, not the account default
         with Session(self.engine) as db:
             integ = db.scalars(select(Integration).where(Integration.site_id == "site-a")).one()
             self.assertEqual(integ.platform, "shopify")
