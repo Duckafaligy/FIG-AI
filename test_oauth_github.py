@@ -127,7 +127,7 @@ class GithubOAuthTests(unittest.TestCase):
             r = self.client.get("/oauth/github/callback", params={"code": "a-real-looking-code", "state": state})
         self.assertEqual(r.status_code, 307)
         self.assertIn("connected=1", r.headers["location"])
-        self.assertTrue(r.headers["location"].startswith(f"{config.FRONTEND_URL}/projects/site-a/settings?"))  # lands back on the connected project's own settings page
+        self.assertTrue(r.headers["location"].startswith(f"{config.FRONTEND_URL}/projects/a.example/settings?"))  # lands back on the connected project's own (hostname-named) settings page
         with Session(self.engine) as db:
             integ = db.scalars(select(Integration).where(Integration.site_id == "site-a")).one()
             self.assertEqual(integ.platform, "github")

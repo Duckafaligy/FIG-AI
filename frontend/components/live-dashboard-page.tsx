@@ -8,7 +8,7 @@ import { ServiceUnavailable } from "./service-unavailable";
 
 export function LiveDashboardPage({ page, overlay }: { page: keyof typeof dashboardPages; overlay: Overlay | null }) {
   const search = useDashboardSearch().trim().toLowerCase();
-  const { id: projectId } = useParams<{ id: string }>();
+  const { hostname: projectId } = useParams<{ hostname: string }>();
   if (!overlay) return <ServiceUnavailable />;
   const data = applyOverlay(dashboardPages[page], overlay);
   return <div className={`dashboard-page dashboard-page--${data.layout}`}>

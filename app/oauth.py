@@ -91,11 +91,13 @@ def _return(base: str | None = None, **params: str) -> RedirectResponse:
     return RedirectResponse(f"{base or config.OAUTH_RETURN_URL}?{urlencode(params)}")
 
 
-def _site_return_url(site_id: str) -> str:
+def _site_return_url(hostname: str) -> str:
     """Where a site-scoped platform's callback sends the browser once it
     knows which project it connected -- that project's own Settings/
-    connectors page (/projects/{id}/settings, 2026-09-23's URL structure)."""
-    return f"{config.FRONTEND_URL}/projects/{site_id}/settings"
+    connectors page. The frontend's own path segment is the project's
+    hostname, not its internal id (2026-09-24's URL structure), so this
+    takes the site's hostname, not its id."""
+    return f"{config.FRONTEND_URL}/projects/{hostname}/settings"
 
 
 # Google is the one platform whose Connect button lives on account-wide
@@ -389,7 +391,7 @@ def shopify_callback(request: Request, code: str = Query(default=""),
     integ.connected_at = _now()
     integ.last_error = None
     session.commit()
-    return _return(_site_return_url(integ.site_id), integration=PLATFORM_SHOPIFY, connected="1")
+    return _return(_site_return_url(site.hostname), integration=PLATFORM_SHOPIFY, connected="1")
 
 
 # --- webflow ----------------------------------------------------------------
@@ -507,7 +509,7 @@ def webflow_callback(request: Request, code: str = Query(default=""),
     integ.connected_at = _now()
     integ.last_error = None
     session.commit()
-    return _return(_site_return_url(integ.site_id), integration=PLATFORM_WEBFLOW, connected="1")
+    return _return(_site_return_url(site.hostname), integration=PLATFORM_WEBFLOW, connected="1")
 
 
 # --- wix ----------------------------------------------------------------
@@ -632,7 +634,7 @@ def wix_callback(request: Request, instanceId: str = Query(default=""),
     integ.connected_at = _now()
     integ.last_error = None
     session.commit()
-    return _return(_site_return_url(integ.site_id), integration=PLATFORM_WIX, connected="1")
+    return _return(_site_return_url(site.hostname), integration=PLATFORM_WIX, connected="1")
 
 
 # --- github ----------------------------------------------------------------
@@ -748,4 +750,4 @@ def github_callback(request: Request, code: str = Query(default=""),
     integ.connected_at = _now()
     integ.last_error = None
     session.commit()
-    return _return(_site_return_url(integ.site_id), integration=PLATFORM_GITHUB, connected="1")
+    return _return(_site_return_url(site.hostname), integration=PLATFORM_GITHUB, connected="1")

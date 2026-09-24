@@ -22,7 +22,7 @@ export function ContentLibrary() {
   const globalSearch = useDashboardSearch();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { id: pathProjectId } = useParams<{ id: string }>();
+  const { hostname: pathProjectHostname } = useParams<{ hostname: string }>();
   // This library is cross-project by default (the "All projects" filter
   // below) -- the ?project= query param is that filter, deliberately
   // independent of which project's sidebar you reached this page from
@@ -42,7 +42,7 @@ export function ContentLibrary() {
   const setProject = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set("project", value); else params.delete("project");
-    router.replace(`/projects/${encodeURIComponent(pathProjectId)}/library${params.size ? `?${params}` : ""}`, { scroll: false });
+    router.replace(`/projects/${encodeURIComponent(pathProjectHostname)}/library${params.size ? `?${params}` : ""}`, { scroll: false });
   };
   const load = useCallback(async () => {
     const id = ++request.current;

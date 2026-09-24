@@ -186,9 +186,9 @@ export default function ProjectsPage() {
     setNewProjectApis(null);
   };
   const openNewProject = () => {
-    const id = newProject?.id;
+    const hostname = newProject?.hostname;
     projectDialog.current?.close();
-    if (id) router.push(`/projects/${encodeURIComponent(id)}`);
+    if (hostname) router.push(`/projects/${encodeURIComponent(hostname)}`);
   };
 
   const q = query.toLowerCase().trim();
@@ -200,9 +200,10 @@ export default function ProjectsPage() {
   // -- there's no single project an aggregate view belongs to, so this picks
   // the same one the old query-param-optional /app links used to default to
   // server-side (the account's first project), now resolved here since a
-  // project id is a required path segment rather than an omittable param.
-  const firstProjectId = live?.cards[0]?.id;
-  const firstProjectHref = (suffix: string) => firstProjectId ? `/projects/${encodeURIComponent(firstProjectId)}${suffix}` : "/projects";
+  // project's hostname is a required path segment rather than an omittable
+  // param.
+  const firstProjectHostname = live?.cards[0]?.hostname;
+  const firstProjectHref = (suffix: string) => firstProjectHostname ? `/projects/${encodeURIComponent(firstProjectHostname)}${suffix}` : "/projects";
   const liveStats = live ? [
     { label: "Total projects", value: String(live.kpis.projects), change: "", icon: FileText, tone: "purple" },
     { label: "Published posts", value: String(live.kpis.published), change: "", icon: CheckCircle2, tone: "coral" },
@@ -261,10 +262,10 @@ export default function ProjectsPage() {
             visibleCards && visibleCards.length > 0 ? visibleCards.map((card) => (
               <article key={card.id} className="project-card project-card--selected">
                 <span className="project-card-check"><CheckCircle2 size={17} /></span>
-                <div className="project-card-heading"><span className="project-logo"><Zap size={20} fill="currentColor" /></span><div><Link href={`/projects/${encodeURIComponent(card.id)}`}><strong>{card.name}</strong></Link><small>{card.tagline}</small><em>{card.hostname}</em></div><ProjectActions id={card.id} name={card.name} onChange={loadProjects} /></div>
+                <div className="project-card-heading"><span className="project-logo"><Zap size={20} fill="currentColor" /></span><div><Link href={`/projects/${encodeURIComponent(card.hostname)}`}><strong>{card.name}</strong></Link><small>{card.tagline}</small><em>{card.hostname}</em></div><ProjectActions id={card.id} name={card.name} onChange={loadProjects} /></div>
                 <span className="project-active"><i />{card.state}</span>
                 <div className="project-card-stats"><span><strong>{card.published}</strong><small>Published posts</small></span><span><strong>{fmt(card.impact)}</strong><small>Avg. impact score</small></span></div>
-                <Link href={`/projects/${encodeURIComponent(card.id)}`}>Open project →</Link>
+                <Link href={`/projects/${encodeURIComponent(card.hostname)}`}>Open project →</Link>
               </article>
             )) : visibleCards && visibleCards.length === 0 && q ? (
               <div className="projects-no-results"><Search size={22} /><strong>No matching projects</strong><button type="button" onClick={() => setQuery("")}>Clear search</button></div>

@@ -358,6 +358,25 @@ class ProjectSettingsEndpointTests(unittest.TestCase):
         wp2 = next(a for a in r2.json()["apis"] if a["name"] == "WordPress")
         self.assertFalse(wp2["ok"])
 
+    def test_a_hostname_resolves_the_same_project_as_its_id(self):
+        """The frontend's own /projects/{hostname} URL segment (2026-09-24)
+        passes the hostname here, not the internal id -- _project() has to
+        accept either."""
+        r = self.client.get("/api/project-settings?project=one.example", headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["project"]["id"], "site-1")
+
+    def test_hostname_matching_is_case_insensitive(self):
+        """Hostnames are stored lowercase -- a hand-typed or differently
+        cased shared URL shouldn't 404 over case alone."""
+        r = self.client.get("/api/project-settings?project=One.Example", headers=self.headers)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["project"]["id"], "site-1")
+
+    def test_an_unknown_hostname_404s_same_as_an_unknown_id(self):
+        r = self.client.get("/api/project-settings?project=nope.example", headers=self.headers)
+        self.assertEqual(r.status_code, 404)
+
     def test_no_project_given_defaults_to_the_first_site(self):
         r = self.client.get("/api/project-settings", headers=self.headers)
         self.assertEqual(r.status_code, 200)

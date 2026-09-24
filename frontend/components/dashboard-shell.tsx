@@ -58,7 +58,7 @@ const nav = [
 
 export function DashboardShell({ children, workspaceName = "Workspace" }: { children: React.ReactNode; workspaceName?: string }) {
   const pathname = usePathname();
-  const { id: projectId } = useParams<{ id: string }>();
+  const { hostname: projectId } = useParams<{ hostname: string }>();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -192,7 +192,7 @@ export function DashboardShell({ children, workspaceName = "Workspace" }: { chil
 
 export function DashboardHeader({ eyebrow, title, description, action = "Project settings" }: { eyebrow: string; title: string; description: string; action?: string }) {
   const [showAction, setShowAction] = useState(false);
-  const { id: projectId } = useParams<{ id: string }>();
+  const { hostname: projectId } = useParams<{ hostname: string }>();
   const settingsAction = action === "Project settings" || action === "Manage alerts";
   return (
     <div className="dashboard-heading-row">

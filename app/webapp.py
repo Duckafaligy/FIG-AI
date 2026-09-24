@@ -73,10 +73,21 @@ def _public(payload: dict) -> dict:
 
 
 def _project(session: Session, account: Account, project_id: str) -> Site | None:
+    """Resolves either a real Site.id (the `{project_id}` path routes below,
+    called with the id an action already has in memory -- e.g.
+    ProjectActions' card.id) or a hostname (the `?project=` query-scoped
+    routes, called with whatever the frontend's own /projects/{hostname}
+    URL segment holds, 2026-09-24's readable-URL change) -- never both at
+    once for the same value, so matching either is unambiguous and safe."""
     owned = pages.sites_of(session, account)
     if project_id:
+        # Hostnames are stored lowercase (app/validation.py normalises every
+        # one on the way in); this app's own links always use the stored
+        # value, but a hand-typed or differently-cased shared URL shouldn't
+        # 404 over case alone.
+        wanted = project_id.lower()
         for s in owned:
-            if s.id == project_id:
+            if s.id == project_id or s.hostname == wanted:
                 return s
         raise HTTPException(404, "no such project in this workspace")
     return owned[0] if owned else None

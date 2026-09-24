@@ -9,16 +9,16 @@ import { ServiceUnavailable } from "@/components/service-unavailable";
 import { api, type ApiProjectSettingsPage } from "@/lib/api";
 
 export default function ProjectSettingsPage() {
-  const { id: projectId } = useParams<{ id: string }>();
+  const { hostname } = useParams<{ hostname: string }>();
   const [live, setLive] = useState<ApiProjectSettingsPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
-  const load = useCallback(() => api.projectSettings(projectId).then((result) => {
+  const load = useCallback(() => api.projectSettings(hostname).then((result) => {
     if (result.ok) { setLive(result.data); setLoadError(""); }
     else setLoadError(result.error);
     setLoading(false);
-  }), [projectId]);
+  }), [hostname]);
 
   useEffect(() => {
     setLoading(true);
