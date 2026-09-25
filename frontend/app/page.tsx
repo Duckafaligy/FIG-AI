@@ -1,349 +1,169 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { FreeScanForm } from "@/components/free-scan-form";
 import {
-  BarChart3,
-  Bot,
-  Braces,
+  Activity,
+  ArrowUpRight,
+  CalendarDays,
   Check,
+  ChevronRight,
+  CircleCheck,
   Eye,
-  FileCheck2,
-  FileText,
+  FileSearch,
   Layers3,
-  Link2,
-  MessageSquareText,
-  MoveRight,
-  PenLine,
-  Quote,
-  Scale,
-  ScrollText,
+  ListChecks,
+  Network,
   Search,
-  Upload,
+  Sparkles,
+  Zap,
 } from "lucide-react";
 import { Faq } from "@/components/faq";
 import { Footer } from "@/components/footer";
+import { FreeScanForm } from "@/components/free-scan-form";
 import { JsonLd, faqJsonLd } from "@/components/json-ld";
-import { PlatformLogos } from "@/components/platform-logos";
-import { ProductLaptop } from "@/components/product-laptop";
+import { IntegrationLogo } from "@/components/integration-logo";
 import { PublicNav } from "@/components/public-nav";
-import { TRIAL_DAYS } from "@/lib/legal";
-import { AudienceSpotlight } from "@/components/audience-spotlight";
 
 export const metadata: Metadata = {
-  title: "FIG — see what makes your site read as generic",
-  description: "Paste a URL and FIG checks 21 patterns across design, structure, search and answers, then shows where each is and how to fix it. Free, no account.",
+  title: "FIG - content intelligence for websites",
+  description: "Scan a public website and turn its content, search, and answer-readiness signals into a clear next move.",
   alternates: { canonical: "/" },
 };
 
-/**
- * Everything on this page describes something FIG does today, and the numbers
- * are ones that can be checked: 21 checks in four layers (app/rules/checks.py),
- * a free scan of up to 6 pages with no account, prices from lib/pricing.ts
- * (held equal to the backend by test_pricing_sync.py). The old outcome stats and
- * customer quotes were invented, so they are gone rather than relabelled.
- */
-
-const featureCards = [
-  { icon: PenLine, tone: "violet", title: "Design and copy tells", copy: "Uniform cards, numbered labels, filler phrases, default colours, flat headings and overused icons, each with the evidence." },
-  { icon: Layers3, tone: "blue", title: "Page structure", copy: "Sections out of a sensible order, missing or extra H1s, skipped heading levels and thin pages." },
-  { icon: Search, tone: "indigo", title: "Search basics", copy: "Titles, meta descriptions, canonical links, language, image alt text and orphan pages: what a crawler can reach." },
-  { icon: Quote, tone: "indigo", title: "Answer readiness", copy: "Structured data, Q&A blocks and specific claims: what a model could quote from your pages." },
-  { icon: FileCheck2, tone: "green", title: "A fix for every finding", copy: "Each one says where it is, why it reads as generic, and one concrete change to make." },
-  { icon: BarChart3, tone: "blue", title: "History and re-scans", copy: "Run it again after you change something and see what moved." },
-  { icon: FileText, tone: "violet", title: "A content queue", copy: "Gaps become briefs. Paste a draft and it is scored on nine rules, then moves through your review." },
-  { icon: Link2, tone: "amber", title: "Connect your tools", copy: "Google Analytics and Search Console, read-only, plus WordPress fixes that apply only when you approve them." },
+const faqItems = [
+  { question: "What does a free scan include?", answer: "A free scan checks up to six public pages and groups findings across craft, structure, search, and answer-readiness." },
+  { question: "Can I connect my existing tools?", answer: "FIG can read public websites and supports read-only Google Analytics and Search Console connections. WordPress changes require your approval." },
+  { question: "Do I need an account?", answer: "No. Start with a public URL. Create an account when you want saved history, project workspaces, and connections." },
+  { question: "Can I keep my scan private?", answer: "Yes. Enable the anonymous option before you run the scan and it will not be listed in the public library." },
+  { question: "Which integrations do you support?", answer: "FIG supports Google Analytics, Google Search Console, Shopify, Webflow, Wix, and WordPress workflows." },
 ];
 
-const workflowSteps = [
-  { icon: Link2, title: "Scan", copy: "Paste a public URL. Up to 6 pages free, no account." },
-  { icon: FileText, title: "Read", copy: "See findings grouped by craft, structure, search and answers." },
-  { icon: PenLine, title: "Fix", copy: "Every finding comes with a concrete change." },
-  { icon: Check, title: "Approve", copy: "Connected WordPress fixes apply only when you say so." },
-  { icon: BarChart3, title: "Re-scan", copy: "Run it again and compare the results." },
-  { icon: Upload, title: "Share", copy: "Optionally turn on a public report link." },
+const integrations = ["Google Analytics", "Google Search Console", "Shopify", "Webflow", "Wix", "WordPress"];
+
+const signals = [
+  { icon: Search, label: "Search", value: "48.2K", change: "+18%" },
+  { icon: Eye, label: "Visibility", value: "62%", change: "+11%" },
+  { icon: Activity, label: "Impact", value: "84", change: "+16" },
 ];
 
-const glance = [
-  { icon: Search, value: "21", label: "checks, each a stated rule", tone: "purple" },
-  { icon: Layers3, value: "4", label: "layers: craft, structure, search, answers", tone: "blue" },
-  { icon: FileCheck2, value: "$0", label: "to scan a public site, no account", tone: "green" },
-  { icon: Scale, value: "0", label: "accusations: findings are signals", tone: "amber" },
+const capabilities = [
+  { icon: FileSearch, title: "Read the whole signal", copy: "Content, structure, search, and answer-readiness in one view." },
+  { icon: Layers3, title: "Find the next move", copy: "Turn scattered findings into a ranked, workable list." },
+  { icon: Zap, title: "Keep the momentum", copy: "Plan, publish, and re-scan without losing context." },
+  { icon: CalendarDays, title: "Run the content rhythm", copy: "Keep briefs, reviews, and publishing dates in one calendar." },
+  { icon: ListChecks, title: "Make every fix actionable", copy: "Move from a useful signal to a clear next step." },
+  { icon: Network, title: "Connect the source data", copy: "Bring performance context into the same working view." },
 ];
 
-const audiences = [
-  {
-    title: "Students and learners",
-    copy: "See what makes your project read as generic, and learn to fix it yourself.",
-    image: "https://images.unsplash.com/photo-1758876021859-bd2371d8f0a2?auto=format&fit=crop&w=900&q=88",
-    alt: "Woman working on a laptop and taking notes in a shared office",
-    position: "center 45%"
-  },
-  {
-    title: "Freelancers and small teams",
-    copy: "Check a site before you hand it over, and share a report with the client.",
-    image: "https://images.unsplash.com/photo-1758873268023-15a6e6d739ed?auto=format&fit=crop&w=900&q=88",
-    alt: "Professional wearing glasses at an office desk with a laptop",
-    position: "center 45%"
-  },
-  {
-    title: "Agencies",
-    copy: "Keep your website projects organized in one workspace.",
-    image: "https://images.unsplash.com/photo-1758873268745-dd2cf0d677b5?auto=format&fit=crop&w=900&q=88",
-    alt: "Colleagues collaborating around a computer in a shared workspace",
-    position: "center 45%"
-  }
-];
-
-const principles = [
-  { icon: Scale, title: "Signals, not accusations", copy: "A finding says a pattern is commonly associated with generic design. FIG never claims a person or a program wrote something." },
-  { icon: Eye, title: "Your results are yours", copy: "Nobody else sees your results unless you turn on a share link. There is no leaderboard and no admin view." },
-  { icon: Check, title: "Nothing changes without you", copy: "FIG edits a connected site only after you approve each change, and every change can be reverted." },
-];
-
-const frequentlyAsked = [
-  {
-    question: "Do I need an account to try FIG?",
-    answer: "No. Paste a public URL and FIG scans up to 6 pages for free. Free scans appear in the public library with the site's domain unless you tick the option to keep yours anonymous. An account adds history, more pages and connections."
-  },
-  {
-    question: "What does FIG actually check?",
-    answer: "21 checks in four layers: craft (how it reads), structure (what sits where), search (what a crawler reaches) and answers (what a model could quote). They are ordinary code with a stated rule. AI is used only to write the plain-language explanation of each finding."
-  },
-  {
-    question: "Does FIG say my site was written by AI?",
-    answer: "No. Findings are patterns commonly associated with generic, templated design, and they are informed guesses, not verdicts. FIG can't tell you who or what wrote a page, and our terms ask you not to use it to judge other people's work."
-  },
-  {
-    question: "What can FIG change on my site?",
-    answer: "Only title and heading fixes on a connected WordPress site, and only after you approve each one; every change can be reverted. Everything else is advice you apply yourself. FIG doesn't write your content or publish new posts."
-  },
-  {
-    question: "Which platforms does it work with?",
-    answer: "FIG reads any public website, whatever it is built with. Google Analytics and Search Console connect read-only, and WordPress connects for approved fixes. Other platform connections aren't built yet."
-  },
-  {
-    question: "What does it cost?",
-    answer: "Business plans are Standard at $49/month and Premium at $99/month, with Enterprise by enquiry. Education is $19/month; School Registered is by enquiry. Prices are in USD. See Pricing to contact us about a plan."
-  },
-];
-
-function ProductPreviewCards() {
+function OverviewSurface() {
   return (
-    <div className="platform-tour-cards" aria-label="Sample FIG workspace screens">
-      <article className="platform-tour-card platform-tour-card--projects">
-        <div className="tour-card-ui tour-card-ui--projects" aria-hidden="true">
-          <div className="tour-project-content">
-            <div className="tour-ui-heading"><b>All projects</b><span>1 project</span></div>
-            <div className="tour-project-tile"><span className="tour-project-avatar">LV</span><div><b>LaunchVault.ca</b><small>AI learning & resources</small></div><Check size={9} /></div>
-            <div className="tour-project-metrics"><span><strong>28</strong>Published</span><span><strong>4.2K</strong>Traffic</span><span><strong>84</strong>Impact score</span></div>
-            <div className="tour-project-activity"><FileCheck2 size={9} /><span>AI agents guide · Ready for review</span></div>
+    <div className="neon-overview" aria-label="Example FIG project overview">
+      <div className="neon-overview-bar">
+        <span className="neon-overview-mark">E</span>
+        <div><strong>Everglow Store</strong><small>Sample data, not a real customer</small></div>
+        <span className="neon-live"><i /> Live</span>
+      </div>
+      <div className="neon-overview-metrics">
+        {signals.map(({ icon: Icon, label, value, change }) => (
+          <div key={label}>
+            <Icon size={15} />
+            <small>{label}</small>
+            <strong>{value}</strong>
+            <em>{change}</em>
           </div>
-        </div>
-        <h3>Your sites at a glance</h3>
-        <p>Every site in one list, with its score and its top finding.</p>
-      </article>
-      <article className="platform-tour-card platform-tour-card--performance">
-        <div className="tour-card-ui" aria-hidden="true">
-          <div className="tour-ui-heading"><b>Content performance</b><span>Last 30 days</span></div>
-          <div className="tour-mini-kpis"><div><small>Organic traffic</small><b>4.2K</b><em>↑ 18.7%</em></div><div><small>Impact score</small><b>84</b><em>↑ 6 points</em></div><div><small>Published</small><b>28</b><em>↑ 27%</em></div></div>
-          <svg className="tour-mini-chart" viewBox="0 0 220 82" preserveAspectRatio="none">
-            <path d="M0 69 C25 64 37 68 56 57 S89 55 108 43 S142 49 164 31 S198 30 220 16" fill="none" stroke="#6047ff" strokeWidth="3" />
-            <path d="M0 76 C26 72 38 74 56 68 S89 63 108 57 S143 59 164 48 S199 44 220 36" fill="none" stroke="#2f80ed" strokeWidth="2.5" />
+        ))}
+      </div>
+      <div className="neon-overview-main">
+        <div className="neon-chart-panel">
+          <div className="neon-panel-heading"><strong>Performance</strong><span>28 days</span></div>
+          <svg viewBox="0 0 520 180" role="img" aria-label="Rising organic traffic and impressions chart">
+            <defs><linearGradient id="signalFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#b7ff45" stopOpacity=".36" /><stop offset="100%" stopColor="#b7ff45" stopOpacity="0" /></linearGradient></defs>
+            <path className="neon-chart-grid" d="M0 33H520M0 78H520M0 123H520M0 168H520M52 0V180M156 0V180M260 0V180M364 0V180M468 0V180" />
+            <path d="M0 158 C35 149 52 143 76 147 S114 121 140 129 S180 115 210 117 S244 96 278 102 S313 75 341 83 S380 60 408 66 S449 38 476 47 S503 26 520 18 V180 H0Z" fill="url(#signalFill)" />
+            <path className="neon-chart-line" d="M0 158 C35 149 52 143 76 147 S114 121 140 129 S180 115 210 117 S244 96 278 102 S313 75 341 83 S380 60 408 66 S449 38 476 47 S503 26 520 18" />
+            <path className="neon-chart-line neon-chart-line--muted" d="M0 170 C42 165 61 157 88 160 S133 146 160 151 S211 128 235 135 S287 120 310 127 S368 109 389 113 S430 89 457 96 S500 78 520 72" />
           </svg>
         </div>
-        <h3>Search data beside your findings</h3>
-        <p>Connect Search Console to see real traffic and queries next to what FIG found.</p>
-      </article>
-      <article className="platform-tour-card platform-tour-card--geo">
-        <div className="tour-card-ui tour-card-ui--geo" aria-hidden="true">
-          <div className="tour-ui-heading"><b>Answer readiness</b><span>LaunchVault.ca</span></div>
-          <div className="tour-geo-content"><div className="tour-score-ring"><strong>78</strong><span>Answers score</span></div><div className="tour-geo-sources"><span>Structured data <b>✓</b></span><span>Q&A block <b>✓</b></span><span>Specific claims <b>!</b></span></div></div>
+        <div className="neon-opportunities">
+          <div className="neon-panel-heading"><strong>Next moves</strong><span>04</span></div>
+          <p><i /> Vitamin C serum <b>High</b></p>
+          <p><i /> Improve internal links <b>Med</b></p>
+          <p><i /> Add FAQ schema <b>Med</b></p>
         </div>
-        <h3>Answer readiness</h3>
-        <p>Whether a model could quote your pages: structured data, Q&A and specifics.</p>
-      </article>
+      </div>
     </div>
   );
 }
 
 export default function HomePage() {
   return (
-    <div className="public-page public-home">
-      <JsonLd data={faqJsonLd(frequentlyAsked)} />
+    <div className="public-page public-home neon-home">
+      <JsonLd data={faqJsonLd(faqItems)} />
       <PublicNav />
       <main>
-        <section className="home-hero section-glow">
-          <div className="home-hero-shape home-hero-shape--left" />
-          <div className="home-hero-shape home-hero-shape--right" />
-          <div className="page-shell home-hero-grid">
-            <div className="home-hero-copy">
-              <span className="eyebrow">Site self-check for SEO + GEO</span>
-              <h1>Find what makes your site <span>read as generic</span></h1>
-              <p>Paste a URL. FIG checks 21 patterns across design, structure, search and answer-readiness, then shows where each one is, why it matters and how to fix it.</p>
-              <div id="scan"><FreeScanForm /></div>
-              <div className="home-hero-actions">
-                <Link className="button" href="/projects">Open projects</Link>
-                <Link className="secondary-button" href="/signup">Start free</Link>
-              </div>
-              <div className="home-hero-proof">
-                <p>A self-check tool for the people who build the site. Findings are signals, never verdicts. Screens shown are sample data.</p>
-              </div>
+        <section className="neon-hero">
+          <div className="page-shell neon-hero-grid">
+            <div className="neon-hero-copy">
+              <span className="neon-kicker"><Sparkles size={13} /> Content intelligence</span>
+              <h1>Give your website <span>a clearer next move.</span></h1>
+              <p>FIG reads the signals across your content, search, and answer-readiness - then turns them into a focused plan.</p>
+              <div id="scan" className="neon-scan-wrap"><FreeScanForm /></div>
+              <div className="neon-hero-links"><Link href="/projects">Open workspace <ArrowUpRight size={15} /></Link><span><CircleCheck size={15} /> Free scan, no account</span></div>
             </div>
-            <div className="home-hero-product">
-              <ProductLaptop variant="queue" />
+            <div className="neon-hero-visual">
+              <div className="neon-photo-frame"><Image src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1400&q=88" alt="Modern industrial workspace with a conference table" fill priority sizes="(max-width: 900px) 100vw, 52vw" /></div>
+              <div className="neon-photo-veil" />
+              <div className="neon-hero-surface"><OverviewSurface /></div>
+              <div className="neon-corner-label">FIG / 01</div>
             </div>
           </div>
         </section>
 
-        <section className="home-integrations" id="integrations" aria-label="Sites FIG can read">
+        <section className="neon-proof-band" aria-label="FIG platform highlights"><div className="page-shell"><span>Made for the team behind the website.</span><div><b>CONTENT</b><b>SEARCH</b><b>ANSWER-READINESS</b><b>WORKFLOW</b></div></div></section>
+
+        <section className="neon-section neon-system-section">
           <div className="page-shell">
-            <span className="section-kicker">Reads any public site, whatever it is built with</span>
-            <PlatformLogos />
-          </div>
-        </section>
-
-        <section className="page-shell home-outcomes" aria-label="FIG at a glance">
-          <span className="home-outcomes-label">FIG at a glance</span>
-          {glance.map(({ icon: Icon, value, label, tone }) => (
-            <article className={`home-outcome home-outcome--${tone}`} key={label}>
-              <Icon size={20} />
-              <strong>{value}</strong>
-              <span>{label}</span>
-            </article>
-          ))}
-        </section>
-
-        <section className="section page-shell home-features" id="features">
-          <div className="section-heading centered">
-            <h2>21 checks across four layers</h2>
-            <p>Every check is ordinary code with a stated rule, so you can see exactly what triggers it. AI only writes the plain-language explanation.</p>
-          </div>
-          <div className="home-feature-grid home-feature-grid--layers">
-            {featureCards.slice(0, 4).map(({ icon: Icon, tone, title, copy }) => (
-              <article className={`home-feature-card home-feature-card--${tone}`} key={title}>
-                <span className="home-feature-icon"><Icon size={22} /></span>
-                <h3>{title}</h3>
-                <p>{copy}</p>
-              </article>
-            ))}
-          </div>
-          <div className="home-feature-extras">
-            <span className="home-feature-extras-label">What happens with a finding</span>
-            <div className="home-feature-extras-row">
-              {featureCards.slice(4).map(({ icon: Icon, title, copy }) => (
-                <div className="home-feature-extra" key={title}>
-                  <Icon size={17} aria-hidden="true" />
-                  <div><strong>{title}</strong><span>{copy}</span></div>
-                </div>
-              ))}
+            <div className="neon-system-grid">
+              <div className="neon-system-image"><Image src="https://images.unsplash.com/photo-1751200065687-a126e7c304da?auto=format&fit=crop&w=1200&q=86" alt="Moody desk setup with a computer monitor" fill sizes="(max-width: 760px) 100vw, 42vw" /><div className="neon-system-story"><span>THE FIG SYSTEM</span><h2>From signal<br />to strategy.</h2><p>See what is working, find what is missing, and get a plan to move forward.</p><Link className="button" href="/projects">Explore the product <ArrowUpRight size={15} /></Link></div></div>
+              <div className="neon-system-product"><OverviewSurface /></div>
             </div>
           </div>
         </section>
 
-        <section className="section home-workflow" id="workflow">
+        <section className="neon-section neon-capability-section">
           <div className="page-shell">
-            <div className="section-heading centered">
-              <h2>From a URL to a fixed page in six steps</h2>
-              <p>No account is needed to start. Sign up when you want history and connections.</p>
+            <div className="neon-section-heading neon-section-heading--row"><div><span>BUILT FOR CLARITY</span><h2>Focus without the fog.</h2></div><Link href="/projects">Explore the workspace <ArrowUpRight size={16} /></Link></div>
+            <div className="neon-capability-grid">
+              {capabilities.map(({ icon: Icon, title, copy }) => <article key={title}><div><Icon size={21} /></div><h3>{title}</h3><p>{copy}</p><ChevronRight size={18} /></article>)}
             </div>
-            <ol className="home-workflow-grid">
-              {workflowSteps.map(({ icon: Icon, title, copy }, index) => (
-                <li key={title}>
-                  <span className="home-workflow-icon"><Icon size={20} /></span>
-                  <div><small>{index + 1}</small><h3>{title}</h3></div>
-                  <p>{copy}</p>
-                  {index < workflowSteps.length - 1 && <MoveRight className="home-workflow-arrow" size={16} aria-hidden="true" />}
-                </li>
-              ))}
-            </ol>
           </div>
         </section>
 
-        <section className="section home-platform-tour">
-          <div className="page-shell home-platform-tour-grid">
-            <div className="home-platform-tour-copy">
-              <h2>One place for every site you check</h2>
-              <p>See what needs attention and where to focus next. Sites, findings, history and a content queue live together. The screens here use sample data.</p>
-              <Link href="/projects">Open your projects <MoveRight size={15} /></Link>
-            </div>
-            <ProductPreviewCards />
-          </div>
-        </section>
-
-        <section className="section home-geo-feature">
-          <div className="page-shell home-geo-grid">
-            <div className="home-geo-copy">
-              <span className="eyebrow"><MessageSquareText size={13} />Answer-ready</span>
-              <h2>Be found beyond Google</h2>
-              <p>People increasingly get answers from a model, not a list of links. FIG checks whether yours could be quoted, next to the search basics.</p>
-              <Link className="button" href="/projects">Open your projects</Link>
-            </div>
-            <div className="home-visibility-card">
-              <div className="home-visibility-chart-panel">
-                <div className="home-visibility-heading">
-                  <div><strong>The answers layer</strong><small>5 checks · what a model can quote and reach</small></div>
-                </div>
-                <p className="home-answers-copy">A page is easier to quote when it answers a question directly, says something specific, and tells machines what it is -- and none of that matters if an AI crawler is blocked from reading it at all.</p>
-              </div>
-              <div className="home-visibility-sources">
-                <span><Braces size={15} /><b>Structured data</b><strong>JSON-LD</strong></span>
-                <span><MessageSquareText size={15} /><b>Question and answer block</b><strong>Q&amp;A</strong></span>
-                <span><Search size={15} /><b>Specific, checkable claims</b><strong>Detail</strong></span>
-                <span><Bot size={15} /><b>AI crawler access</b><strong>robots.txt</strong></span>
-                <span><ScrollText size={15} /><b>Agent routing file</b><strong>llms.txt</strong></span>
+        <section className="neon-workbench-section">
+          <div className="page-shell neon-workbench-grid">
+            <div className="neon-workbench-copy"><span>CONTENT RHYTHM</span><h2>Keep the next piece of work in view.</h2><p>Plan from the opportunity, not a blank page. FIG keeps the signal, the brief, and the publishing moment connected.</p><Link href="/projects">Open content calendar <ArrowUpRight size={16} /></Link></div>
+            <div className="neon-calendar-surface" aria-label="Example content calendar">
+              <div className="neon-calendar-top"><strong>May 2025</strong><div><span>‹</span><span>›</span><b>Today</b></div></div>
+              <div className="neon-calendar-layout">
+                <div className="neon-calendar-grid"><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span><span>28</span><span>29</span><span>30</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5<i /></span><span>6</span><span>7<i /></span><span>8</span><span>9<i /></span><span>10</span><span>11</span><span>12</span><span>13</span><span>14<i /></span><span>15</span><span>16<i /></span><span>17</span><span>18</span><span>19</span><span>20</span><span>21<i /></span><span>22</span><span>23</span><span>24</span><span>25</span></div>
+                <div className="neon-calendar-list"><strong>Upcoming</strong><p><b>MAY<br />05</b><span>Vitamin C guide<small>Blog post · High</small></span><i /></p><p><b>MAY<br />07</b><span>Internal links audit<small>Optimization · Medium</small></span><i /></p><p><b>MAY<br />14</b><span>FAQ schema<small>Technical · Medium</small></span><i /></p><p><b>MAY<br />16</b><span>Skincare routine<small>Blog post · Medium</small></span><i /></p></div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="section page-shell home-audience" id="teams">
-          <div className="home-audience-copy">
-            <h2>Made for people who build websites</h2>
-            <p>Whether you are learning, freelancing or running a client list, FIG keeps the next fix clear.</p>
-          </div>
-          <div className="home-audience-grid">
-            {audiences.map((audience) => (
-              <article key={audience.title}>
-                <Image src={audience.image} width={900} height={700} alt={audience.alt} style={{ objectPosition: audience.position }} />
-                <div><h3>{audience.title}</h3><p>{audience.copy}</p></div>
-              </article>
-            ))}
+        <section className="neon-connect-section" id="integrations"><div className="page-shell"><span>WORKS WITH YOUR STACK</span><div>{integrations.map(name => <article key={name}><IntegrationLogo name={name} /><b>{name}</b></article>)}</div></div></section>
+
+        <section className="neon-editorial-section">
+          <div className="page-shell neon-editorial-grid">
+            <div className="neon-editorial-photo"><Image src="https://images.unsplash.com/photo-1777019075773-a231fa4e4534?auto=format&fit=crop&w=1200&q=86" alt="Creative workstation with monitor and photography equipment" fill sizes="(max-width: 760px) 100vw, 46vw" /></div>
+            <div className="neon-editorial-copy"><span>FROM SCAN TO SHIP</span><h2>Make the work feel obvious.</h2><p>Start with a public URL. FIG organizes the signal, ranks the opportunity, and keeps the next decision visible.</p><ol><li><b>01</b><span>Scan your site</span><Check size={17} /></li><li><b>02</b><span>Choose the next move</span><Check size={17} /></li><li><b>03</b><span>Publish with context</span><Check size={17} /></li></ol></div>
           </div>
         </section>
 
-        <section className="section page-shell home-principles">
-          <div className="home-principles-heading">
-            <h2>A self-check tool, never a verdict</h2>
-            <p>Three commitments we keep.</p>
-          </div>
-          <div className="home-principles-grid">
-            {principles.map(({ icon: Icon, title, copy }) => (
-              <article key={title}>
-                <span className="home-feature-icon"><Icon size={21} /></span>
-                <div><h3>{title}</h3><p>{copy}</p></div>
-              </article>
-            ))}
-          </div>
-        </section>
+        <section className="neon-cta-section"><div className="page-shell neon-cta-grid"><div><span>START WITH A URL</span><h2>What could your website do next?</h2></div><div className="neon-cta-actions"><Link className="button" href="/#scan">Scan a website <ArrowUpRight size={17} /></Link><Link className="secondary-button" href="/signup">Create workspace</Link></div></div></section>
 
-        <section className="section page-shell home-pricing-preview">
-          <div className="home-pricing-heading">
-            <div><h2>Find your next step with FIG</h2><p>For business owners improving their websites, and learners discovering how to build better ones.</p></div>
-            <Link href="/pricing">View full pricing <MoveRight size={15} /></Link>
-          </div>
-          <AudienceSpotlight />
-        </section>
-
-        <section className="section page-shell home-faq" id="faq">
-          <div className="home-faq-heading"><h2>Everything you need to know</h2><p>Straight answers about what FIG does, and what it doesn&rsquo;t.</p></div>
-          <Faq items={frequentlyAsked} />
-        </section>
-
-        <section className="page-shell home-cta">
-          <div className="home-cta-copy"><span>Ready when you are</span><h2>Understand your website. Build with confidence.</h2><p>Run a free scan or create a workspace to keep your projects together.</p></div>
-          <div className="home-cta-actions"><div><Link className="secondary-button secondary-button--light" href="/#scan">Scan a website</Link><Link className="button button--light" href="/signup">Create account</Link></div></div>
-        </section>
+        <section className="neon-faq-section page-shell" id="faq"><div><span>GOOD QUESTIONS</span><h2>Quick answers.</h2></div><Faq items={faqItems} /></section>
       </main>
       <Footer />
     </div>
