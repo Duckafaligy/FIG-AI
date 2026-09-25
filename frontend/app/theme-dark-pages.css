@@ -188,10 +188,11 @@
 .pricing-page [class*="table"] thead th { background: var(--draft-raised-2); color: var(--draft-copy); }
 .pricing-page [class*="table"] thead small { color: var(--draft-faint); }
 .pricing-page [class*="table"] tbody th[scope] { color: var(--draft-muted); }
+.pricing-page [class*="table"] td { color: var(--draft-muted); }
 .pricing-page [class*="table"] [class*="tablePrice"] { color: var(--draft-copy); }
 .pricing-page [class*="table"] a { color: #c4b5fd; }
 .pricing-page [class*="table"] [class*="groupRow"] th { background: var(--draft-raised-2); color: var(--draft-muted); }
-.pricing-page [class*="planHeaderLink"] { border-color: var(--draft-line); background: var(--draft-raised-2); color: var(--draft-muted); }
+.pricing-page [class*="table"] [class*="planHeaderLink"] { border: 1px solid var(--draft-line); background: var(--draft-raised-2); color: var(--draft-muted); }
 .pricing-page [class*="businessColumn"] { background: #17131f; border-top: 1px solid #a58bd9; }
 .pricing-page [class*="educationColumn"] { background: #0f2118; border-top: 1px solid #6ee7b7; }
 .pricing-page [class*="bizPill"] { background: #211d2c; color: #c4b5fd; }
@@ -205,6 +206,9 @@
 .pricing-page [class*="layerGrid"] { border-color: var(--draft-line); }
 .pricing-page [class*="layer"]:not([class*="layerGrid"]):not([class*="layerLabel"]) { background: var(--draft-raised); border-color: var(--draft-line); }
 .pricing-page [class*="layerLabel"] { background: #211d2c; color: #c4b5fd; }
+.pricing-page [class*="layer"]:nth-child(2) [class*="layerLabel"],
+.pricing-page [class*="layer"]:nth-child(3) [class*="layerLabel"],
+.pricing-page [class*="layer"]:nth-child(4) [class*="layerLabel"] { background: #211d2c; color: #c4b5fd; }
 .pricing-page [class*="layer"] h3 { color: var(--draft-copy); }
 .pricing-page [class*="layer"] p { color: var(--draft-muted); }
 .pricing-page [class*="layer"] small { border-color: var(--draft-line-soft); color: var(--draft-faint); }
@@ -300,3 +304,8 @@
   border: 1px solid #38383f;
   border-radius: 3px;
 }
+
+/* Budget chart: Standard's bar was still the light-theme blue gradient --
+   off the black/white/purple/green palette entirely. Neutral gray instead
+   (Premium stays purple, Education stays green, both already in-palette). */
+.pricing-page [class*="standardBar"] { background: linear-gradient(90deg, #52525b, #a1a1aa); }

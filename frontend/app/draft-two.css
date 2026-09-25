@@ -179,13 +179,30 @@ html { color-scheme: dark; }
 .mini-recent-row b,
 .mini-review-row b { color: #f4f4f5; }
 .mini-screen-footer { color: var(--draft-faint); }
+.mini-tabs { color: #71717a; }
+.mini-tabs span.active { color: #c4b5fd; }
+.mini-health { color: var(--draft-muted); border-color: #1f4a34; background: #0f2118; }
+.mini-health strong { color: #6ee7b7; }
+
+/* Alternating raised/flat bands for section rhythm -- on a near-black page,
+   equal-padding sections with no background shift all read as one
+   undifferentiated void regardless of their actual spacing.
+   .home-integrations and .home-platform-tour MUST stay in this list --
+   both have their own explicit light background in the base (light-theme)
+   CSS, so dropping them here means that light background shows through
+   again, not "flat black" (a real regression, caught by re-screenshotting
+   before shipping this). */
+.public-home .home-integrations,
+.public-home .home-workflow,
+.public-home .home-platform-tour,
+.public-home .home-geo-feature,
+.public-home .home-principles { background: #0d0d10; border-color: var(--draft-line-soft); }
 
 .public-home .home-integrations,
 .public-home .home-workflow,
 .public-home .home-platform-tour,
-.public-home .home-geo-feature { background: #0d0d10; border-color: var(--draft-line-soft); }
-
-.public-home .home-integrations { border-bottom: 1px solid var(--draft-line-soft); }
+.public-home .home-geo-feature { border-bottom: 1px solid var(--draft-line-soft); }
+.public-home .home-principles { border-top: 1px solid var(--draft-line-soft); }
 .public-home .platform-logo-row { opacity: 1; }
 .public-home .platform-logo {
   padding: 8px 10px;
@@ -242,6 +259,7 @@ html { color-scheme: dark; }
 .public-home .home-principles-grid article p { color: var(--draft-muted); }
 .public-home .home-feature-icon,
 .public-home .home-workflow-icon { border-radius: 4px; background: #211d2c; color: #c4b5fd; }
+.public-home .home-workflow-grid li:nth-child(5) .home-workflow-icon { background: #0f2118; color: var(--draft-green); }
 .public-home .home-workflow-grid li { border-color: var(--draft-line); }
 .public-home .home-workflow-grid li::before { background: #24242b; color: var(--draft-faint); }
 .public-home .home-workflow-grid p { color: var(--draft-muted); }
