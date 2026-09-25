@@ -302,9 +302,9 @@ p { line-height: 1.6; }
 .faq-item button { width: 100%; padding: 15px 17px; display: flex; align-items: center; justify-content: space-between; border: 0; background: transparent; text-align: left; cursor: pointer; font-size: 12px; font-weight: 700; }
 .faq-item button svg { transition: transform .2s; }
 .faq-item.is-open button svg { transform: rotate(180deg); }
-.faq-answer { max-height: 0; overflow: hidden; transition: max-height .25s ease; }
-.faq-item.is-open .faq-answer { max-height: 140px; }
-.faq-answer p { margin: 0; padding: 0 17px 16px; color: var(--muted); font-size: 11px; }
+.faq-answer { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s ease; }
+.faq-item.is-open .faq-answer { grid-template-rows: 1fr; }
+.faq-answer p { margin: 0; padding: 0 17px 16px; overflow: hidden; color: var(--muted); font-size: 11px; }
 
 /* Authentication */
 .auth-page { min-height: 100vh; background: radial-gradient(circle at 65% 25%,rgba(107,81,255,.12),transparent 31%),linear-gradient(145deg,#fff 0,#f8f8ff 58%,#f0eeff 100%); }

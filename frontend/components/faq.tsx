@@ -19,7 +19,7 @@ export function Faq({ items, columns = false }: { items: FaqItem[]; columns?: bo
             <button className="faq-question" onClick={() => setOpen(expanded ? null : index)} aria-expanded={expanded} aria-controls={answerId}>
               <span>{item.question}</span><ChevronDown className="faq-chevron" size={18} aria-hidden="true" />
             </button>
-            <div className="faq-answer" id={answerId} hidden={!expanded}><p>{item.answer}</p></div>
+            <div className="faq-answer" id={answerId} aria-hidden={!expanded}><p>{item.answer}</p></div>
           </article>
         );
       })}

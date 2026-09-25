@@ -1,0 +1,302 @@
+/* Same dark surface as draft-two.css (home), extended to the pricing and
+   auth pages -- both were still 100% light-theme. Shares --draft-* tokens
+   from draft-two.css (imported earlier in layout.tsx). */
+
+.pricing-page,
+.auth-page {
+  background: var(--draft-bg);
+  color: var(--draft-copy);
+}
+
+/* Shared chrome: nav, footer, buttons, kicker pill, platform logos, FAQ --
+   same treatment as .public-home in draft-two.css, repeated here scoped to
+   these two page wrappers since they don't carry the .public-home class. */
+.pricing-page .public-nav-wrap,
+.auth-page .public-nav-wrap,
+.auth-page .auth-nav {
+  position: sticky;
+  top: 0;
+  background: rgba(9, 9, 11, .86);
+  border-color: var(--draft-line);
+}
+.pricing-page .brand,
+.auth-page .brand,
+.pricing-page .public-nav-links,
+.auth-page .public-nav-links,
+.pricing-page .public-nav-links a,
+.auth-page .public-nav-links a,
+.pricing-page h1, .pricing-page h2, .pricing-page h3,
+.auth-page h1, .auth-page h2, .auth-page h3 { color: var(--draft-copy); }
+.pricing-page .brand-dot, .auth-page .brand-dot,
+.pricing-page .public-nav-links > a:not(.button):hover,
+.auth-page .public-nav-links > a:not(.button):hover { color: var(--draft-violet); }
+
+.pricing-page .button, .auth-page .button {
+  border-radius: 5px;
+  background: #f4f4f5;
+  color: #111114;
+  box-shadow: none;
+  transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+.pricing-page .button:hover, .auth-page .button:hover { background: #fff; box-shadow: 0 0 0 3px var(--draft-green-glow); transform: translateY(-1px); }
+.pricing-page .button:active, .auth-page .button:active { transform: translateY(0) scale(.97); }
+.pricing-page .public-nav-links a.button, .auth-page .public-nav-links a.button { color: #111114; }
+
+.pricing-page .secondary-button, .auth-page .secondary-button {
+  border-color: #363640;
+  border-radius: 5px;
+  background: #151519;
+  color: var(--draft-copy);
+  box-shadow: none;
+  transition: transform .15s ease, border-color .15s ease, background-color .15s ease;
+}
+.pricing-page .secondary-button:hover, .auth-page .secondary-button:hover { border-color: #7c5cff; background: #1b1b20; transform: translateY(-1px); }
+
+.pricing-page .eyebrow, .auth-page .eyebrow,
+.pricing-page .section-kicker, .auth-page .section-kicker {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 6px 12px;
+  border: 1px solid #303039;
+  border-radius: 999px;
+  background: #16161b;
+  color: #c4b5fd;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+.pricing-page .section-heading, .auth-page .section-heading { color: var(--draft-copy); }
+.pricing-page .section-heading .section-kicker { margin-inline: auto; }
+.pricing-page .section-heading p, .auth-page .section-heading p { color: var(--draft-muted); }
+
+.pricing-page .platform-logo, .auth-page .platform-logo {
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: background-color .18s ease, transform .18s ease;
+}
+.pricing-page .platform-logo svg, .auth-page .platform-logo svg {
+  padding: 3px;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,.35);
+}
+.pricing-page .platform-logo:hover, .auth-page .platform-logo:hover { background: var(--draft-raised); transform: translateY(-1px); }
+.pricing-page .platform-logo span, .auth-page .platform-logo span { color: var(--draft-muted); }
+.pricing-page .platform-logo-divider, .auth-page .platform-logo-divider { background: var(--draft-line); }
+
+.pricing-page .faq-item, .auth-page .faq-item { border-color: var(--draft-line); background: var(--draft-raised); }
+.pricing-page .faq-question, .auth-page .faq-question { color: var(--draft-copy); }
+.pricing-page .faq-answer, .auth-page .faq-answer { color: var(--draft-muted); }
+
+.pricing-page .fig-launch-footer, .auth-page .fig-launch-footer,
+.pricing-page .auth-footer, .auth-page .auth-footer { background: var(--draft-bg); border-color: var(--draft-line); color: var(--draft-muted); }
+.auth-page .auth-security-note i { background: var(--draft-line); }
+
+.pricing-page .home-cta { background: linear-gradient(135deg, #1e1a2a, #111116 70%); border-color: var(--draft-line); }
+.pricing-page .home-cta-copy span { color: #c4b5fd; }
+.pricing-page .home-cta-copy p { color: var(--draft-muted); }
+
+/* Pricing intro */
+.pricing-page .fig-pricing-pill { background: #16161b; border-color: #303039; color: #c4b5fd; }
+.pricing-page .fig-pricing-intro > p { color: var(--draft-muted); }
+.pricing-page .fig-pricing-intro h1 span { color: #c4b5fd; }
+.pricing-page .fig-pricing-audiences { background: var(--draft-raised); border-color: var(--draft-line); box-shadow: none; }
+.pricing-page .fig-pricing-audiences a { color: var(--draft-copy); }
+.pricing-page .fig-pricing-audiences a:first-child { background: #1b1730; }
+.pricing-page .fig-pricing-audiences a:last-child { background: #0f2118; }
+.pricing-page .fig-pricing-audiences a:last-child:hover { background: #123023; }
+.pricing-page .fig-pricing-audiences a small { color: var(--draft-faint); }
+
+/* Photography cards -- already dark (real photos with a gradient scrim);
+   just theme the pill tag and keep everything else. */
+.pricing-page [class*="photoTag"] { background: rgba(245,245,246,.94); color: #111114; }
+
+/* Plan cards */
+.pricing-page .fig-plan-banner { background: #17131f; color: var(--draft-copy); border: 1px solid var(--draft-line); }
+.pricing-page .fig-plan-banner .section-kicker { background: #201a30; color: #c4b5fd; }
+.pricing-page .fig-plan-banner p { color: var(--draft-muted); }
+.pricing-page .fig-plan-banner-icon { background: #ffffff0d; border-color: #ffffff20; color: #c4b5fd; }
+.pricing-page .fig-plan-banner-note { color: var(--draft-faint); }
+.pricing-page .fig-plan-banner--education { background: #0f2118; }
+.pricing-page .fig-plan-banner--education .section-kicker { background: #123023; color: #6ee7b7; }
+.pricing-page .fig-plan-banner--education .section-kicker,
+.pricing-page .fig-plan-banner--education p,
+.pricing-page .fig-plan-banner--education .fig-plan-banner-note { color: #86d9ae; }
+.pricing-page .fig-plan-banner--education .fig-plan-banner-icon { background: #123023; color: #6ee7b7; border-color: #1f4a34; }
+
+.pricing-page .fig-plan-card {
+  border-color: var(--draft-line);
+  background: var(--draft-raised);
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.pricing-page .fig-plan-card:hover {
+  border-color: #4b4561;
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(0,0,0,.35), 0 0 0 1px var(--draft-violet-glow);
+}
+.pricing-page .fig-plan-card--accent {
+  border-color: var(--draft-green);
+  background: linear-gradient(160deg, #10251b, var(--draft-raised) 65%);
+  box-shadow: 0 0 0 1px var(--draft-green-glow);
+}
+.pricing-page .fig-plan-card > p { color: var(--draft-muted); }
+.pricing-page .fig-plan-price span { color: var(--draft-faint); }
+.pricing-page .fig-plan-card-top { color: var(--draft-faint); }
+.pricing-page .fig-plan-symbol { background: #211d2c; color: #c4b5fd; }
+.pricing-page .fig-plan-cards--education .fig-plan-symbol { background: #123023; color: #6ee7b7; }
+.pricing-page .fig-plan-card-note { color: var(--draft-faint); }
+.pricing-page .fig-plan-card-note a { color: #c4b5fd; }
+.pricing-page .pricing-disclaimer { color: var(--draft-faint); }
+
+/* Comparison section: budget chart, custom-needs card, tables (CSS module --
+   attribute-selectors, same pattern the projects calendar module already
+   uses in draft-two.css, since the hashed classnames aren't predictable). */
+.pricing-page [class*="comparisonHeading"] > span,
+.pricing-page [class*="heading"] > span,
+.pricing-page [class*="eyebrow"] { color: #a78bfa; }
+.pricing-page [class*="comparisonHeading"] p,
+.pricing-page [class*="heading"] p { color: var(--draft-muted); }
+
+.pricing-page [class*="chart"] { background: var(--draft-raised); border-color: var(--draft-line); box-shadow: none; }
+.pricing-page [class*="chartHeading"] > span { background: var(--draft-raised-2); border-color: var(--draft-line); color: var(--draft-muted); }
+.pricing-page [class*="track"] { background: var(--draft-raised-2); background-image: repeating-linear-gradient(90deg, #202027 0, #202027 1px, transparent 1px, transparent 25%); }
+.pricing-page [class*="barRow"] > span { color: var(--draft-copy); }
+.pricing-page [class*="barRow"] > span small { color: var(--draft-faint); }
+.pricing-page [class*="barRow"] strong { color: var(--draft-copy); }
+.pricing-page [class*="periods"] { background: var(--draft-raised-2); }
+.pricing-page [class*="periods"] button { color: var(--draft-muted); }
+.pricing-page [class*="periods"] button[aria-pressed="true"] { background: var(--draft-raised); color: #c4b5fd; }
+.pricing-page [class*="axis"] { color: var(--draft-faint); }
+.pricing-page [class*="chartNote"], .pricing-page [class*="tableNote"] { color: var(--draft-faint); }
+.pricing-page [class*="chartSubtitle"] { color: var(--draft-muted); }
+.pricing-page [class*="budgetSummary"] { border-color: var(--draft-line-soft); color: var(--draft-muted); }
+.pricing-page [class*="budgetSummary"] strong { color: var(--draft-copy); }
+
+.pricing-page [class*="custom"] { background: #0f2118; border-color: #1f4a34; }
+.pricing-page [class*="customIcon"] { color: #6ee7b7; }
+.pricing-page [class*="custom"] h3 { color: #d1fae5; }
+.pricing-page [class*="custom"] p { color: #86d9ae; }
+.pricing-page [class*="custom"] a { color: #6ee7b7; }
+.pricing-page [class*="enquiryList"] > div { border-color: #1f4a34; }
+.pricing-page [class*="enquiryList"] dt { color: #86d9ae; }
+.pricing-page [class*="enquiryList"] dd { color: #6b9a80; }
+
+.pricing-page [class*="tableWrap"] { background: var(--draft-raised); border-color: var(--draft-line); }
+.pricing-page [class*="table"] { color: var(--draft-muted); }
+.pricing-page [class*="table"] caption { border-color: var(--draft-line-soft); color: var(--draft-copy); }
+.pricing-page [class*="table"] th, .pricing-page [class*="table"] td { border-color: var(--draft-line-soft); }
+.pricing-page [class*="table"] thead th { background: var(--draft-raised-2); color: var(--draft-copy); }
+.pricing-page [class*="table"] thead small { color: var(--draft-faint); }
+.pricing-page [class*="table"] tbody th[scope] { color: var(--draft-muted); }
+.pricing-page [class*="table"] [class*="tablePrice"] { color: var(--draft-copy); }
+.pricing-page [class*="table"] a { color: #c4b5fd; }
+.pricing-page [class*="table"] [class*="groupRow"] th { background: var(--draft-raised-2); color: var(--draft-muted); }
+.pricing-page [class*="planHeaderLink"] { border-color: var(--draft-line); background: var(--draft-raised-2); color: var(--draft-muted); }
+.pricing-page [class*="businessColumn"] { background: #17131f; border-top-color: #a58bd9; }
+.pricing-page [class*="educationColumn"] { background: #0f2118; border-top-color: #6ee7b7; }
+.pricing-page [class*="bizPill"] { background: #211d2c; color: #c4b5fd; }
+.pricing-page [class*="eduPill"] { background: #123023; color: #6ee7b7; }
+@media (hover: hover) {
+  .pricing-page [class*="table"] tbody tr:hover td { background: var(--draft-raised-2); }
+  .pricing-page [class*="planHeaderLink"]:hover { border-color: #7c5cff; }
+}
+
+/* Product-detail: four-layer grid, workflow steps, learning note */
+.pricing-page [class*="layerGrid"] { border-color: var(--draft-line); }
+.pricing-page [class*="layer"]:not([class*="layerGrid"]):not([class*="layerLabel"]) { background: var(--draft-raised); border-color: var(--draft-line); }
+.pricing-page [class*="layerLabel"] { background: #211d2c; color: #c4b5fd; }
+.pricing-page [class*="layer"] h3 { color: var(--draft-copy); }
+.pricing-page [class*="layer"] p { color: var(--draft-muted); }
+.pricing-page [class*="layer"] small { border-color: var(--draft-line-soft); color: var(--draft-faint); }
+.pricing-page [class*="workflowDetail"] { background: var(--draft-raised); }
+.pricing-page [class*="workflowDetail"] h3 { color: var(--draft-copy); }
+.pricing-page [class*="workflowDetail"] li { border-color: var(--draft-line); }
+.pricing-page [class*="workflowDetail"] li::before { background: #201a30; color: #c4b5fd; }
+.pricing-page [class*="workflowDetail"] li strong { color: var(--draft-copy); }
+.pricing-page [class*="workflowDetail"] p { color: var(--draft-muted); }
+.pricing-page [class*="learningNote"] { background: #0f2118; border-left-color: var(--draft-green); }
+.pricing-page [class*="learningNote"] strong { color: #d1fae5; }
+.pricing-page [class*="learningNote"] p { color: #86d9ae; }
+.pricing-page [class*="capabilityHeading"] h3 { color: var(--draft-copy); }
+.pricing-page [class*="capabilityHeading"] p { color: var(--draft-muted); }
+.pricing-page [class*="scrollHint"] { color: var(--draft-faint); }
+
+/* Auth pages: card, form, story panel, laptop-frame callouts */
+.auth-page { position: relative; overflow: hidden; background: var(--draft-bg); }
+.auth-page::before { content: none; }
+.auth-card {
+  background: var(--draft-raised);
+  border-color: var(--draft-line);
+  box-shadow: 0 24px 60px rgba(0,0,0,.4);
+  backdrop-filter: none;
+}
+.auth-heading p { color: var(--draft-muted); }
+.auth-field { color: var(--draft-copy); }
+.auth-form input:not([type="checkbox"]) {
+  border-color: #2c2c34;
+  background: #131317;
+  color: var(--draft-copy);
+  transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+.auth-form input::placeholder { color: var(--draft-faint); }
+.auth-form input:hover { background: #16161b; border-color: #38383f; }
+.auth-form input:focus {
+  outline: none;
+  border-color: var(--draft-green);
+  background: #16161b;
+  box-shadow: 0 0 0 3px var(--draft-green-glow);
+}
+.input-with-icon > svg { color: var(--draft-faint); }
+.password-toggle { color: var(--draft-faint); }
+.password-toggle:hover { color: var(--draft-copy); }
+.auth-switch { color: var(--draft-muted); }
+.auth-note { color: var(--draft-faint); }
+.form-message { background: #16161b; color: var(--draft-muted); border: 1px solid var(--draft-line); }
+.auth-separator::before { border-color: var(--draft-line); }
+.auth-separator span { background: var(--draft-raised); color: var(--draft-faint); }
+.oauth-button { border-color: var(--draft-line); background: #151519; color: var(--draft-copy); transition: border-color .15s ease, background-color .15s ease; }
+.oauth-button:hover { border-color: #565663; background: #1b1b20; }
+.trial-reassurance { color: var(--draft-muted); }
+.trial-reassurance svg { color: var(--draft-green); }
+.check--terms { color: var(--draft-muted); }
+.check--terms .text-button { color: #c4b5fd; }
+.text-button { color: #c4b5fd; }
+
+.auth-story-kicker { color: var(--draft-green); }
+.auth-story-copy h1 { color: var(--draft-copy); }
+.auth-story-copy p { color: var(--draft-muted); }
+.auth-benefits > article > span { color: #c4b5fd; background: #211d2c; }
+.auth-benefits h3 { color: var(--draft-copy); }
+.auth-benefits p { color: var(--draft-muted); }
+.auth-stat {
+  color: var(--draft-green);
+  background: var(--draft-raised);
+  border-color: var(--draft-line);
+  box-shadow: 0 12px 30px rgba(0,0,0,.4);
+}
+.auth-scribble-note { color: var(--draft-faint); }
+.auth-security-note { color: var(--draft-faint); }
+
+/* Sign-up page: its own class names, same dark treatment as sign-in. */
+.signup-story h1 { color: var(--draft-copy); }
+.signup-story h1 span { color: #c4b5fd; }
+.signup-story > p { color: var(--draft-muted); }
+.signup-benefits--grid article > span { color: #c4b5fd; background: #211d2c; }
+.signup-benefits h3, .signup-benefits--grid h2 { color: var(--draft-copy); }
+.signup-benefits p, .signup-benefits--grid p { color: var(--draft-muted); }
+.scribble-note, .auth-scribble-note { color: var(--draft-faint); }
+.signup-page .signup-platform-proof { background: transparent; border-top-color: var(--draft-line-soft); }
+.signup-page .signup-platform-proof p { color: var(--draft-faint); }
+.signup-page .auth-footer--signup { border-top-color: var(--draft-line); }
+
+/* Themed native checkbox (unchecked state is otherwise a plain browser-default
+   white box) -- checked state already gets accent-color: var(--purple) from
+   globals.css/redesign.css. */
+.auth-page .check input,
+.pricing-page .check input,
+.public-home .home-scan-anon input {
+  accent-color: var(--draft-green);
+  background: #131317;
+  border: 1px solid #38383f;
+  border-radius: 3px;
+}
