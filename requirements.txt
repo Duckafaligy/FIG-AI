@@ -10,6 +10,13 @@ python-multipart     # form posts from the dashboard
 anthropic            # only used by app/ai_explain.py
 supabase             # Auth, not yet wired up
 psycopg2-binary      # only needed when DATABASE_URL points at Postgres
+# Render's actual DATABASE_URL uses the postgresql+psycopg:// (v3) dialect,
+# not plain postgresql:// -- psycopg2-binary alone doesn't satisfy that
+# import, found 2026-09-25 when a fresh build (new Python runtime image)
+# exposed it: "ModuleNotFoundError: No module named 'psycopg'" at boot,
+# on every deploy, unrelated to any application code. Both drivers are kept:
+# this one for whatever already depends on the plain postgresql:// scheme.
+psycopg[binary]
 python-dotenv
 dnspython
 stripe               # billing; the app boots and runs without it
