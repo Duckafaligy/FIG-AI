@@ -352,6 +352,11 @@ html { color-scheme: dark; }
 .public-home .home-visibility-heading small,
 .public-home .home-visibility-sources strong { color: var(--draft-faint); }
 
+/* Asymmetric column widths instead of three equal columns -- the third
+   instance of a uniform card grid on this page otherwise (checks grid,
+   principles panel already broken up above). Widths only, no row-span:
+   three items can't span rows cleanly without a fourth to fill the gap. */
+.public-home .home-audience-grid { grid-template-columns: 1.4fr 1fr 1fr; }
 .public-home .home-audience-grid article > div { background: #15151a; }
 .public-home .home-audience-grid article img { filter: saturate(.72) brightness(.75); }
 .public-home .home-cta { background: linear-gradient(135deg, #1e1a2a, #111116 70%); }

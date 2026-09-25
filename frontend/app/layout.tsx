@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Bricolage_Grotesque } from "next/font/google";
 import { JsonLd } from "@/components/json-ld";
 import { PageMotion } from "@/components/page-motion";
 import { SITE_URL } from "@/lib/legal";
@@ -17,10 +18,12 @@ import "./draft-two.css";
 import "./theme-dark-pages.css";
 import { ThemeProvider } from "@/components/theme-provider";
 
+const bricolage = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-bricolage", display: "swap" });
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "FIG — see what makes your site read as generic",
-  description: "Paste a URL and FIG checks 19 patterns across design, structure, search and answers, then shows where each is and how to fix it. Free, no account.",
+  description: "Paste a URL and FIG checks 21 patterns across design, structure, search and answers, then shows where each is and how to fix it. Free, no account.",
 };
 
 const siteData = {
@@ -37,7 +40,7 @@ const siteData = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={bricolage.variable} suppressHydrationWarning>
       <body>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <JsonLd data={siteData} />
