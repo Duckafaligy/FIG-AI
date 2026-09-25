@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 
 export default function SignUpPage() {
   return (
-    <div className="auth-page auth-page--signup signup-page">
+    <div className="auth-page auth-page--signup signup-page neon-home">
       <PublicNav />
       <main>
         <section className="signup-layout signup-layout--refined page-shell">

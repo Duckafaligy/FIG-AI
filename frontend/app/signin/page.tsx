@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 
 export default function SignInPage() {
   return (
-    <div className="auth-page auth-page--signin">
+    <div className="auth-page auth-page--signin neon-home">
       <PublicNav />
       <main>
         <section className="auth-layout auth-layout--signin page-shell">

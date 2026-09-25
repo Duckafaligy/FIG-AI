@@ -1,0 +1,228 @@
+/* Pricing + auth pages, same neon system as the homepage (home-neon.css).
+   Scoped under .neon-home (added to pricing-page/auth-page wrappers) so
+   button/nav/footer/faq/cta base rules there apply automatically; this
+   file covers what's specific to these two page groups. */
+
+/* Pricing intro */
+.neon-home .fig-pricing-intro { padding-top:96px; padding-bottom:80px; text-align:center; background:var(--neon-ink); color:#f3f5ef; }
+.neon-home .fig-pricing-pill { display:inline-flex; border:1px solid #3a4133; border-radius:2px; padding:7px 14px; color:var(--neon-green); background:#111310; font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.neon-home .fig-pricing-intro h1 { margin:22px 0 16px; color:#f3f5ef; font-family:var(--font-bricolage),Inter,sans-serif; font-size:clamp(38px,5vw,64px); line-height:1; letter-spacing:0; }
+.neon-home .fig-pricing-intro h1 span { color:var(--neon-green); }
+.neon-home .fig-pricing-intro > p { color:#c3c9bd; }
+.neon-home .fig-pricing-audiences { display:inline-flex; gap:0; margin-top:28px; border:1px solid #3a4133; border-radius:2px; overflow:hidden; }
+.neon-home .fig-pricing-audiences a { padding:14px 26px; color:#f3f5ef; background:#111310; border-right:1px solid #3a4133; }
+.neon-home .fig-pricing-audiences a:last-child { border-right:0; }
+.neon-home .fig-pricing-audiences a:hover { background:#171b13; }
+.neon-home .fig-pricing-audiences a span { font-weight:800; }
+.neon-home .fig-pricing-audiences a small { color:#9da595; }
+
+/* Photography cards (pricing-visuals.module.css) -- grayscale + dark veil,
+   matching the homepage's editorial photo treatment. */
+.neon-home [class*="photos"] { background:var(--neon-paper); padding-top:0; }
+.neon-home [class*="photo"] img { filter:grayscale(.65) contrast(1.08) brightness(.92); }
+.neon-home [class*="photoTag"] { border-radius:2px; background:#e8eae4; color:#11140f; }
+
+/* Plan catalogue */
+.neon-home .fig-plan-banner { border-radius:2px; background:#111310; color:#f3f5ef; border:1px solid #2a2f24; }
+.neon-home .fig-plan-banner .section-kicker { color:var(--neon-green); background:transparent; padding:0; border:0; font-size:11px; letter-spacing:.1em; text-transform:uppercase; }
+.neon-home.neon-home .fig-plan-banner p { color:#aeb6a7; }
+.neon-home .fig-plan-banner-icon { border-radius:2px; background:#171b13; color:var(--neon-green); border:1px solid #2a2f24; }
+.neon-home.neon-home .fig-plan-banner-note { color:#8f968a; font-family:Georgia,serif; font-style:italic; }
+.neon-home.neon-home .fig-plan-banner--education .fig-plan-banner-note { color:var(--neon-green); }
+.neon-home .fig-plan-banner--education { background:#0d100c; }
+.neon-home .fig-plan-card {
+  border-radius:2px; border:1px solid #cbd0c3; background:var(--neon-paper); color:#11140f;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.neon-home .fig-plan-card:hover { transform:translate(-2px,-2px); box-shadow:6px 6px 0 rgba(9,10,9,.14); }
+.neon-home .fig-plan-card--accent { border-color:var(--neon-green); box-shadow:8px 8px 0 rgba(183,255,69,.28); }
+.neon-home .fig-plan-card--accent:hover { transform:translate(-2px,-2px); box-shadow:10px 10px 0 rgba(183,255,69,.32); }
+.neon-home .fig-plan-card h3 { color:#11140f; }
+.neon-home .fig-plan-card > p { color:#576251; }
+.neon-home .fig-plan-card .secondary-button {
+  border-color:#11140f; color:#11140f; background:transparent;
+}
+.neon-home .fig-plan-card .secondary-button:hover { background:#11140f; color:#f3f5ef; }
+.neon-home.neon-home .fig-plan-banner-icon { color:var(--neon-green); background:#171b13; border-color:#2a2f24; }
+.neon-home.neon-home .fig-plan-banner--education .fig-plan-banner-icon { color:var(--neon-green); background:#171b13; border-color:#2a2f24; }
+.neon-home .fig-plan-card-top { color:#576251; }
+.neon-home .fig-plan-symbol { border-radius:2px; background:#e8eae4; color:#3a4b2e; }
+.neon-home .fig-plan-cards--education .fig-plan-symbol { background:#e3ecdf; }
+.neon-home .fig-plan-price span { color:#576251; }
+.neon-home .fig-plan-card-note { color:#576251; }
+.neon-home .fig-plan-card-note a { color:#3a4b2e; font-weight:700; }
+.neon-home .pricing-disclaimer { color:#576251; }
+
+/* Comparison: budget chart, custom-needs aside, tables (CSS module classes,
+   attribute-selected since the build hashes them). */
+.neon-home .neon-section [class*="comparisonHeading"] p,
+.neon-home [class*="heading"]:not([class*="mini-"]):not(.auth-heading):not([class*="neon-"]):not(.fig-plan-banner) p { color:#576251; }
+.neon-home [class*="chart"]:not([class*="mini-"]):not([class*="neon-"]) { border:1px solid #cbd0c3; border-radius:2px; background:var(--neon-paper); box-shadow:none; color:#576251; }
+.neon-home [class*="chart"]:not([class*="mini-"]):not([class*="neon-"]) h3, .neon-home [class*="chartHeading"] h3 { color:#11140f; }
+.neon-home [class*="chartHeading"] > span { border:1px solid #cbd0c3; border-radius:2px; background:#fff; color:#576251; }
+.neon-home [class*="chartSubtitle"] { color:#576251; }
+.neon-home [class*="track"] { background:#dce0d7; }
+.neon-home [class*="periods"] { background:#dce0d7; border-radius:2px; }
+.neon-home [class*="periods"] button { color:#576251; }
+.neon-home [class*="periods"] button[aria-pressed="true"] { background:#11140f; color:var(--neon-green); border-radius:2px; }
+.neon-home [class*="axis"] { color:#576251; }
+.neon-home [class*="barRow"] > span { color:#11140f; }
+.neon-home [class*="barRow"] strong, .neon-home [class*="budgetValue"] { color:#11140f; }
+.neon-home [class*="budgetSummary"] { border-color:#cbd0c3; }
+.neon-home [class*="budgetSummary"] strong { color:#11140f; }
+.neon-home [class*="budgetSummary"] span { color:#576251; }
+.neon-home [class*="chartNote"] { color:#576251; }
+.neon-home [class*="rowHint"] { color:#576251; }
+.neon-home [class*="tableNote"] { color:#576251; }
+.neon-home [class*="scrollHint"] { color:#8f968a; }
+.neon-home [class*="custom"] { border-radius:2px; background:#111310; border:1px solid #2a2f24; }
+.neon-home [class*="customIcon"] { color:var(--neon-green); }
+.neon-home [class*="custom"] [class*="eyebrow"] { color:var(--neon-green); }
+.neon-home [class*="custom"] h3 { color:#f3f5ef; }
+.neon-home [class*="custom"] p { color:#aeb6a7; }
+.neon-home [class*="custom"] a { color:var(--neon-green); }
+.neon-home [class*="enquiryList"] > div { border-color:#2a2f24; }
+.neon-home [class*="enquiryList"] dt { color:var(--neon-green); }
+.neon-home [class*="enquiryList"] dd { color:#aeb6a7; }
+.neon-home [class*="tableWrap"] { border:1px solid #cbd0c3; border-radius:2px; background:var(--neon-paper); }
+.neon-home [class*="table"]:not([class*="mini-"]):not([class*="neon-"]) caption { border-color:#cbd0c3; color:#11140f; }
+.neon-home [class*="table"]:not([class*="mini-"]):not([class*="neon-"]) th, .neon-home [class*="table"]:not([class*="mini-"]):not([class*="neon-"]) td { border-color:#dce0d7; }
+.neon-home [class*="table"]:not([class*="mini-"]):not([class*="neon-"]) thead th { background:#dce0d7; color:#11140f; }
+.neon-home [class*="table"]:not([class*="mini-"]):not([class*="neon-"]) tbody th[scope] { color:#576251; }
+.neon-home [class*="table"]:not([class*="mini-"]):not([class*="neon-"]) td { color:#576251; }
+.neon-home [class*="table"]:not([class*="mini-"]):not([class*="neon-"]) [class*="tablePrice"] { color:#11140f; }
+.neon-home [class*="table"]:not([class*="mini-"]):not([class*="neon-"]) a { color:#3a4b2e; }
+.neon-home [class*="table"]:not([class*="mini-"]):not([class*="neon-"]) [class*="groupRow"] th { background:#e8eae4; color:#576251; }
+.neon-home [class*="table"]:not([class*="mini-"]):not([class*="neon-"]) [class*="planHeaderLink"] { border:1px solid #cbd0c3; background:#fff; color:#3a4b2e; }
+.neon-home [class*="businessColumn"] { background:#f4f6f1; border-top:2px solid #11140f; }
+.neon-home [class*="educationColumn"] { background:#eef4e7; border-top:2px solid var(--neon-green); }
+.neon-home [class*="bizPill"] { border-radius:2px; background:#e8eae4; color:#11140f; }
+.neon-home [class*="eduPill"] { border-radius:2px; background:#dcf0b8; color:#3a4b2e; }
+
+/* Product detail: four-layer grid, workflow, learning note -- dark band,
+   matching the homepage's capability-section treatment. */
+.neon-home [class*="productDetail"] { background:var(--neon-ink); color:#edf0e8; padding-block:96px; }
+.neon-home [class*="productDetail"] [class*="heading"]:not([class*="mini-"]) > span { color:var(--neon-green); }
+.neon-home [class*="productDetail"] [class*="heading"]:not([class*="mini-"]) h2 { color:#f2f4ef; }
+.neon-home [class*="productDetail"] [class*="heading"]:not([class*="mini-"]) p { color:#aeb6a7; }
+.neon-home [class*="layerGrid"] { border:1px solid #2a2f24; border-radius:2px; overflow:hidden; }
+.neon-home [class*="layer"]:not([class*="layerGrid"]):not([class*="layerLabel"]) { background:#111310; border-color:#2a2f24; }
+.neon-home [class*="layerLabel"] { border-radius:2px; background:#171b13; color:var(--neon-green); }
+.neon-home [class*="layer"] h3 { color:#f2f4ef; }
+.neon-home [class*="layer"] p { color:#aeb6a7; }
+.neon-home [class*="layer"] small { border-color:#2a2f24; color:#8f968a; }
+.neon-home [class*="workflowDetail"] { background:#111310; border-radius:2px; }
+.neon-home [class*="workflowDetail"] [class*="eyebrow"] { color:var(--neon-green); }
+.neon-home [class*="workflowDetail"] h3 { color:#f2f4ef; }
+.neon-home [class*="workflowDetail"] p { color:#aeb6a7; }
+.neon-home [class*="workflowDetail"] li { border-color:#2a2f24; }
+.neon-home [class*="workflowDetail"] li::before { background:var(--neon-green); color:#0d0f0b; }
+.neon-home [class*="workflowDetail"] li strong { color:#f2f4ef; }
+.neon-home [class*="learningNote"] { border-left:0; background:#0d100c; }
+.neon-home [class*="learningNote"] strong { color:#f2f4ef; }
+.neon-home [class*="learningNote"] p { color:#aeb6a7; }
+.neon-home [class*="productDetail"] [class*="tableNote"] { color:#8f968a; }
+.neon-home [class*="capabilityHeading"] h3 { color:#11140f; }
+.neon-home [class*="capabilityHeading"] p { color:#576251; }
+.neon-home [class*="scrollHint"] { color:#8f968a; }
+.neon-home [class*="productDetail"] [class*="tableWrap"] { background:#111310; border-color:#2a2f24; }
+.neon-home [class*="productDetail"] [class*="table"]:not([class*="mini-"]):not([class*="neon-"]) thead th { background:#171b13; color:#f2f4ef; }
+.neon-home [class*="productDetail"] [class*="table"]:not([class*="mini-"]):not([class*="neon-"]) td,
+.neon-home [class*="productDetail"] [class*="table"]:not([class*="mini-"]):not([class*="neon-"]) th { border-color:#2a2f24; color:#aeb6a7; }
+.neon-home [class*="productDetail"] [class*="table"]:not([class*="mini-"]):not([class*="neon-"]) tbody th[scope] { color:#f2f4ef; }
+
+/* Auth pages: sign-in / sign-up */
+.neon-home.auth-page { background:var(--neon-ink); }
+.neon-home .auth-page::before { content:none; }
+.neon-home .auth-card {
+  border-radius:2px; border:1px solid #2a2f24; background:#111310;
+  box-shadow:10px 10px 0 rgba(183,255,69,.10); backdrop-filter:none;
+}
+.neon-home .auth-heading .eyebrow { color:var(--neon-green); background:transparent; border:0; padding:0; }
+.neon-home .auth-heading h2 { color:#f3f5ef; font-family:var(--font-bricolage),Inter,sans-serif; }
+.neon-home .auth-heading p { color:#aeb6a7; }
+.neon-home .auth-field { color:#f3f5ef; }
+.neon-home .auth-form input:not([type="checkbox"]) {
+  border:1px solid #3a4133; border-radius:2px; background:#161914; color:#f3f5ef;
+  transition:border-color .15s ease;
+}
+.neon-home .auth-form input::placeholder { color:#8f968a; }
+.neon-home .auth-form input:focus { outline:none; border-color:var(--neon-green); box-shadow:0 0 0 3px rgba(183,255,69,.18); }
+.neon-home .input-with-icon > svg { color:#8f968a; }
+.neon-home .password-toggle { color:#8f968a; }
+.neon-home .password-toggle:hover { color:#f3f5ef; }
+.neon-home .auth-switch { color:#aeb6a7; }
+.neon-home .auth-switch a { color:var(--neon-green); }
+.neon-home .auth-note { color:#8f968a; }
+.neon-home .form-message { border-radius:2px; background:#161914; color:#aeb6a7; border:1px solid #3a4133; }
+.neon-home .text-button, .neon-home .check--terms .text-button { color:var(--neon-green); }
+.neon-home .check--terms { color:#aeb6a7; }
+.neon-home .check input { accent-color:var(--neon-green); border-radius:2px; }
+.neon-home .trial-reassurance { color:#aeb6a7; }
+.neon-home .trial-reassurance svg { color:var(--neon-green); }
+
+.neon-home .auth-story-kicker { color:var(--neon-green); }
+.neon-home .auth-story-copy h1, .neon-home .auth-story > h2 { color:#f3f5ef; font-family:var(--font-bricolage),Inter,sans-serif; }
+.neon-home .auth-story-copy h1 span, .neon-home .auth-story > h2 span { color:var(--neon-green); }
+.neon-home .auth-story-copy p, .neon-home .auth-story > p { color:#aeb6a7; }
+.neon-home .auth-benefits > article > span, .neon-home .auth-benefits > div > span { border-radius:2px; background:#171b13; color:var(--neon-green); }
+.neon-home .auth-benefits h3 { color:#f3f5ef; }
+.neon-home .auth-benefits p { color:#aeb6a7; }
+.neon-home .auth-stat { border-radius:2px; background:#111310; border:1px solid #2a2f24; color:var(--neon-green); box-shadow:6px 6px 0 rgba(183,255,69,.14); }
+.neon-home .auth-scribble-note, .neon-home .scribble-note { color:#8f968a; }
+.neon-home .auth-security-note { color:#8f968a; }
+.neon-home .auth-footer { color:#8f968a; }
+
+.neon-home .signup-story h1 { color:#f3f5ef; font-family:var(--font-bricolage),Inter,sans-serif; }
+.neon-home .signup-story h1 span { color:var(--neon-green); }
+.neon-home .signup-story > p { color:#aeb6a7; }
+.neon-home .signup-benefits--grid article > span { border-radius:2px; background:#171b13; color:var(--neon-green); }
+.neon-home .signup-benefits h3, .neon-home .signup-benefits--grid h2 { color:#f3f5ef; }
+.neon-home .signup-benefits p, .neon-home .signup-benefits--grid p { color:#aeb6a7; }
+.neon-home.signup-page .signup-platform-proof { background:transparent; border-top-color:#2a2f24; }
+.neon-home.signup-page .signup-platform-proof p { color:#8f968a; }
+.neon-home.signup-page .auth-footer--signup { border-top-color:#2a2f24; }
+
+/* The ProductLaptop mockup, reused on both auth pages -- overridden to the
+   neon-green accent instead of the purple used on the (unrelated, still
+   purple-themed) homepage sections it also appears on. */
+.neon-home .laptop-screen { background:#0d100c; }
+.neon-home .mini-app { background:#111310; color:#f3f5ef; }
+.neon-home .mini-app small, .neon-home .mini-app span:not(.mini-status) { color:#aeb6a7; }
+.neon-home .mini-review-row > span svg { color:#6b7266; }
+.neon-home .eyebrow { color:var(--neon-green); background:transparent; border:0; padding:0; }
+.neon-home .form-row a, .neon-home .auth-switch a, .neon-home .auth-form .check a { color:var(--neon-green); }
+.neon-home .mini-sidebar { background:#161914; }
+.neon-home .mini-sidebar span.active { background:#1c2116; color:var(--neon-green); }
+.neon-home .mini-top i { background:var(--neon-green); color:#0d0f0b; }
+.neon-home .mini-status--in-progress, .neon-home .mini-status { color:var(--neon-green); background:#171b13; }
+
+/* Platform logos strip, same chip treatment as home's connect-section. */
+.neon-home .platform-logo { padding:8px 10px; border-radius:2px; }
+.neon-home .platform-logo svg { background:#fff; border-radius:2px; padding:3px; }
+.neon-home .platform-logo span { color:#8f968a; }
+.neon-home .platform-logo-divider { background:#2a2f24; }
+.neon-home .auth-platform-proof .section-kicker,
+.neon-home .signup-platform-proof .section-kicker { color:var(--neon-green); background:transparent; border:0; padding:0; }
+
+@media (max-width:700px) {
+  .neon-home .fig-pricing-audiences { flex-direction:column; width:100%; }
+  .neon-home .fig-pricing-audiences a { border-right:0; border-bottom:1px solid #3a4133; }
+  .neon-home .fig-pricing-audiences a:last-child { border-bottom:0; }
+}
+
+/* Defensive overrides: a handful of old rules (global unscoped, or with a
+   :first-child/:nth-child qualifier) have higher specificity than the
+   plain .neon-home rules above and were still winning. Found by sweeping
+   every computed color on the page for leftover purple, not by guessing. */
+.neon-home.neon-home .brand-dot { color:var(--neon-green); }
+.neon-home.neon-home .public-nav-links > a:not(.button):hover,
+.neon-home.neon-home .public-nav-links > a:not(.button).is-active,
+.neon-home.neon-home .public-nav-wrap a.is-active,
+.neon-home.neon-home .public-nav-wrap a[aria-current="page"]:not(.button),
+.neon-home.neon-home .public-nav-wrap a:not(.button):hover { color:var(--neon-green); }
+.neon-home.neon-home.neon-home [class*="layerLabel"] { background:#171b13; color:var(--neon-green); }
+.neon-home.neon-home [class*="businessColumn"] { border-top-color:#11140f; }
+.neon-home.neon-home [class*="businessColumn"] *:not(a) { color:#11140f; }
+.neon-home.neon-home .fig-pricing-audiences a:first-child,
+.neon-home.neon-home .fig-pricing-audiences a:last-child { background:#111310; }

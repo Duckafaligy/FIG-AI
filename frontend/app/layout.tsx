@@ -17,6 +17,7 @@ import "./publish-queue.css";
 import "./draft-two.css";
 import "./theme-dark-pages.css";
 import "./home-neon.css";
+import "./pricing-auth-neon.css";
 import { ThemeProvider } from "@/components/theme-provider";
 
 const bricolage = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-bricolage", display: "swap" });
