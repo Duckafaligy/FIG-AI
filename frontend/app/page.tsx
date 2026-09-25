@@ -220,14 +220,25 @@ export default function HomePage() {
             <h2>21 checks across four layers</h2>
             <p>Every check is ordinary code with a stated rule, so you can see exactly what triggers it. AI only writes the plain-language explanation.</p>
           </div>
-          <div className="home-feature-grid">
-            {featureCards.map(({ icon: Icon, tone, title, copy }) => (
+          <div className="home-feature-grid home-feature-grid--layers">
+            {featureCards.slice(0, 4).map(({ icon: Icon, tone, title, copy }) => (
               <article className={`home-feature-card home-feature-card--${tone}`} key={title}>
-                <span className="home-feature-icon"><Icon size={21} /></span>
+                <span className="home-feature-icon"><Icon size={22} /></span>
                 <h3>{title}</h3>
                 <p>{copy}</p>
               </article>
             ))}
+          </div>
+          <div className="home-feature-extras">
+            <span className="home-feature-extras-label">What happens with a finding</span>
+            <div className="home-feature-extras-row">
+              {featureCards.slice(4).map(({ icon: Icon, title, copy }) => (
+                <div className="home-feature-extra" key={title}>
+                  <Icon size={17} aria-hidden="true" />
+                  <div><strong>{title}</strong><span>{copy}</span></div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 

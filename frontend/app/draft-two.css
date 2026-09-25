@@ -244,7 +244,6 @@ html { color-scheme: dark; }
 
 .public-home .home-feature-card,
 .public-home .platform-tour-card,
-.public-home .home-principles-grid article,
 .public-home .home-audience-grid article,
 .public-home .home-visibility-card,
 .public-home .home-cta {
@@ -256,12 +255,10 @@ html { color-scheme: dark; }
 }
 
 .public-home .home-feature-card,
-.public-home .platform-tour-card,
-.public-home .home-principles-grid article { border-radius: 4px; }
+.public-home .platform-tour-card { border-radius: 4px; }
 
 .public-home .home-feature-card:hover,
-.public-home .platform-tour-card:hover,
-.public-home .home-principles-grid article:hover {
+.public-home .platform-tour-card:hover {
   border-color: #4b4561;
   transform: translateY(-2px);
   box-shadow: 0 14px 32px rgba(0,0,0,.35), 0 0 0 1px var(--draft-violet-glow);
@@ -275,6 +272,65 @@ html { color-scheme: dark; }
 .public-home .home-workflow-grid li { border-color: var(--draft-line); }
 .public-home .home-workflow-grid li::before { background: #24242b; color: var(--draft-faint); }
 .public-home .home-workflow-grid p { color: var(--draft-muted); }
+
+/* Per-tone icon color, restored -- the light-theme original used 5 distinct
+   hues (violet/blue/indigo/green/amber) but the dark override had flattened
+   all of them to one purple, which was part of why the "21 checks" grid
+   read as 8 identical tiles. Kept in-palette (purple family + green; no new
+   hues) rather than reinstating the original blue/amber. */
+.public-home .home-feature-card--blue .home-feature-icon { background: #1c1830; color: #a78bfa; }
+.public-home .home-feature-card--indigo .home-feature-icon { background: #191428; color: #8b5cf6; }
+.public-home .home-feature-card--green .home-feature-icon { background: #0f2118; color: #6ee7b7; }
+.public-home .home-feature-card--amber .home-feature-icon { background: #0d1f16; color: var(--draft-green); }
+
+/* The "21 checks" grid split into two visual tiers: the 4 real layer checks
+   (matching "four layers" in the heading directly above) get the primary
+   card treatment; the 4 supporting capabilities (fix/history/queue/connect)
+   read as a lighter, unboxed strip below -- breaking the flat run of 8
+   identical tiles the craft-floor guide calls out as the most generic
+   AI-page-structure tell. */
+.public-home .home-feature-grid--layers { grid-template-columns: repeat(4, 1fr); }
+.public-home .home-feature-grid--layers .home-feature-card { min-height: 172px; padding: 22px 20px; }
+.public-home .home-feature-grid--layers .home-feature-card h3 { font-size: 16px; }
+.public-home .home-feature-extras { margin-top: 34px; padding-top: 26px; border-top: 1px solid var(--draft-line-soft); }
+.public-home .home-feature-extras-label { display: block; margin-bottom: 16px; color: var(--draft-faint); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.public-home .home-feature-extras-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+.public-home .home-feature-extra { display: flex; align-items: flex-start; gap: 10px; color: #c4b5fd; }
+.public-home .home-feature-extra div { display: flex; flex-direction: column; gap: 3px; }
+.public-home .home-feature-extra strong { color: var(--draft-copy); font-size: 13px; font-weight: 650; }
+.public-home .home-feature-extra span { color: var(--draft-muted); font-size: 12px; line-height: 1.5; }
+@media (max-width: 900px) {
+  .public-home .home-feature-grid--layers { grid-template-columns: repeat(2, 1fr); }
+  .public-home .home-feature-extras-row { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .public-home .home-feature-extras-row { grid-template-columns: 1fr; }
+}
+
+/* Principles: three commitments read as one unified trust panel with
+   dividers, not three separate floating cards repeating the same card
+   pattern used twice already above (checks grid, workspace tour). */
+.public-home .home-principles-grid {
+  border: 1px solid var(--draft-line);
+  border-radius: 6px;
+  background: var(--draft-raised);
+  overflow: hidden;
+}
+.public-home .home-principles-grid article {
+  border-radius: 0;
+  border-right: 1px solid var(--draft-line-soft);
+  background: transparent;
+}
+.public-home .home-principles-grid article:last-child { border-right: 0; }
+.public-home .home-principles-grid .home-feature-icon { background: #211d2c; color: #c4b5fd; }
+.public-home .home-principles-grid p { color: var(--draft-muted); }
+@media (max-width: 700px) {
+  .public-home .home-principles-grid article {
+    border-right: 0;
+    border-bottom: 1px solid var(--draft-line-soft);
+  }
+  .public-home .home-principles-grid article:last-child { border-bottom: 0; }
+}
 
 .public-home .tour-card-ui,
 .public-home .tour-project-tile,
