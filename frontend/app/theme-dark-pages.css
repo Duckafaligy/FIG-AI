@@ -192,8 +192,8 @@
 .pricing-page [class*="table"] a { color: #c4b5fd; }
 .pricing-page [class*="table"] [class*="groupRow"] th { background: var(--draft-raised-2); color: var(--draft-muted); }
 .pricing-page [class*="planHeaderLink"] { border-color: var(--draft-line); background: var(--draft-raised-2); color: var(--draft-muted); }
-.pricing-page [class*="businessColumn"] { background: #17131f; border-top-color: #a58bd9; }
-.pricing-page [class*="educationColumn"] { background: #0f2118; border-top-color: #6ee7b7; }
+.pricing-page [class*="businessColumn"] { background: #17131f; border-top: 1px solid #a58bd9; }
+.pricing-page [class*="educationColumn"] { background: #0f2118; border-top: 1px solid #6ee7b7; }
 .pricing-page [class*="bizPill"] { background: #211d2c; color: #c4b5fd; }
 .pricing-page [class*="eduPill"] { background: #123023; color: #6ee7b7; }
 @media (hover: hover) {
