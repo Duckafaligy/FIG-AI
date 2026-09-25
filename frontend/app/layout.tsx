@@ -13,6 +13,8 @@ import "./navigation-polish.css";
 import "./library-workspace.css";
 import "./launch-polish.css";
 import "./publish-queue.css";
+import "./draft-two.css";
+import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -34,8 +36,14 @@ const siteData = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body><JsonLd data={siteData} /><PageMotion />{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+          <JsonLd data={siteData} />
+          <PageMotion />
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

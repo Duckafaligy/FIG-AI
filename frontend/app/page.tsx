@@ -32,7 +32,7 @@ import { AudienceSpotlight } from "@/components/audience-spotlight";
 
 export const metadata: Metadata = {
   title: "FIG — see what makes your site read as generic",
-  description: "Paste a URL and FIG checks 19 patterns across design, structure, search and answers, then shows where each is and how to fix it. Free, no account.",
+  description: "Paste a URL and FIG checks 21 patterns across design, structure, search and answers, then shows where each is and how to fix it. Free, no account.",
   alternates: { canonical: "/" },
 };
 
@@ -65,7 +65,7 @@ const workflowSteps = [
 ];
 
 const glance = [
-  { icon: Search, value: "19", label: "checks, each a stated rule", tone: "purple" },
+  { icon: Search, value: "21", label: "checks, each a stated rule", tone: "purple" },
   { icon: Layers3, value: "4", label: "layers: craft, structure, search, answers", tone: "blue" },
   { icon: FileCheck2, value: "$0", label: "to scan a public site, no account", tone: "green" },
   { icon: Scale, value: "0", label: "accusations: findings are signals", tone: "amber" },
@@ -180,7 +180,7 @@ export default function HomePage() {
             <div className="home-hero-copy">
               <span className="eyebrow">Site self-check for SEO + GEO</span>
               <h1>Find what makes your site <span>read as generic</span></h1>
-              <p>Paste a URL. FIG checks 19 patterns across design, structure, search and answer-readiness, then shows where each one is, why it matters and how to fix it.</p>
+              <p>Paste a URL. FIG checks 21 patterns across design, structure, search and answer-readiness, then shows where each one is, why it matters and how to fix it.</p>
               <div id="scan"><FreeScanForm /></div>
               <div className="home-hero-actions">
                 <Link className="button" href="/projects">Open projects</Link>
