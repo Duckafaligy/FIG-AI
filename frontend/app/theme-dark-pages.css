@@ -135,9 +135,9 @@
   box-shadow: 0 14px 32px rgba(0,0,0,.35), 0 0 0 1px var(--draft-violet-glow);
 }
 .pricing-page .fig-plan-card--accent {
-  border-color: var(--draft-green);
-  background: linear-gradient(160deg, #10251b, var(--draft-raised) 65%);
-  box-shadow: 0 0 0 1px var(--draft-green-glow);
+  border-color: var(--draft-violet);
+  background: linear-gradient(160deg, #1e1a30, var(--draft-raised) 65%);
+  box-shadow: 0 0 0 1px var(--draft-violet-glow);
 }
 .pricing-page .fig-plan-card > p { color: var(--draft-muted); }
 .pricing-page .fig-plan-price span { color: var(--draft-faint); }
@@ -214,7 +214,7 @@
 .pricing-page [class*="workflowDetail"] li::before { background: #201a30; color: #c4b5fd; }
 .pricing-page [class*="workflowDetail"] li strong { color: var(--draft-copy); }
 .pricing-page [class*="workflowDetail"] p { color: var(--draft-muted); }
-.pricing-page [class*="learningNote"] { background: #0f2118; border-left-color: var(--draft-green); }
+.pricing-page [class*="learningNote"] { background: #0f2118; border-left: 0; }
 .pricing-page [class*="learningNote"] strong { color: #d1fae5; }
 .pricing-page [class*="learningNote"] p { color: #86d9ae; }
 .pricing-page [class*="capabilityHeading"] h3 { color: var(--draft-copy); }
