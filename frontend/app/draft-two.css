@@ -81,13 +81,31 @@ html { color-scheme: dark; }
 .public-home .secondary-button:active { transform: translateY(0) scale(.97); }
 
 .public-home .home-hero.section-glow {
+  position: relative;
   min-height: 720px;
   padding: 96px 0 80px;
-  background:
-    radial-gradient(circle at 75% 30%, rgba(91, 59, 183, .18), transparent 28%),
-    radial-gradient(circle at 25% 5%, rgba(56, 189, 248, .07), transparent 28%),
-    var(--draft-bg);
+  overflow: hidden;
+  background: var(--draft-bg);
   border-bottom: 1px solid var(--draft-line-soft);
+}
+.public-home .home-hero.section-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 78% 28%, rgba(139, 92, 246, .22), transparent 32%),
+    radial-gradient(circle at 18% 8%, rgba(47, 232, 131, .09), transparent 30%);
+  animation: fig-hero-breathe 10s ease-in-out infinite;
+}
+@keyframes fig-hero-breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .78; transform: scale(1.05); }
+}
+.public-home .home-hero-grid { position: relative; z-index: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .public-home .home-hero.section-glow::before { animation: none; }
 }
 
 .public-home .home-hero-shape { display: none; }
@@ -357,6 +375,8 @@ html { color-scheme: dark; }
    principles panel already broken up above). Widths only, no row-span:
    three items can't span rows cleanly without a fourth to fill the gap. */
 .public-home .home-audience-grid { grid-template-columns: 1.4fr 1fr 1fr; }
+@media (max-width: 900px) { .public-home .home-audience-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 700px) { .public-home .home-audience-grid { grid-template-columns: 1fr; } }
 .public-home .home-audience-grid article > div { background: #15151a; }
 .public-home .home-audience-grid article img { filter: saturate(.72) brightness(.75); }
 .public-home .home-cta { background: linear-gradient(135deg, #1e1a2a, #111116 70%); }

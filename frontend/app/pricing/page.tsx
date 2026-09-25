@@ -14,7 +14,7 @@ export default function PricingPage() {
     <div className="page-shell"><PlanCatalogue /></div>
     <PricingComparison />
     <PricingProductDetail />
-    <section className="section page-shell fig-pricing-faq"><div className="section-heading"><span className="section-kicker">Before you choose</span><h2>Good questions.<br />Clear answers.</h2><p>A little clarity for your next step.</p></div><Faq items={[
+    <section className="section page-shell fig-pricing-faq"><div className="section-heading"><h2>Good questions.<br />Clear answers.</h2><p>A little clarity for your next step.</p></div><Faq items={[
       { question: "Which plan is right for me?", answer: "Standard and Premium are for business owners. Education is for students and individual learners. Contact us about Enterprise or School Registered for an organizational arrangement." },
       { question: "How do I subscribe?", answer: "Use the enquiry button on your chosen plan. We’ll confirm its inclusions and subscription details before you make a payment." },
       { question: "Can I try website analysis first?", answer: "Yes. You can run a free public website scan from the homepage without an account." },

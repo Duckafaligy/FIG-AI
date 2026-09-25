@@ -216,7 +216,6 @@ export default function HomePage() {
 
         <section className="section page-shell home-features" id="features">
           <div className="section-heading centered">
-            <span className="section-kicker">What FIG checks</span>
             <h2>21 checks across four layers</h2>
             <p>Every check is ordinary code with a stated rule, so you can see exactly what triggers it. AI only writes the plain-language explanation.</p>
           </div>
@@ -245,7 +244,6 @@ export default function HomePage() {
         <section className="section home-workflow" id="workflow">
           <div className="page-shell">
             <div className="section-heading centered">
-              <span className="section-kicker">How FIG works</span>
               <h2>From a URL to a fixed page in six steps</h2>
               <p>No account is needed to start. Sign up when you want history and connections.</p>
             </div>
@@ -265,7 +263,6 @@ export default function HomePage() {
         <section className="section home-platform-tour">
           <div className="page-shell home-platform-tour-grid">
             <div className="home-platform-tour-copy">
-              <span className="section-kicker">The workspace</span>
               <h2>One place for every site you check</h2>
               <p>See what needs attention and where to focus next. Sites, findings, history and a content queue live together. The screens here use sample data.</p>
               <Link href="/projects">Open your projects <MoveRight size={15} /></Link>
@@ -302,7 +299,6 @@ export default function HomePage() {
 
         <section className="section page-shell home-audience" id="teams">
           <div className="home-audience-copy">
-            <span className="section-kicker">Who it is for</span>
             <h2>Made for people who build websites</h2>
             <p>Whether you are learning, freelancing or running a client list, FIG keeps the next fix clear.</p>
           </div>
@@ -318,7 +314,6 @@ export default function HomePage() {
 
         <section className="section page-shell home-principles">
           <div className="home-principles-heading">
-            <span className="section-kicker">How FIG behaves</span>
             <h2>A self-check tool, never a verdict</h2>
             <p>Three commitments we keep.</p>
           </div>
@@ -334,14 +329,14 @@ export default function HomePage() {
 
         <section className="section page-shell home-pricing-preview">
           <div className="home-pricing-heading">
-            <div><span className="section-kicker">Business & education</span><h2>Find your next step with FIG</h2><p>For business owners improving their websites, and learners discovering how to build better ones.</p></div>
+            <div><h2>Find your next step with FIG</h2><p>For business owners improving their websites, and learners discovering how to build better ones.</p></div>
             <Link href="/pricing">View full pricing <MoveRight size={15} /></Link>
           </div>
           <AudienceSpotlight />
         </section>
 
         <section className="section page-shell home-faq" id="faq">
-          <div className="home-faq-heading"><span className="section-kicker">Frequently asked questions</span><h2>Everything you need to know</h2><p>Straight answers about what FIG does, and what it doesn&rsquo;t.</p></div>
+          <div className="home-faq-heading"><h2>Everything you need to know</h2><p>Straight answers about what FIG does, and what it doesn&rsquo;t.</p></div>
           <Faq items={frequentlyAsked} />
         </section>
 

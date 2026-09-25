@@ -35,7 +35,7 @@ export function PricingPhotography() {
 
 export function PricingComparison() {
   return <section className={`page-shell ${styles.comparison}`} aria-labelledby="comparison-title">
-    <div className={`${styles.heading} ${styles.comparisonHeading}`}><span>THE BIG PICTURE</span><h2 id="comparison-title">Find your fit.<br />Know your investment.</h2><p>Building a business or exploring your next idea? Compare the costs, find your starting point, and see how FIG fits the way you work.</p></div>
+    <div className={`${styles.heading} ${styles.comparisonHeading}`}><h2 id="comparison-title">Find your fit.<br />Know your investment.</h2><p>Building a business or exploring your next idea? Compare the costs, find your starting point, and see how FIG fits the way you work.</p></div>
     <div className={styles.overview}>
       <PricingBudgetChart />
       <aside className={styles.custom}><span className={styles.customIcon}><BriefcaseBusiness size={23} /><GraduationCap size={23} /></span><span className={styles.eyebrow}>ORGANIZATIONS & SCHOOLS</span><h3>Start with your needs.<br />Build the right scope.</h3><p>Enterprise and School Registered begin with a conversation, not an automatic checkout.</p><dl className={styles.enquiryList}><div><dt>Enterprise</dt><dd>Tell us about your websites, who will use FIG, and how you review and make changes.</dd></div><div><dt>School Registered</dt><dd>Share your learning goals, expected group size, and how students would choose to share their work.</dd></div><div><dt>What we’ll clarify</dt><dd>Plan inclusions, usage allowances, access requirements, and pricing before you commit.</dd></div></dl><a href={planContact("Enterprise or School Registered")}>Discuss your requirements<ArrowUpRight size={17} /></a></aside>
@@ -54,7 +54,7 @@ export function PricingComparison() {
         <tr><th scope="row">Next step</th>{PLANS.map(p => <td key={p.name}><a href={planContact(p.name)} aria-label={`Ask about ${p.name}`}>Ask about this plan <ArrowUpRight size={13} /></a></td>)}</tr>
       </tbody></table>
     </div><p className={styles.tableNote}>All amounts exclude applicable taxes. The use cases above describe fit, not a promised feature list — Standard and Premium include the same FIG checks; the difference is how much of your workflow you run through it.</p>
-    <div className={styles.capabilityHeading}><span className={styles.eyebrow}>UNDERSTAND THE PRODUCT</span><h3>What’s built—and what it means for you.</h3><p>Current capabilities across FIG. Availability within each commercial plan is confirmed before purchase.</p></div>
+    <div className={styles.capabilityHeading}><h3>What’s built—and what it means for you.</h3><p>Current capabilities across FIG. Availability within each commercial plan is confirmed before purchase.</p></div>
     <p className={`${styles.scrollHint} ${styles.capabilityScrollHint}`}>Scroll sideways for requirements and details <span aria-hidden="true">↔</span></p>
     <div className={styles.tableWrap} tabIndex={0} role="region" aria-label="Current FIG capabilities"><table className={`${styles.table} ${styles.capabilityTable}`}><caption>Current product capabilities</caption><thead><tr><th scope="col">Area</th><th scope="col">What you can work with</th><th scope="col">Requirements & boundaries</th></tr></thead><tbody>{capabilities.map(([name, feature, detail]) => <tr key={name}><th scope="row">{name}</th><td>{feature}</td><td>{detail}</td></tr>)}</tbody></table></div>
   </section>;
