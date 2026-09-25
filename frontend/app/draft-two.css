@@ -151,8 +151,15 @@ html { color-scheme: dark; }
 .laptop { filter: none; }
 .laptop-lid { background: #222228; border-radius: 5px 5px 2px 2px; }
 .laptop-screen { border-color: #373740; background: #0d0d10; }
-.mini-app { background: #101014; }
-.mini-sidebar { background: #15151a; border-color: #292931; }
+/* .laptop prefix required on these two specifically: laptop-polish.css has
+   its own higher-specificity `.laptop .mini-app` / `.laptop .mini-sidebar`
+   rules (each with a light-theme gradient background) that a flat
+   `.mini-app`/`.mini-sidebar` selector loses to -- found live on production
+   as a bright white gradient washing out the hero laptop mockup, not caught
+   earlier because the verification script that session checked
+   background-color, never background-image. */
+.laptop .mini-app { background: #101014; }
+.laptop .mini-sidebar { background: #15151a; border-color: #292931; }
 .mini-brand,
 .mini-sidebar span,
 .mini-topbar strong,
@@ -183,6 +190,11 @@ html { color-scheme: dark; }
 .mini-tabs span.active { color: #c4b5fd; }
 .mini-health { color: var(--draft-muted); border-color: #1f4a34; background: #0f2118; }
 .mini-health strong { color: #6ee7b7; }
+.mini-opportunities span { background: #18181d; color: var(--draft-muted); }
+.mini-page-heading small { color: #a78bfa; }
+.mini-page-heading span { color: var(--draft-faint); }
+.mini-review-row small { color: var(--draft-faint); }
+.mini-review-row > strong { color: #6ee7b7; background: #10251e; }
 
 /* Alternating raised/flat bands for section rhythm -- on a near-black page,
    equal-padding sections with no background shift all read as one
