@@ -24,6 +24,8 @@ export function LegalToc({ sections, className }: { sections: { id: string; titl
       // otherwise it's the last section whose heading has passed under the nav.
       if (end && end.getBoundingClientRect().top <= window.innerHeight) { setActive(els[els.length - 1]?.id); return; }
       let current = els[0]?.id;
+      // At the top of the page the first section is current, however short the opening sections are.
+      if (window.scrollY < 40) { setActive(els[0]?.id); return; }
       const line = window.innerHeight * 0.35;
       for (const el of els) if (el.getBoundingClientRect().top <= line) current = el.id;
       setActive(current);

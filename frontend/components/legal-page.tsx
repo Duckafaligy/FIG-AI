@@ -11,7 +11,6 @@ const RELATED = [
   { href: "/privacy", label: "Privacy Policy" },
   { href: "/terms", label: "Terms of Service" },
   { href: "/refunds", label: "Refunds & cancellation" },
-  { href: "/bot", label: "About FIGBot" },
 ];
 
 export function LegalTable({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
