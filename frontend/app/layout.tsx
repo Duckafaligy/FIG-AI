@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Bricolage_Grotesque } from "next/font/google";
 import { JsonLd } from "@/components/json-ld";
 import { PageMotion } from "@/components/page-motion";
+import { CursorAura } from "@/components/cursor-aura";
 import { SITE_URL } from "@/lib/legal";
 import "./globals.css";
 import "./redesign.css";
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <JsonLd data={siteData} />
           <PageMotion />
+          <CursorAura />
           {children}
         </ThemeProvider>
       </body>
