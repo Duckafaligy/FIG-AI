@@ -112,7 +112,7 @@ class Account(Base):
     # keyed the same way, so a plan is never enforced without also having a
     # real price to have been bought.
     PLAN_LIMITS = {
-        "standard": {"label": "Standard", "price_cents": 4900, "max_projects": 2, "scans_per_period": 100},
+        "standard": {"label": "Standard", "price_cents": 4900, "max_projects": 3, "scans_per_period": 100},
         "premium": {"label": "Premium", "price_cents": 9900, "max_projects": 5, "scans_per_period": 250},
         "education": {"label": "Education", "price_cents": 1900, "max_projects": 1, "scans_per_period": 200},
     }

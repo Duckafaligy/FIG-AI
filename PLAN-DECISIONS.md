@@ -8,14 +8,23 @@ not just a plan.
 
 | Plan | Monthly price | Active projects | Scans per month |
 | --- | --- | --- | --- |
-| Standard | $49 | 2 | 100 |
+| Standard | $49 | 3 | 100 |
 | Premium | $99 | 5 | 250 |
 | Education | $19 | 1 | 200 |
-| Enterprise | Contact us | Custom, not defined | Custom, not defined |
-| School Registered | Contact us | Custom, not defined | Custom, not defined |
+| Enterprise | Contact us, from $299 | From 15 | From 1,000 |
+| School Registered | Contact us, from $99 | From 25 | From 1,000 |
 
 Monthly scan limits are interpreted from the preceding monthly-plan discussion.
 Currency remains USD in the current catalogue; confirm before checkout activation.
+
+**Updated 2026-09-26 (owner decision):** Standard raised from 2 to 3 active
+projects (enforced via `Account.PLAN_LIMITS`). Enterprise and School Registered
+now publish *starting points* on the pricing page: Enterprise from $299/month
+with 15 projects and 1,000 scans (about Premium's cost per scan), School
+Registered from $99/month with 25 projects and 1,000 scans (Education's rate,
+sized for a class). Both stay contact-only: no Stripe price, no checkout, final
+limits agreed per customer. The live Stripe product description for Standard,
+written by `scripts/stripe_plans_setup.py`, may still say "up to 2" projects.
 
 ## Feature inventory from implementation
 

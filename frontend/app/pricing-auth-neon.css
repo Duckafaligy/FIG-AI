@@ -216,7 +216,7 @@
 @keyframes pn-progress { from { transform:scaleX(0); } to { transform:scaleX(1); } }
 .neon-home .pn-rotate { display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 12px; border:1px solid #bfc5b8; border-radius:2px; background:none; color:#4a5045; font:inherit; font-size:12px; font-weight:700; cursor:pointer; }
 .neon-home .pn-rotate:hover { border-color:#11140f; color:#11140f; }
-.neon-home .pn-columns { --plot:260px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; padding:64px 32px 24px; border:1px solid #c4cabc; border-radius:2px; background:#f1f2ed; }
+.neon-home .pn-columns { --plot:260px; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:16px; padding:64px 32px 24px; border:1px solid #c4cabc; border-radius:2px; background:#f1f2ed; }
 .neon-home .pn-col { display:flex; flex-direction:column; gap:14px; }
 .neon-home .pn-col-plot { position:relative; height:var(--plot); border-bottom:1px solid #11140f; background:repeating-linear-gradient(to top, transparent 0, transparent 64px, #dde0d7 64px, #dde0d7 65px); }
 .neon-home .pn-col-bar { position:absolute; left:18%; right:18%; bottom:0; height:100%; background:#3f4639; transform-origin:bottom; transform:scaleY(var(--r)); transition:transform .6s cubic-bezier(.16,1,.3,1); }
@@ -230,4 +230,17 @@
   .neon-home .pn-columns { --plot:180px; gap:12px; padding:56px 16px 20px; }
   .neon-home .pn-col-plot strong { font-size:17px; }
   .neon-home .pn-metrics { max-width:none; }
+}
+.neon-home .pn-col-bar { left:12%; right:12%; }
+.neon-home .pn-col-bar--custom { border:1px solid #3f4639; border-bottom:0; background:repeating-linear-gradient(135deg, #dde0d7 0 6px, #c4cabc 6px 7px); }
+.neon-home .pn-col-plot strong { font-size:18px; white-space:nowrap; }
+.neon-home .pn-col > span { font-size:13px; }
+.neon-home .pn-columns-note { grid-column:1/-1; margin:4px 0 0; color:#576251; font-size:12px; }
+.neon-home .pn-price small { align-self:center; color:#576251; font-size:13px; font-weight:700; }
+.neon-home .pn-card--featured .pn-price small { color:#aeb6a7; }
+@media (max-width:560px) {
+  .neon-home .pn-columns { gap:6px; padding:48px 10px 16px; }
+  .neon-home .pn-col-plot strong { font-size:11px; }
+  .neon-home .pn-col > span { font-size:10px; }
+  .neon-home .pn-col small { font-size:9px; }
 }

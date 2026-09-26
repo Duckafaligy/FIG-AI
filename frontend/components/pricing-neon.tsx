@@ -4,7 +4,7 @@ import { Pause, Play } from "lucide-react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { actions } from "@/lib/api";
-import { PLANS, planContact } from "@/lib/plans";
+import { PLANS, monthly, planContact, type Plan } from "@/lib/plans";
 import { REFUND_WINDOW_DAYS, TRIAL_DAYS } from "@/lib/legal";
 
 type Audience = "Business" | "Education";
@@ -20,18 +20,23 @@ const INCLUDED = [
   "Approved title and heading fixes on connected WordPress sites",
 ];
 
-const money = (n: number, cents = false) => `$${cents ? n.toFixed(2) : Math.round(n)}`;
-const METRICS = [
-  { name: "Monthly price", note: "What you pay each month, in USD before tax.", value: (p: Plan) => p.price!, format: (n: number) => money(n) },
-  { name: "Scans per month", note: "Your monthly allowance, shared across all your projects.", value: (p: Plan) => p.scans!, format: String },
-  { name: "Active projects", note: "Websites you can track at the same time.", value: (p: Plan) => p.projects!, format: String },
-  { name: "Scans per project", note: "Monthly scans if you spread them evenly across every project.", value: (p: Plan) => p.scans! / p.projects!, format: (n: number) => String(Math.round(n)) },
-  { name: "Cost per scan", note: "Monthly price divided by included scans. Lower is better.", value: (p: Plan) => p.price! / p.scans!, format: (n: number) => money(n, true) },
-  { name: "Cost per project", note: "Monthly price divided by active projects. Lower is better.", value: (p: Plan) => p.price! / p.projects!, format: (n: number) => money(n, true) },
+type Kind = "money" | "count" | "rate";
+const WEEKS_PER_MONTH = 52 / 12;
+const METRICS: { name: string; note: string; kind: Kind; value: (p: Plan) => number }[] = [
+  { name: "Monthly price", note: "What you pay each month, in USD before tax.", kind: "money", value: p => monthly(p) },
+  { name: "Yearly cost", note: "Twelve months at the monthly price. There is no annual contract.", kind: "money", value: p => monthly(p) * 12 },
+  { name: "Scans per month", note: "Your monthly allowance, shared across all your projects.", kind: "count", value: p => p.scans },
+  { name: "Scans per week", note: "Your monthly scans spread across an average week.", kind: "count", value: p => p.scans / WEEKS_PER_MONTH },
+  { name: "Active projects", note: "Websites you can track at the same time.", kind: "count", value: p => p.projects },
+  { name: "Cost per scan", note: "Monthly price divided by included scans. Lower is better.", kind: "rate", value: p => monthly(p) / p.scans },
 ];
+function show(kind: Kind, n: number, custom: boolean) {
+  if (kind === "rate") return `$${n.toFixed(2)}`;
+  if (kind === "money") return `${custom ? "from " : ""}$${Math.round(n).toLocaleString("en-US")}`;
+  return `${Math.round(n).toLocaleString("en-US")}${custom ? "+" : ""}`;
+}
 const ROTATE_MS = 4000;
 const RESUME_MS = 5000;
-type Plan = (typeof PLANS)[number];
 
 function Switch<T extends string | number>({ label, options, value, onChange, format, tone }: {
   label: string; options: readonly T[]; value: T; onChange: (v: T) => void; format?: (v: T) => string; tone: "dark" | "light";
@@ -65,7 +70,7 @@ export function PricingNeon() {
   }
 
   const plans = PLANS.filter(p => p.audience === audience);
-  const selfServe = PLANS.filter(p => p.price !== null).sort((a, b) => a.price! - b.price!);
+  const chartPlans = [...PLANS].sort((a, b) => Number(a.price === null) - Number(b.price === null) || monthly(a) - monthly(b));
 
   return (
     <>
@@ -93,15 +98,15 @@ export function PricingNeon() {
               <article key={plan.name} className={`pn-card${featured ? " pn-card--featured" : ""}`}>
                 <div className="pn-card-top">
                   <h2>{plan.name}</h2>
-                  {featured && <span>Most scans</span>}
+                  {featured && <span>Recommended</span>}
                 </div>
                 <p className="pn-price">
-                  {plan.price === null ? <strong>Custom</strong> : <><strong>${plan.price}</strong><span>USD / month</span></>}
+                  {plan.price === null ? <><small>From</small><strong>${plan.from}</strong><span>USD / month</span></> : <><strong>${plan.price}</strong><span>USD / month</span></>}
                 </p>
                 <p className="pn-desc">{plan.description}</p>
                 <dl className="pn-limits">
-                  <div><dt>{plan.projects ?? "Scoped"}</dt><dd>{plan.projects === 1 ? "active project" : "active projects"}</dd></div>
-                  <div><dt>{plan.scans ?? "Scoped"}</dt><dd>scans per month</dd></div>
+                  <div><dt>{plan.projects}{plan.price === null && "+"}</dt><dd>{plan.projects === 1 ? "active project" : "active projects"}</dd></div>
+                  <div><dt>{plan.scans.toLocaleString("en-US")}{plan.price === null && "+"}</dt><dd>scans per month</dd></div>
                 </dl>
                 {plan.price !== null ? <>
                   <button type="button" className={featured ? "button" : "secondary-button"} disabled={st === "loading"} onClick={() => subscribe(plan.name)}>
@@ -114,7 +119,7 @@ export function PricingNeon() {
                   </p>
                 </> : <>
                   <a className="secondary-button" href={planContact(plan.name)}>Contact us</a>
-                  <p className="pn-note">Limits and terms agreed with you.</p>
+                  <p className="pn-note">Starting point. Final limits agreed with you.</p>
                 </>}
               </article>
             );
@@ -133,7 +138,7 @@ export function PricingNeon() {
         </div>
       </section>
 
-      <PlanChart plans={selfServe} />
+      <PlanChart plans={chartPlans} />
     </>
   );
 }
@@ -185,17 +190,19 @@ function PlanChart({ plans }: { plans: Plan[] }) {
         </div>
         <div className="pn-columns">
           {plans.map(plan => {
+            const custom = plan.price === null;
             const r = m.value(plan) / ceiling;
             return (
               <div className="pn-col" key={plan.name} style={{ "--r": r } as React.CSSProperties}>
                 <div className="pn-col-plot">
-                  <strong>{m.format(m.value(plan))}</strong>
-                  <div className={`pn-col-bar pn-col-bar--${plan.name.toLowerCase()}`} aria-hidden="true" />
+                  <strong>{show(m.kind, m.value(plan), custom)}</strong>
+                  <div className={`pn-col-bar pn-col-bar--${custom ? "custom" : plan.name.toLowerCase()}`} aria-hidden="true" />
                 </div>
-                <span>{plan.name}<small>${plan.price} / month</small></span>
+                <span>{plan.name}<small>{custom ? "from " : ""}${monthly(plan)} / month</small></span>
               </div>
             );
           })}
+          <p className="pn-columns-note">Enterprise and School Registered show starting points. Final limits are agreed with you.</p>
         </div>
       </div>
     </section>

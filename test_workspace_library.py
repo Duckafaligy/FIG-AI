@@ -530,9 +530,10 @@ class PlanQuotaEnforcementTests(unittest.TestCase):
                        trial_ends_at=datetime.now(timezone.utc) - timedelta(days=30)),
             ])
             db.flush()
-            # "at_cap" already has Standard's max of 2 active projects.
+            # "at_cap" already has Standard's max of 3 active projects.
             db.add(Site(id="at_cap-1", account_id="at_cap", hostname="one.example"))
             db.add(Site(id="at_cap-2", account_id="at_cap", hostname="two.example"))
+            db.add(Site(id="at_cap-3", account_id="at_cap", hostname="three.example"))
             db.add(Site(id="out-1", account_id="out_of_scans", hostname="out.example"))
             for n in range(5):
                 db.add(Site(id=f"almost-{n}", account_id="almost_out", hostname=f"almost{n}.example"))
@@ -565,9 +566,9 @@ class PlanQuotaEnforcementTests(unittest.TestCase):
         return {"x-test-account": account}
 
     def test_a_plan_at_its_project_cap_cannot_add_another(self):
-        r = self.client.post("/api/projects", headers=self.headers("at_cap"), json={"hostname": "three.example"})
+        r = self.client.post("/api/projects", headers=self.headers("at_cap"), json={"hostname": "four.example"})
         self.assertEqual(r.status_code, 402)
-        self.assertIn("2 active project", r.json()["detail"])
+        self.assertIn("3 active project", r.json()["detail"])
 
     def test_a_plan_under_its_project_cap_can_add_one(self):
         r = self.client.post("/api/projects", headers=self.headers("room"), json={"hostname": "one.example"})
