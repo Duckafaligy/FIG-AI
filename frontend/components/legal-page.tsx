@@ -35,7 +35,7 @@ export function Callout({ children }: { children: ReactNode }) {
  */
 export function LegalPage({ title, intro, sections, path }: { title: string; intro: ReactNode; sections: LegalSection[]; path: string }) {
   return (
-    <div className="public-page">
+    <div className="public-page neon-home">
       <PublicNav />
       <main className={`page-shell ${styles.main}`}>
         <header className={styles.head}>

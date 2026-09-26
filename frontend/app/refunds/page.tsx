@@ -4,7 +4,7 @@ import { Callout, LegalPage, type LegalSection } from "@/components/legal-page";
 import { OPERATOR, REFUND_WINDOW_DAYS, TRIAL_DAYS } from "@/lib/legal";
 
 export const metadata: Metadata = {
-  title: "Refunds & Cancellation — FIG",
+  title: "Refunds & Cancellation - FIG",
   description: "How to cancel FIG, when you can get a refund, and how billing changes are handled.",
   alternates: { canonical: "/refunds" },
 };

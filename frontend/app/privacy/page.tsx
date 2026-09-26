@@ -4,7 +4,7 @@ import { Callout, LegalPage, LegalTable, type LegalSection } from "@/components/
 import { OPERATOR, SERVICE_PROVIDERS } from "@/lib/legal";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — FIG",
+  title: "Privacy Policy - FIG",
   description: "What FIG collects, why, who it is shared with, how long it is kept, and the rights you have over it.",
   alternates: { canonical: "/privacy" },
 };

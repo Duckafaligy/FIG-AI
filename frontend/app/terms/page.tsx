@@ -4,7 +4,7 @@ import { Callout, LegalPage, type LegalSection } from "@/components/legal-page";
 import { OPERATOR, TRIAL_DAYS } from "@/lib/legal";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — FIG",
+  title: "Terms of Service - FIG",
   description: "The rules for using FIG: what it does, what you agree to, how billing works, and what each side is responsible for.",
   alternates: { canonical: "/terms" },
 };

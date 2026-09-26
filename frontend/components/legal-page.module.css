@@ -1,54 +1,61 @@
-.main { padding: 56px 0 88px; }
+/* Legal pages on the neon dark theme (the wrapper carries .neon-home for the
+   nav, footer and shared grid background). */
+.main { padding: 72px 0 96px; }
 
-.head { max-width: 760px; margin: 0 auto 32px; }
-.kicker { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--violet, #5b45f2); }
-.head h1 { margin: 10px 0 8px; font-size: clamp(32px, 4vw, 44px); line-height: 1.06; letter-spacing: -0.03em; color: var(--ink); }
-.updated { margin: 0; font-size: 13.5px; color: var(--muted-2); }
+.head { max-width: 1000px; margin: 0 auto 36px; }
+.kicker { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--neon-green); }
+.head h1 { margin: 12px 0 10px; font-family: var(--font-bricolage), sans-serif; font-size: clamp(36px, 4.6vw, 60px); font-weight: 700; line-height: 1; letter-spacing: -0.01em; color: #f3f5ef; }
+.updated { margin: 0; font-size: 13.5px; color: #8f968a; }
 
-.draft { max-width: 760px; margin: 0 auto 28px; padding: 12px 16px; border: 1px solid #f0c977; border-radius: 10px; background: #fff8e6; color: #7a5300; font-size: 13.5px; line-height: 1.55; }
+.draft { max-width: 1000px; margin: 0 auto 32px; padding: 12px 16px; border: 1px solid #5c4a1c; border-radius: 2px; background: #17140b; color: #e8c877; font-size: 13.5px; line-height: 1.55; }
+.draft strong { color: #f5d98c; }
 
-.layout { display: grid; grid-template-columns: 220px minmax(0, 720px); gap: 56px; justify-content: center; align-items: start; }
+.layout { display: grid; grid-template-columns: 220px minmax(0, 720px); gap: 64px; justify-content: center; align-items: start; }
 
 .toc { position: sticky; top: 92px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
-.toc strong { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-2); }
-.toc ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
-.toc a { display: block; padding: 5px 10px; margin-left: -10px; border-radius: 7px; color: var(--muted); line-height: 1.35; }
-.toc a:hover { background: #f1f2fb; color: var(--ink); }
-.related { display: flex; flex-direction: column; gap: 2px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
-.related a { color: var(--muted); padding: 4px 0; }
-.related a:hover { color: var(--ink); }
+.toc strong { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #8f968a; }
+.toc ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; border-left: 1px solid #2a2f24; }
+.toc a { display: block; padding: 5px 12px; color: #aeb6a7; line-height: 1.35; }
+.toc a:hover { color: #f3f5ef; }
+.related { display: flex; flex-direction: column; gap: 2px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #2a2f24; }
+.related a { color: #aeb6a7; padding: 4px 0; }
+.related a:hover { color: var(--neon-green); }
 
-.body { counter-reset: legal; min-width: 0; color: #38416a; font-size: 15px; line-height: 1.7; }
-.intro { margin-bottom: 8px; font-size: 16px; color: var(--ink); }
+.body { counter-reset: legal; min-width: 0; color: #c3c9bd; font-size: 15.5px; line-height: 1.75; }
+.intro { margin-bottom: 8px; font-size: 17px; color: #f3f5ef; }
 .intro p:first-child { margin-top: 0; }
-.body section { counter-increment: legal; padding-top: 34px; scroll-margin-top: 88px; }
-.body h2 { margin: 0 0 12px; font-size: 21px; line-height: 1.25; letter-spacing: -0.02em; color: var(--ink); }
+.body section { counter-increment: legal; padding-top: 40px; margin-top: 40px; border-top: 1px solid #1d2119; scroll-margin-top: 88px; }
+.body section:first-of-type { margin-top: 24px; }
+.body h2 { margin: 0 0 14px; font-family: var(--font-bricolage), sans-serif; font-size: 24px; font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; color: #f3f5ef; }
 /* Numbers come from a CSS counter, not text in the heading: they are presentation, and a scanner (rightly) reads a bare "1." as a numbered-label tell. */
-.body h2::before { content: counter(legal) "."; margin-right: 6px; color: var(--muted-2); font-weight: 600; }
-.body h3 { margin: 22px 0 6px; font-size: 15.5px; color: var(--ink); }
+.body h2::before { content: counter(legal) "."; margin-right: 8px; color: var(--neon-green); font-weight: 700; }
+.body h3 { margin: 24px 0 8px; font-size: 16px; color: #f3f5ef; }
 .body p { margin: 0 0 14px; }
 .body ul, .body ol { margin: 0 0 14px; padding-left: 22px; }
 .body li { margin: 0 0 6px; }
-.body a { color: var(--violet, #5b45f2); text-decoration: underline; text-underline-offset: 2px; }
-.body strong { color: var(--ink); }
-.body code { padding: 1px 6px; border-radius: 5px; background: #f1f2fb; font-size: 0.9em; }
+.body li::marker { color: #6f7869; }
+.body a { color: var(--neon-green); text-decoration: underline; text-underline-offset: 3px; }
+.body strong { color: #f3f5ef; }
+.body code { padding: 1px 6px; border: 1px solid #2a2f24; border-radius: 2px; background: #161914; color: #f3f5ef; font-size: 0.9em; }
 
-.body .tableWrap { margin: 0 0 18px; overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
-.body table { width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.5; }
-.body th, .body td { padding: 10px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
-.body th { background: #f8f9fe; color: var(--ink); font-size: 12px; letter-spacing: 0.03em; text-transform: uppercase; white-space: nowrap; }
+.body .tableWrap { margin: 0 0 18px; overflow-x: auto; border: 1px solid #2a2f24; border-radius: 2px; background: #111310; }
+.body table { width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.55; }
+.body th, .body td { padding: 11px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid #1d2119; }
+.body th { background: #161914; color: #f3f5ef; font-size: 11.5px; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .body tr:last-child td { border-bottom: 0; }
 
-.body .callout { margin: 0 0 16px; padding: 14px 16px; border-left: 3px solid var(--violet, #5b45f2); border-radius: 0 10px 10px 0; background: #f6f5ff; color: var(--ink); }
+/* Full border instead of a coloured left stripe (a recognisable generic-UI tell). */
+.body .callout { margin: 0 0 16px; padding: 16px 18px; border: 1px solid #2c4a33; border-radius: 2px; background: #0f1a12; color: #e3e7de; }
 .body .callout p:last-child { margin-bottom: 0; }
 
 @media (max-width: 900px) {
-  .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
-  .toc { position: static; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: #fafbff; }
-  .toc ol { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .toc { position: static; padding: 16px; border: 1px solid #2a2f24; border-radius: 2px; background: #111310; }
+  .toc ol { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; border-left: 0; }
+  .toc a { padding-left: 0; }
   .related { flex-direction: row; flex-wrap: wrap; gap: 6px 16px; }
 }
 @media (max-width: 560px) {
-  .main { padding: 36px 0 64px; }
+  .main { padding: 40px 0 64px; }
   .toc ol { grid-template-columns: 1fr; }
 }

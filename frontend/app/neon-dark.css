@@ -134,3 +134,5 @@
 .neon-home .af-left strong { color:var(--d-text); }
 .neon-home .af-skip { align-self:center; border:0; background:none; color:var(--d-muted); font:inherit; font-size:13px; text-decoration:underline; cursor:pointer; }
 .neon-home .af-skip:hover { color:var(--d-text); }
+.neon-home .recovery-card { width:min(440px,100%); }
+.neon-home .recovery-card .auth-heading h2 { font-weight:700; }

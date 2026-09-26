@@ -3,7 +3,7 @@ import { ForgotPasswordForm } from "@/components/recovery-form";
 import { RecoveryShell } from "@/components/recovery-shell";
 
 export const metadata: Metadata = {
-  title: "Forgot your password? — FIG",
+  title: "Forgot your password? - FIG",
   robots: { index: false },
 };
 
