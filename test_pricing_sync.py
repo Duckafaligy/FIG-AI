@@ -75,7 +75,9 @@ class PricingSyncTests(unittest.TestCase):
         real_count = sum(1 for name, obj in vars(checks).items()
                          if name.startswith("check_") and inspect.isfunction(obj)
                          and obj.__module__ == checks.__name__)
-        for path in ("signin/page.tsx", "signup/page.tsx", "page.tsx"):
+        # Only pages that still state the total; the simplified auth pages
+        # (2026-09-26) deliberately dropped it.
+        for path in ("page.tsx",):
             text = (FRONTEND_APP / path).read_text(encoding="utf-8")
             stripped = re.sub(r"<[^>]+>", " ", text)   # JSX tags can split "checks" from "across ..."
             found = re.findall(

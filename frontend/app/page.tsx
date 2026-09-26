@@ -15,7 +15,8 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
-import { Faq } from "@/components/faq";
+import { NeonCta } from "@/components/neon-cta";
+import { NeonFaq } from "@/components/neon-faq";
 import { Footer } from "@/components/footer";
 import { FreeScanForm } from "@/components/free-scan-form";
 import { JsonLd, faqJsonLd } from "@/components/json-ld";
@@ -204,10 +205,8 @@ export default function HomePage() {
             <div className="neon-editorial-copy"><span>FROM SCAN TO SHIP</span><h2>Make the work feel obvious.</h2><p>Start with a public URL. FIG organizes the signal, ranks the opportunity, and keeps the next decision visible.</p><ol><li><b>01</b><span>Scan your site</span><Check size={17} /></li><li><b>02</b><span>Choose the next move</span><Check size={17} /></li><li><b>03</b><span>Publish with context</span><Check size={17} /></li></ol></div>
           </div>
         </section>
-
-        <section className="neon-cta-section"><div className="page-shell neon-cta-grid"><div><h2>What could your website do next?</h2></div><div className="neon-cta-actions"><Link className="button" href="/signin">Sign in <ArrowUpRight size={17} /></Link><Link className="secondary-button" href="/signup">Sign up <ArrowUpRight size={17} /></Link></div></div></section>
-
-        <section className="neon-faq-section page-shell" id="faq"><div><h2>Quick answers.</h2></div><Faq items={faqItems} /></section>
+        <NeonCta />
+        <NeonFaq title="Quick answers." items={faqItems} />
       </main>
       <Footer />
     </div>

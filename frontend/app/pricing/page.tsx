@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Footer } from "@/components/footer";
 import { PublicNav } from "@/components/public-nav";
-import { Faq } from "@/components/faq";
+import { NeonCta } from "@/components/neon-cta";
+import { NeonFaq } from "@/components/neon-faq";
 import { PricingNeon } from "@/components/pricing-neon";
 import { REFUND_WINDOW_DAYS, TRIAL_DAYS } from "@/lib/legal";
 
@@ -26,19 +26,8 @@ export default function PricingPage() {
       <PublicNav active="pricing" />
       <main>
         <PricingNeon />
-        <section className="neon-faq-section page-shell" id="faq">
-          <div><h2>Questions about plans.</h2></div>
-          <Faq items={faq} />
-        </section>
-        <section className="neon-cta-section">
-          <div className="page-shell neon-cta-grid">
-            <div><h2>Scan a site first. Decide after.</h2></div>
-            <div className="neon-cta-actions">
-              <Link className="button" href="/#scan">Run a free scan</Link>
-              <Link className="secondary-button" href="/signup">Start {TRIAL_DAYS}-day trial</Link>
-            </div>
-          </div>
-        </section>
+        <NeonFaq title="Questions about plans." items={faq} />
+        <NeonCta />
       </main>
       <Footer />
     </div>

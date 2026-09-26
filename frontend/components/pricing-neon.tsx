@@ -19,7 +19,13 @@ const INCLUDED = [
   "Approved title and heading fixes on connected WordPress sites",
 ];
 
-const PERIODS = [1, 3, 6, 12];
+const METRICS = {
+  "Scans per month": { note: "Your monthly allowance, shared across all your projects.", value: (p: Plan) => p.scans!, format: (n: number) => String(n) },
+  "Active projects": { note: "Websites you can track at the same time.", value: (p: Plan) => p.projects!, format: (n: number) => String(n) },
+  "Cost per scan": { note: "Monthly price divided by included scans. Lower is better.", value: (p: Plan) => p.price! / p.scans!, format: (n: number) => `$${n.toFixed(2)}` },
+} as const;
+type Metric = keyof typeof METRICS;
+type Plan = (typeof PLANS)[number];
 
 function Switch<T extends string | number>({ label, options, value, onChange, format, tone }: {
   label: string; options: readonly T[]; value: T; onChange: (v: T) => void; format?: (v: T) => string; tone: "dark" | "light";
@@ -37,7 +43,7 @@ function Switch<T extends string | number>({ label, options, value, onChange, fo
 
 export function PricingNeon() {
   const [audience, setAudience] = useState<Audience>("Business");
-  const [months, setMonths] = useState(1);
+  const [metric, setMetric] = useState<Metric>("Scans per month");
   const [status, setStatus] = useState<Record<string, Status>>({});
   const [message, setMessage] = useState<Record<string, string>>({});
 
@@ -55,7 +61,8 @@ export function PricingNeon() {
 
   const plans = PLANS.filter(p => p.audience === audience);
   const selfServe = PLANS.filter(p => p.price !== null).sort((a, b) => a.price! - b.price!);
-  const ceiling = Math.max(...selfServe.map(p => p.price!)) * months;
+  const m = METRICS[metric];
+  const ceiling = Math.max(...selfServe.map(m.value));
 
   return (
     <>
@@ -126,18 +133,18 @@ export function PricingNeon() {
       <section className="pn-cost">
         <div className="page-shell pn-cost-grid">
           <div className="pn-cost-copy">
-            <h2>What it adds up to.</h2>
-            <p>Monthly price times the months you pick. No annual discount, no contract.</p>
-            <Switch label="Period" tone="light" options={PERIODS} value={months} onChange={setMonths} format={n => n === 1 ? "1 month" : `${n} months`} />
+            <h2>What each plan gives you.</h2>
+            <p>{m.note}</p>
+            <Switch label="Compare by" tone="light" options={Object.keys(METRICS) as Metric[]} value={metric} onChange={setMetric} />
           </div>
           <div className="pn-bars" aria-live="polite">
             {selfServe.map(plan => (
               <div className="pn-bar-row" key={plan.name}>
                 <span>{plan.name}<small>${plan.price} / month</small></span>
                 <div className="pn-bar-track" aria-hidden="true">
-                  <div className={`pn-bar-fill pn-bar-fill--${plan.name.toLowerCase()}`} style={{ transform: `scaleX(${plan.price! * months / ceiling})` }} />
+                  <div className={`pn-bar-fill pn-bar-fill--${plan.name.toLowerCase()}`} style={{ transform: `scaleX(${m.value(plan) / ceiling})` }} />
                 </div>
-                <strong>${(plan.price! * months).toLocaleString("en-US")}</strong>
+                <strong>{m.format(m.value(plan))}</strong>
               </div>
             ))}
           </div>

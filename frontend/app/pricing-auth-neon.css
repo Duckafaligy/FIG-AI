@@ -76,7 +76,6 @@
 .neon-home .pn-bar-fill--premium { background:var(--neon-green); }
 .neon-home .pn-bar-fill--education { background:#7d8a6c; }
 .neon-home .pn-bar-row strong { color:#11140f; font-size:20px; font-weight:800; text-align:right; font-variant-numeric:tabular-nums; }
-.pricing-page.neon-home .neon-faq-section { border-top:1px solid #cbd0c3; }
 .pricing-page.neon-home .fig-launch-footer { margin-top:0; }
 @media (prefers-reduced-motion:reduce) { .neon-home .pn-bar-fill, .neon-home .pn-switch button { transition:none; } }
 
@@ -179,3 +178,42 @@
 .neon-home.neon-home .public-nav-wrap a[aria-current="page"]:not(.button),
 .neon-home.neon-home .public-nav-wrap a:not(.button):hover { color:var(--neon-green); }
 .neon-home .auth-stat span { color:#aeb6a7; }
+
+/* Simplified sign-in / sign-up: headline left, light form card right, slim footer. */
+.auth-simple.neon-home { display:flex; flex-direction:column; min-height:100dvh; background:var(--neon-ink); color:#f3f5ef; }
+.auth-simple-main { flex:1; display:grid; grid-template-columns:minmax(0,1fr) 440px; gap:64px; align-items:center; padding-block:96px; }
+.auth-simple-copy h1 { max-width:600px; margin:0 0 20px; color:#f3f5ef; font-family:var(--font-bricolage),sans-serif; font-size:clamp(44px,5.4vw,76px); font-weight:700; line-height:.95; letter-spacing:-.01em; }
+.auth-simple-copy p { max-width:440px; margin:0; color:#aeb6a7; font-size:17px; line-height:1.55; }
+.auth-simple-card { padding:40px; border:1px solid #c4cabc; border-radius:2px; background:#f1f2ed; color:#11140f; }
+.auth-simple-footer { display:flex; justify-content:space-between; align-items:center; gap:24px; min-height:64px; border-top:1px solid #2a2f24; color:#8f968a; font-size:12px; }
+.auth-simple-footer nav { display:flex; gap:24px; }
+.auth-simple-footer a, .auth-simple-footer nav span { color:#abb3a2; }
+.auth-simple-footer a:hover { color:var(--neon-green); }
+
+.af { display:flex; flex-direction:column; gap:20px; }
+.af-title { margin:0; color:#11140f; font-family:var(--font-bricolage),sans-serif; font-size:28px; font-weight:700; letter-spacing:0; }
+.af-field { display:flex; flex-direction:column; gap:8px; }
+.af-field > span, .af-label-row label { color:#11140f; font-size:12px; font-weight:700; }
+.af-label-row { display:flex; justify-content:space-between; align-items:baseline; }
+.af-label-row a { color:#576251; font-size:12px; font-weight:700; }
+.af-label-row a:hover { color:#11140f; text-decoration:underline; }
+.af-field input, .af-password { height:48px; border:1px solid #c4cabc; border-radius:2px; background:#fafbf7; }
+.af-field input { width:100%; padding:0 14px; color:#11140f; font:inherit; font-size:15px; }
+.af-field input::placeholder { color:#6b7266; }
+.af-field input:focus, .af-password:focus-within { outline:none; border-color:#11140f; box-shadow:0 0 0 3px rgba(20,200,107,.25); }
+.af-password { display:flex; align-items:center; }
+.af-password input { height:100%; border:0; background:none; box-shadow:none !important; }
+.af-password button { display:grid; place-items:center; width:44px; height:100%; border:0; background:none; color:#576251; cursor:pointer; }
+.af-password button:hover { color:#11140f; }
+.af-check { display:flex; gap:10px; align-items:flex-start; color:#576251; font-size:12px; line-height:1.5; }
+.af-check input { width:16px; height:16px; margin-top:1px; flex-shrink:0; accent-color:var(--neon-ink); }
+.af-check a { color:#11140f; font-weight:700; text-decoration:underline; }
+.neon-home .af-submit { display:flex; align-items:center; justify-content:center; width:100%; height:48px; font-size:14px; font-weight:800; cursor:pointer; }
+.af-message { margin:0; padding:12px 14px; border:1px solid #c4cabc; border-radius:2px; background:#fafbf7; color:#11140f; font-size:13px; }
+.af-switch { margin:0; color:#576251; font-size:13px; text-align:center; }
+.af-switch a { color:#11140f; font-weight:800; text-decoration:underline; text-underline-offset:3px; }
+@media (max-width:900px) {
+  .auth-simple-main { grid-template-columns:1fr; gap:36px; padding-block:48px; }
+  .auth-simple-card { padding:28px 22px; }
+  .auth-simple-footer { flex-direction:column; align-items:flex-start; padding-block:20px; }
+}

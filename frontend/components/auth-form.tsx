@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { siShopify } from "simple-icons/icons";
 import { actions, apiClient, DEMO_MODE, type ApiMe } from "@/lib/api";
-import { TRIAL_DAYS } from "@/lib/legal";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 
 function ProviderMark({ icon }: { icon: { path: string; hex: string; title: string } }) {
@@ -121,24 +120,22 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   };
 
   return (
-    <form className={`auth-form auth-form--${mode}`} onSubmit={submit}>
-      <div className="auth-heading">
-        <span className="eyebrow">{signup ? "Start your workspace" : "Welcome back"}</span>
-        <h2>{signup ? "Create your FIG account" : "Sign in to FIG"}</h2>
-        <p>{signup ? "Start your free trial and see how FIG can help your team get found everywhere." : "Sign in to continue building high-performing content."}</p>
+    <form className={`af af--${mode}`} onSubmit={submit}>
+      <h2 className="af-title">{signup ? "Create your account" : "Sign in"}</h2>
+
+      {signup && <label className="af-field" htmlFor="full-name"><span>Full name</span><input id="full-name" name="full-name" required autoComplete="name" placeholder="Your name" /></label>}
+      {signup && <label className="af-field" htmlFor="company"><span>Company name</span><input id="company" name="company" required autoComplete="organization" placeholder="LaunchVault" /></label>}
+      <label className="af-field" htmlFor="email"><span>Email</span><input id="email" name="email" value={email} onChange={(event) => setEmail(event.target.value)} required type="email" autoComplete="email" placeholder="you@company.com" /></label>
+      <div className="af-field">
+        <div className="af-label-row"><label htmlFor="password">Password</label>{!signup && <Link href="/forgot-password">Forgot password?</Link>}</div>
+        <div className="af-password">
+          <input id="password" name="password" required minLength={signup ? 8 : undefined} type={showPassword ? "text" : "password"} autoComplete={signup ? "new-password" : "current-password"} placeholder={signup ? "At least 8 characters" : "Your password"} />
+          <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button>
+        </div>
       </div>
 
-      <div className="auth-fields">
-        {signup && <label className="auth-field" htmlFor="full-name"><span>Full name</span><input id="full-name" name="full-name" required autoComplete="name" placeholder="LaunchVault team" /></label>}
-        <label className="auth-field" htmlFor="email"><span>{signup ? "Work email" : "Email"}</span><div className="input-with-icon"><Mail size={18} aria-hidden="true" /><input id="email" name="email" value={email} onChange={(event) => setEmail(event.target.value)} required type="email" autoComplete="email" placeholder="you@company.com" /></div></label>
-        {signup && <label className="auth-field" htmlFor="company"><span>Company name</span><input id="company" name="company" required autoComplete="organization" placeholder="LaunchVault" /></label>}
-        {signup && <p className="auth-note">You’ll add your first website after creating your account. New workspaces start with no projects.</p>}
-        <label className="auth-field" htmlFor="password"><span>Password</span><div className="input-with-icon input-with-icon--password"><LockKeyhole size={18} aria-hidden="true" /><input id="password" name="password" required minLength={signup ? 8 : undefined} type={showPassword ? "text" : "password"} autoComplete={signup ? "new-password" : "current-password"} placeholder={signup ? "Create a password" : "Enter your password"} /><button className="password-toggle" type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label>
-      </div>
-
-      {!signup && <div className="form-row"><Link className="text-button" href="/forgot-password">Forgot password?</Link></div>}
-      <button className="button auth-submit" type="submit" disabled={busy} aria-busy={busy}>{busy ? "Please wait…" : signup ? "Start free trial" : "Sign in"}{!busy && <ArrowRight size={18} />}</button>
-      {signup && <div className="trial-reassurance" aria-label="Trial terms"><span><Check size={14} />{TRIAL_DAYS}-day free trial</span><span><Check size={14} />No credit card required</span><span><Check size={14} />Cancel anytime</span></div>}
+      {signup && <div className="af-check"><input id="terms" required type="checkbox" aria-label="Agree to the terms and privacy policy, and confirm you are at least 13" /><div><label htmlFor="terms">I&rsquo;m at least 13 and I agree to the </label><Link href="/terms" target="_blank">Terms &amp; Conditions</Link> and <Link href="/privacy" target="_blank">Privacy Policy</Link>.</div></div>}
+      <button className="button af-submit" type="submit" disabled={busy} aria-busy={busy}>{busy ? "Please wait…" : signup ? "Start free trial" : "Sign in"}</button>
 
       {SOCIAL_LOGIN_AVAILABLE && (
         <>
@@ -149,10 +146,9 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
           </div>
         </>
       )}
-      {signup && <div className="check check--terms"><input id="terms" required type="checkbox" aria-label="Agree to the terms and privacy policy, and confirm you are at least 13" /><div><label htmlFor="terms">I&rsquo;m at least 13 and I agree to the </label><Link href="/terms" target="_blank">Terms of Service</Link> and <Link href="/privacy" target="_blank">Privacy Policy</Link>.</div></div>}
-      {message && <p className="form-message" role="status">{message}</p>}
+      {message && <p className="af-message" role="status">{message}</p>}
       {canRetrySession && <button className="secondary-button" type="button" disabled={busy} onClick={retrySession}>Retry workspace connection</button>}
-      <p className="auth-switch">{signup ? "Already have an account?" : "Don’t have an account?"} <Link href={signup ? "/signin" : "/signup"}>{signup ? "Sign in" : "Sign up for free"}</Link></p>
+      <p className="af-switch">{signup ? "Already have an account?" : "No account yet?"} <Link href={signup ? "/signin" : "/signup"}>{signup ? "Sign in" : "Sign up"}</Link></p>
     </form>
   );
 }
