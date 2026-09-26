@@ -4,7 +4,7 @@ import { OPERATOR } from "@/lib/legal";
 import { Brand } from "./brand";
 const columns = [
   { title: "Product", links: [["Free scan", "/#scan"], ["Pricing", "/pricing"], ["Workspace", "/projects"], ["Integrations", "/#integrations"]] },
-  { title: "Resources", links: [["Scan library", "/library"], ["Questions", "/#faq"]] },
+  { title: "Resources", links: [["Sample report", "/report/sample"], ["Questions", "/#faq"]] },
   { title: "Legal", links: [["Privacy policy", "/privacy"], ["Terms & Conditions", "/terms"], ["Refunds", "/refunds"]] },
 ];
 export function Footer() {

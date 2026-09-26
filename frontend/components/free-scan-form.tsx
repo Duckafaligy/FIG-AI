@@ -74,7 +74,7 @@ export function FreeScanForm() {
         Keep this scan anonymous
       </label>
       <p className="home-scan-note">
-        Free scans appear in the <Link href="/library">public library</Link> with the site&rsquo;s domain unless you tick this. See our <Link href="/privacy">privacy policy</Link>.
+        Free scans are listed publicly with the site&rsquo;s domain unless you tick this. See our <Link href="/privacy">privacy policy</Link>.
       </p>
       {error && <p className="form-message" role="alert">{error}</p>}
     </form>

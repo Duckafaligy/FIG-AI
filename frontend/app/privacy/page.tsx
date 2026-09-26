@@ -89,7 +89,7 @@ const sections: LegalSection[] = [
       <>
         <p>You can run a free scan without an account. FIG reads the site&rsquo;s own <em>public</em> pages, and the result is saved. So that nobody pays for the same scan twice, a recent result for the same domain is reused.</p>
         <Callout>
-          <p><strong>Free scans are public by default.</strong> The site&rsquo;s domain, its score and its headline finding appear in the public library at <Link href="/library">/library</Link>. Tick the option to keep a scan anonymous and the library shows &ldquo;an anonymous site&rdquo; instead.</p>
+          <p><strong>Free scans are public by default.</strong> The site&rsquo;s domain, its score and its headline finding appear in FIG&rsquo;s public list of recent scans. Tick the option to keep a scan anonymous and the library shows &ldquo;an anonymous site&rdquo; instead.</p>
         </Callout>
         <p>Only a site&rsquo;s already-public homepage and pages are read. Scans of a project in a signed-in workspace are private unless you switch on the shareable report for that project. If you are the owner of a site and want its library entry removed, email us and we will remove it. See also <Link href="/bot">About FIGBot</Link>.</p>
       </>

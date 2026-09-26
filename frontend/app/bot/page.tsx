@@ -65,7 +65,7 @@ const sections: LegalSection[] = [
     title: "If your site is in the public library",
     body: (
       <>
-        <p>Anyone can run a free scan of a public site, and free scans appear in the <Link href="/library">public library</Link> by default. If you own a site and you would like its entry removed, or would like FIG to stop scanning it, email <strong>{OPERATOR.email}</strong> from an address at your domain, or tell us which domain and how we can confirm it is yours. We will remove it. Blocking FIGBot in <code>robots.txt</code> also stops any new scan of it.</p>
+        <p>Anyone can run a free scan of a public site, and free scans appear in FIG&rsquo;s public list of recent scans by default. If you own a site and you would like its entry removed, or would like FIG to stop scanning it, email <strong>{OPERATOR.email}</strong> from an address at your domain, or tell us which domain and how we can confirm it is yours. We will remove it. Blocking FIGBot in <code>robots.txt</code> also stops any new scan of it.</p>
         <p>FIG&rsquo;s findings are informed guesses about design patterns, never a statement that anyone or anything wrote your site. See the <Link href="/terms">Terms of Service</Link> and <Link href="/privacy">Privacy Policy</Link>.</p>
       </>
     ),

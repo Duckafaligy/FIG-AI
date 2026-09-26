@@ -31,7 +31,6 @@ export function PublicNav({ active }: { active?: "pricing" }) {
         </button>
         <div id={menuId} className={`public-nav-links ${active === "pricing" ? "public-nav-links--pricing" : ""} ${open ? "is-open" : ""}`}>
           <div className="public-nav-discover">
-          <Link href="/library" aria-current={pathname === "/library" ? "page" : undefined} onClick={closeMenu}>Library</Link>
           <Link href="/pricing" className={pathname === "/pricing" ? "is-active" : ""} aria-current={pathname === "/pricing" ? "page" : undefined} onClick={closeMenu}>Pricing</Link>
           </div><div className="public-nav-account">
           <Link href="/signin" aria-current={pathname === "/signin" ? "page" : undefined} onClick={closeMenu}>Sign in</Link>
