@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthForm } from "@/components/auth-form";
 import { AuthFooter } from "@/components/auth-footer";
+import { PhotoReel, AUTH_REEL } from "@/components/photo-reel";
 import { PublicNav } from "@/components/public-nav";
 import { TRIAL_DAYS } from "@/lib/legal";
 
@@ -18,6 +19,7 @@ export default function SignUpPage() {
         <div className="auth-simple-copy">
           <h1>Start with your website.</h1>
           <p>Create an account for a {TRIAL_DAYS}-day trial with no card. Or run a free scan with no account at all.</p>
+          <PhotoReel columns={AUTH_REEL} className="auth-reel" />
         </div>
         <div className="auth-simple-card"><AuthForm mode="signup" /></div>
       </main>

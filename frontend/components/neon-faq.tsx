@@ -1,6 +1,5 @@
 "use client";
 
-import { Minus, Plus } from "lucide-react";
 import { useId, useState } from "react";
 import { OPERATOR } from "@/lib/legal";
 import type { FaqItem } from "./faq";
@@ -23,11 +22,11 @@ export function NeonFaq({ title, items }: { title: string; items: FaqItem[] }) {
                 <h3>
                   <button type="button" aria-expanded={expanded} aria-controls={`${id}-${i}`} onClick={() => setOpen(expanded ? null : i)}>
                     <span>{item.question}</span>
-                    <i aria-hidden="true">{expanded ? <Minus size={16} /> : <Plus size={16} />}</i>
+                    <i aria-hidden="true"><b /><b /></i>
                   </button>
                 </h3>
-                <div className="nfaq-answer" id={`${id}-${i}`} role="region" hidden={!expanded}>
-                  <p>{item.answer}</p>
+                <div className="nfaq-answer" id={`${id}-${i}`} role="region" aria-hidden={!expanded} inert={!expanded}>
+                  <div><p>{item.answer}</p></div>
                 </div>
               </div>
             );

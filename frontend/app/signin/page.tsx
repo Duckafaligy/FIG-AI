@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthForm } from "@/components/auth-form";
 import { AuthFooter } from "@/components/auth-footer";
+import { PhotoReel, AUTH_REEL } from "@/components/photo-reel";
 import { PublicNav } from "@/components/public-nav";
 
 export const metadata: Metadata = {
@@ -17,6 +18,7 @@ export default function SignInPage() {
         <div className="auth-simple-copy">
           <h1>Welcome back.</h1>
           <p>Your sites, findings and scan history are where you left them.</p>
+          <PhotoReel columns={AUTH_REEL} className="auth-reel" />
         </div>
         <div className="auth-simple-card"><AuthForm mode="signin" /></div>
       </main>

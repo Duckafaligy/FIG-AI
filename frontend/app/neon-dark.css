@@ -112,3 +112,7 @@
 .neon-home .af-password button:hover { color:var(--d-text); }
 .neon-home .af-check input { accent-color:var(--neon-green); }
 .neon-home .af-message { border-color:#3a4133; background:var(--d-raised); color:var(--d-text); }
+
+/* Sign-in / sign-up: the photo reel under the headline (hidden on small screens so the form comes first). */
+.neon-home .auth-reel { height:300px; margin-top:40px; max-width:560px; }
+@media (max-width:900px) { .neon-home .auth-reel { display:none; } }
