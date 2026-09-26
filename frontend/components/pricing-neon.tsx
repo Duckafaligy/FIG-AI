@@ -35,7 +35,7 @@ function show(kind: Kind, n: number, custom: boolean) {
   if (kind === "money") return `${custom ? "from " : ""}$${Math.round(n).toLocaleString("en-US")}`;
   return `${Math.round(n).toLocaleString("en-US")}${custom ? "+" : ""}`;
 }
-const ROTATE_MS = 4000;
+const ROTATE_MS = 7000;
 const RESUME_MS = 5000;
 
 function Switch<T extends string | number>({ label, options, value, onChange, format, tone }: {

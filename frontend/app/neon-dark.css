@@ -116,3 +116,17 @@
 /* Sign-in / sign-up: the photo reel under the headline (hidden on small screens so the form comes first). */
 .neon-home .auth-reel { height:300px; margin-top:40px; max-width:560px; }
 @media (max-width:900px) { .neon-home .auth-reel { display:none; } }
+
+/* Google / GitHub sign-in */
+.neon-home .af-oauth { display:flex; flex-direction:column; gap:10px; }
+.neon-home .af-or { display:flex; align-items:center; gap:12px; color:var(--d-subtle); font-size:12px; }
+.neon-home .af-or::before, .neon-home .af-or::after { content:""; flex:1; height:1px; background:var(--d-line); }
+.neon-home .af-oauth-button { display:flex; align-items:center; justify-content:center; gap:10px; height:46px; border:1px solid #3a4133; border-radius:2px; background:var(--d-raised); color:var(--d-text); font:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+.neon-home .af-oauth-button:hover { border-color:var(--d-muted); }
+.neon-home .af-oauth-button:focus-visible { outline:2px solid var(--neon-green); outline-offset:2px; }
+.neon-home .af-oauth-button:disabled { opacity:.6; cursor:progress; }
+.neon-home .af-oauth-button .provider-mark { width:18px; height:18px; }
+.neon-home .af-oauth-terms { margin:2px 0 0; color:var(--d-subtle); font-size:11px; line-height:1.5; text-align:center; }
+.neon-home .af-oauth-terms a { color:var(--d-muted); text-decoration:underline; }
+.neon-home .auth-simple-main--center { grid-template-columns:minmax(0,440px); justify-content:center; }
+.neon-home .oauth-status { display:flex; flex-direction:column; gap:16px; }

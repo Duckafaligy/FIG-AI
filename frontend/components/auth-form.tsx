@@ -4,21 +4,21 @@ import Link from "next/link";
 import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { siShopify } from "simple-icons/icons";
+import { siGithub } from "simple-icons";
 import { actions, apiClient, DEMO_MODE, type ApiMe } from "@/lib/api";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 
-function ProviderMark({ icon }: { icon: { path: string; hex: string; title: string } }) {
-  return <svg className="provider-mark" aria-label={icon.title} role="img" viewBox="0 0 24 24"><path d={icon.path} fill={`#${icon.hex}`} /></svg>;
+function ProviderMark({ icon }: { icon: { path: string; title: string } }) {
+  return <svg className="provider-mark" aria-hidden="true" viewBox="0 0 24 24"><path d={icon.path} fill="currentColor" /></svg>;
 }
 
 /**
- * The Google and Shopify buttons only ever showed "will be available once it's
- * connected". A button that promises a sign-in it cannot perform is worse than
- * no button, so they stay hidden until the flows behind them exist (Supabase's
- * Google provider, and a Shopify OAuth app). Flip this when they do.
+ * Google/GitHub sign-in through Supabase. A button only appears once its
+ * provider is switched on in Supabase and listed here (Vercel env), so none
+ * can promise a sign-in that would fail. Example: NEXT_PUBLIC_OAUTH_PROVIDERS=google,github
  */
-const SOCIAL_LOGIN_AVAILABLE = false;
+const OAUTH_PROVIDERS = (process.env.NEXT_PUBLIC_OAUTH_PROVIDERS ?? "")
+  .split(",").map(s => s.trim()).filter((s): s is "google" | "github" => s === "google" || s === "github");
 
 export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   const [message, setMessage] = useState("");
@@ -115,8 +115,13 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
     }
   };
 
-  const showPendingMessage = (provider: string) => {
-    setMessage(`${provider} sign-in will be available once it's connected.`);
+  const continueWith = async (provider: "google" | "github") => {
+    if (DEMO_MODE) { setMessage("This is a demo deployment — sign-in is disabled here so it can never touch a real account."); return; }
+    if (!supabaseConfigured) { setMessage("Authentication isn't configured on this deployment (missing Supabase env vars)."); return; }
+    setBusy(true);
+    setMessage("");
+    const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: `${window.location.origin}/auth/callback` } });
+    if (error) { setMessage(`Couldn’t start ${provider === "google" ? "Google" : "GitHub"} sign-in. Please try again.`); setBusy(false); }
   };
 
   return (
@@ -137,14 +142,13 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
       {signup && <div className="af-check"><input id="terms" required type="checkbox" aria-label="Agree to the terms and privacy policy, and confirm you are at least 13" /><div><label htmlFor="terms">I&rsquo;m at least 13 and I agree to the </label><Link href="/terms" target="_blank">Terms &amp; Conditions</Link> and <Link href="/privacy" target="_blank">Privacy Policy</Link>.</div></div>}
       <button className="button af-submit" type="submit" disabled={busy} aria-busy={busy}>{busy ? "Please wait…" : signup ? "Start free trial" : "Sign in"}</button>
 
-      {SOCIAL_LOGIN_AVAILABLE && (
-        <>
-          <div className="auth-separator"><span>or continue with</span></div>
-          <div className="auth-social-buttons">
-            <button className="oauth-button" type="button" onClick={() => showPendingMessage("Google")}><Image className="provider-mark" src="/brands/google-g.png" width={23} height={23} alt="" unoptimized />Continue with Google</button>
-            <button className="oauth-button" type="button" onClick={() => showPendingMessage("Shopify")}><ProviderMark icon={siShopify} />Continue with Shopify</button>
-          </div>
-        </>
+      {OAUTH_PROVIDERS.length > 0 && (
+        <div className="af-oauth">
+          <div className="af-or"><span>or</span></div>
+          {OAUTH_PROVIDERS.includes("google") && <button className="af-oauth-button" type="button" disabled={busy} onClick={() => continueWith("google")}><Image src="/brands/google-g.png" width={18} height={18} alt="" unoptimized />Continue with Google</button>}
+          {OAUTH_PROVIDERS.includes("github") && <button className="af-oauth-button" type="button" disabled={busy} onClick={() => continueWith("github")}><ProviderMark icon={siGithub} />Continue with GitHub</button>}
+          <p className="af-oauth-terms">By continuing, you confirm you&rsquo;re at least 13 and agree to the <Link href="/terms" target="_blank">Terms &amp; Conditions</Link> and <Link href="/privacy" target="_blank">Privacy Policy</Link>.</p>
+        </div>
       )}
       {message && <p className="af-message" role="status">{message}</p>}
       {canRetrySession && <button className="secondary-button" type="button" disabled={busy} onClick={retrySession}>Retry workspace connection</button>}
