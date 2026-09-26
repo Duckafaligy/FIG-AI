@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { actions, apiClient, type ApiMe } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
-type Step = { kind: "working" } | { kind: "password"; email: string; token: string } | { kind: "error"; message: string };
+type Step = { kind: "working" } | { kind: "password"; email: string; token: string } | { kind: "error"; message: string } | { kind: "exists" };
 
 /** Finishes a Google/GitHub sign-in. Supabase returns the tokens in the URL
  *  fragment; they are read once and scrubbed from the address bar. A first-time
@@ -53,6 +53,15 @@ export function OAuthCallback() {
         setStep({ kind: "error", message: "Your sign-in expired. Please try again." });
         return;
       }
+      let intent = "signin";
+      try { intent = sessionStorage.getItem("fig_oauth_intent") ?? "signin"; sessionStorage.removeItem("fig_oauth_intent"); } catch { /* ignore */ }
+      // Both timestamps come from Supabase, so the visitor's clock can't skew this.
+      const isNewAccount = !!user.last_sign_in_at && Math.abs(Date.parse(user.last_sign_in_at) - Date.parse(user.created_at)) < 60_000;
+      if (intent === "signup" && !isNewAccount) {
+        await supabase.auth.signOut({ scope: "local" });
+        setStep({ kind: "exists" });
+        return;
+      }
       const hasPassword = user.identities?.some(i => i.provider === "email");
       if (!hasPassword && !user.user_metadata?.password_prompted) {
         setStep({ kind: "password", email: user.email ?? "", token });
@@ -89,6 +98,15 @@ export function OAuthCallback() {
         <button className="button af-submit" type="submit" disabled={busy}>{busy ? "Saving…" : "Save and continue"}</button>
         <button className="af-skip" type="button" disabled={busy} onClick={() => skip(step.token)}>Skip for now</button>
       </form>
+    );
+  }
+  if (step.kind === "exists") {
+    return (
+      <div className="auth-simple-card oauth-status">
+        <h1 className="af-title">You already have an account</h1>
+        <p className="af-switch af-left">That email is already registered with FIG. Sign in instead, with the same button or your password.</p>
+        <Link className="button af-submit" href="/signin">Go to sign in</Link>
+      </div>
     );
   }
   return (

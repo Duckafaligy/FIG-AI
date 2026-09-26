@@ -100,6 +100,11 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
           : error.message);
         return;
       }
+      // Supabase answers a signup for an already-registered email with a user that has no identities.
+      if (signup && data.user && data.user.identities?.length === 0) {
+        setMessage("An account with this email already exists. Sign in instead.");
+        return;
+      }
       if (!data.session) {
         // Signup with email confirmation required: Supabase creates the user
         // but withholds a session until the link in that email is clicked.
@@ -120,6 +125,8 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
     if (!supabaseConfigured) { setMessage("Authentication isn't configured on this deployment (missing Supabase env vars)."); return; }
     setBusy(true);
     setMessage("");
+    // Remembered in this tab (not the return URL, which must match Supabase's allow-list exactly).
+    try { sessionStorage.setItem("fig_oauth_intent", mode); } catch { /* private mode: treated as sign-in */ }
     const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: `${window.location.origin}/auth/callback` } });
     if (error) { setMessage(`Couldn’t start ${provider === "google" ? "Google" : "GitHub"} sign-in. Please try again.`); setBusy(false); }
   };
