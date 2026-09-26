@@ -136,3 +136,4 @@
 .neon-home .af-skip:hover { color:var(--d-text); }
 .neon-home .recovery-card { width:min(440px,100%); }
 .neon-home .recovery-card .auth-heading h2 { font-weight:700; }
+.public-page.neon-home { overflow:visible; overflow-x:clip; }

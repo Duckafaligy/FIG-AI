@@ -15,8 +15,9 @@
 .toc { position: sticky; top: 92px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
 .toc strong { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #8f968a; }
 .toc ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; border-left: 1px solid #2a2f24; }
-.toc a { display: block; padding: 5px 12px; color: #aeb6a7; line-height: 1.35; }
+.toc a { display: block; margin-left: -1px; padding: 5px 12px; border-left: 2px solid transparent; color: #8f968a; line-height: 1.35; transition: color .2s ease, border-color .2s ease; }
 .toc a:hover { color: #f3f5ef; }
+.toc a[aria-current="location"] { border-left-color: var(--neon-green); color: #f3f5ef; font-weight: 700; }
 .related { display: flex; flex-direction: column; gap: 2px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #2a2f24; }
 .related a { color: #aeb6a7; padding: 4px 0; }
 .related a:hover { color: var(--neon-green); }
@@ -48,6 +49,7 @@
 .body .callout { margin: 0 0 16px; padding: 16px 18px; border: 1px solid #2c4a33; border-radius: 2px; background: #0f1a12; color: #e3e7de; }
 .body .callout p:last-child { margin-bottom: 0; }
 
+@media (prefers-reduced-motion: reduce) { .toc a { transition: none; } }
 @media (max-width: 900px) {
   .layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .toc { position: static; padding: 16px; border: 1px solid #2a2f24; border-radius: 2px; background: #111310; }

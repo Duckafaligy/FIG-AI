@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Footer } from "@/components/footer";
 import { PublicNav } from "@/components/public-nav";
 import { LAST_UPDATED, legalIsDraft } from "@/lib/legal";
+import { LegalToc } from "./legal-toc";
 import styles from "./legal-page.module.css";
 
 export type LegalSection = { id: string; title: string; body: ReactNode };
@@ -53,7 +54,7 @@ export function LegalPage({ title, intro, sections, path }: { title: string; int
         <div className={styles.layout}>
           <nav className={styles.toc} aria-label="On this page">
             <strong>On this page</strong>
-            <ol>{sections.map((s) => <li key={s.id}><a href={`#${s.id}`}>{s.title}</a></li>)}</ol>
+            <LegalToc sections={sections.map(({ id, title }) => ({ id, title }))} />
             <div className={styles.related}>
               {RELATED.filter((r) => r.href !== path).map((r) => <Link key={r.href} href={r.href}>{r.label}</Link>)}
             </div>
