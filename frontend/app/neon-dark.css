@@ -1,0 +1,106 @@
+/* One dark theme for every neon page (home, pricing, sign-in, sign-up), plus
+   a shared fixed background: a faint grid with a soft green glow. Loaded last
+   so it is the single place light sections were turned dark. */
+.neon-home {
+  --d-bg:#090a09; --d-panel:#111310; --d-raised:#161914; --d-line:#2a2f24; --d-line-soft:#1d2119;
+  --d-text:#f3f5ef; --d-muted:#aeb6a7; --d-subtle:#8f968a;
+  position:relative; isolation:isolate; background:var(--d-bg); color:var(--d-text);
+}
+.neon-home::before, .neon-home::after { content:""; position:fixed; inset:0; z-index:-1; pointer-events:none; }
+.neon-home::before {
+  background-image:linear-gradient(rgba(236,240,229,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(236,240,229,.045) 1px, transparent 1px);
+  background-size:56px 56px;
+  -webkit-mask-image:linear-gradient(180deg, #000 0%, rgba(0,0,0,.55) 55%, rgba(0,0,0,.2) 100%);
+  mask-image:linear-gradient(180deg, #000 0%, rgba(0,0,0,.55) 55%, rgba(0,0,0,.2) 100%);
+}
+.neon-home::after { background:radial-gradient(60vw 45vh at 88% 0%, rgba(20,200,107,.10), transparent 70%), radial-gradient(50vw 40vh at 0% 100%, rgba(20,200,107,.05), transparent 70%); }
+
+/* Sections sit on the shared background; hairlines give the rhythm. */
+.neon-home .pn-hero, .neon-home .pn-plans, .neon-home .pn-included, .neon-home .pn-cost, .neon-home .nfaq,
+.neon-home .neon-cta-section, .neon-home .neon-capability-section, .neon-home .neon-system-section,
+.neon-home .neon-workbench-section, .neon-home .neon-proof-band, .neon-home .neon-editorial-section,
+.neon-home .neon-connect-section, .neon-home .fig-launch-footer { background:transparent; }
+.neon-home .pn-included, .neon-home .pn-cost, .neon-home .nfaq, .neon-home .neon-workbench-section,
+.neon-home .neon-editorial-section, .neon-home .neon-proof-band, .neon-home .fig-launch-footer { border-top:1px solid var(--d-line-soft); border-bottom:0; }
+.neon-home .neon-connect-section { border-color:var(--d-line-soft); }
+
+/* Shared text on formerly light sections */
+.neon-home .pn-cost h2, .neon-home .nfaq-intro h2, .neon-home .neon-workbench-copy h2, .neon-home .neon-editorial-copy h2 { color:var(--d-text); }
+.neon-home .pn-cost-copy p, .neon-home .nfaq-intro p, .neon-home .neon-workbench-copy p, .neon-home .neon-editorial-copy p, .neon-home .pn-fine { color:var(--d-muted); }
+.neon-home .neon-workbench-copy > span, .neon-home .neon-editorial-copy > span { color:var(--neon-green); }
+.neon-home .neon-workbench-copy a, .neon-home .nfaq-intro a { color:var(--d-text); }
+
+/* Proof band */
+.neon-home .neon-proof-band span { color:var(--d-muted); }
+.neon-home .neon-proof-band b { color:var(--d-text); }
+
+/* Plan cards: dark panels; Premium stands out with a green edge instead of an inverted fill. */
+.neon-home .pn-card { border-color:var(--d-line); background:var(--d-panel); color:var(--d-text); }
+.neon-home .pn-card--featured { border-color:var(--neon-green); background:#0f130e; box-shadow:0 0 0 1px var(--neon-green) inset; }
+.neon-home .pn-price span, .neon-home .pn-price small, .neon-home .pn-limits dd, .neon-home .pn-note { color:var(--d-subtle); }
+.neon-home .pn-desc { color:var(--d-muted); }
+.neon-home .pn-limits, .neon-home .pn-limits div + div { border-color:var(--d-line); }
+.neon-home .pn-card .secondary-button { border-color:#596350; color:var(--d-text); background:transparent; }
+.neon-home .pn-card .secondary-button:hover { border-color:var(--neon-green); background:transparent; color:var(--neon-green); }
+.neon-home .pn-note a { color:var(--neon-green); }
+
+/* Plan comparison chart */
+.neon-home .pn-metrics { border-color:var(--d-line); }
+.neon-home .pn-metrics button { border-color:var(--d-line); color:var(--d-muted); }
+.neon-home .pn-metrics button:hover { background:var(--d-raised); color:var(--d-text); }
+.neon-home .pn-metrics button[aria-pressed="true"] { background:var(--d-raised); color:var(--d-text); }
+.neon-home .pn-rotate { border-color:var(--d-line); color:var(--d-muted); }
+.neon-home .pn-rotate:hover { border-color:var(--d-muted); color:var(--d-text); }
+.neon-home .pn-columns { border-color:var(--d-line); background:var(--d-panel); }
+.neon-home .pn-col-plot { border-bottom-color:#596350; background:repeating-linear-gradient(to top, transparent 0, transparent 64px, var(--d-line-soft) 64px, var(--d-line-soft) 65px); }
+.neon-home .pn-col-plot strong, .neon-home .pn-col > span { color:var(--d-text); }
+.neon-home .pn-col small, .neon-home .pn-columns-note { color:var(--d-subtle); }
+.neon-home .pn-col-bar--standard { background:#aeb6a7; }
+.neon-home .pn-col-bar--education { background:#6f7d5c; }
+.neon-home .pn-col-bar--custom { border-color:#596350; background:repeating-linear-gradient(135deg, #1a1e16 0 6px, #3a4133 6px 7px); }
+
+/* Content calendar */
+.neon-home .neon-cal { border-color:var(--d-line); background:var(--d-panel); box-shadow:12px 12px 0 rgba(20,200,107,.08); }
+.neon-home .neon-cal-top, .neon-home .neon-cal-dow, .neon-home .neon-cal-list > strong { border-color:var(--d-line); }
+.neon-home .neon-cal-top strong, .neon-home .neon-cal-list > strong, .neon-home .neon-cal-day > span, .neon-home .neon-cal-list p > span { color:var(--d-text); }
+.neon-home .neon-cal-nav, .neon-home .neon-cal-nav span, .neon-home .neon-cal-nav b { border-color:var(--d-line); color:var(--d-muted); }
+.neon-home .neon-cal-nav b { color:var(--d-text); }
+.neon-home .neon-cal-month { border-color:var(--d-line); }
+.neon-home .neon-cal-dow { color:var(--d-subtle); }
+.neon-home .neon-cal-day { border-color:var(--d-line-soft); }
+.neon-home .neon-cal-day.is-muted > span { color:#7f8878; }
+.neon-home .neon-cal-chip { background:var(--d-raised); color:var(--d-muted); box-shadow:inset 0 0 0 1px var(--d-line); }
+.neon-home .neon-cal-list p { border-color:var(--d-line-soft); }
+.neon-home .neon-cal-list p > b { border-color:var(--d-line); background:var(--d-raised); color:var(--d-muted); }
+.neon-home .neon-cal-list small { color:var(--d-subtle); }
+.neon-home .neon-cal .tone-ink { background:#aeb6a7; }
+
+/* Editorial block */
+.neon-home .neon-editorial-grid { border-color:var(--d-line); background:var(--d-panel); }
+.neon-home .neon-editorial-copy ol, .neon-home .neon-editorial-copy li { border-color:var(--d-line); }
+.neon-home .neon-editorial-copy li { color:var(--d-text); }
+.neon-home .neon-editorial-copy li b { color:var(--d-subtle); }
+.neon-home .neon-editorial-copy li svg { color:var(--neon-green); }
+
+/* Q&A */
+.neon-home .nfaq-list { border-top-color:var(--d-muted); }
+.neon-home .nfaq-item { border-color:var(--d-line); }
+.neon-home .nfaq-item button { color:var(--d-text); }
+.neon-home .nfaq-item button i { border-color:var(--d-line); color:var(--d-text); }
+.neon-home .nfaq-item button:hover i { border-color:var(--d-muted); }
+.neon-home .nfaq-item.is-open button i { border-color:var(--neon-green); background:var(--neon-green); color:var(--d-bg); }
+.neon-home .nfaq-answer p { color:var(--d-muted); }
+
+/* Sign-in / sign-up form card */
+.neon-home .auth-simple-card { border-color:var(--d-line); background:var(--d-panel); color:var(--d-text); }
+.neon-home .af-title, .neon-home .af-field > span, .neon-home .af-label-row label, .neon-home .af-check a, .neon-home .af-switch a { color:var(--d-text); }
+.neon-home .af-label-row a, .neon-home .af-check, .neon-home .af-switch { color:var(--d-muted); }
+.neon-home .af-label-row a:hover { color:var(--d-text); }
+.neon-home .af-field input, .neon-home .af-password { border-color:#3a4133; background:var(--d-raised); color:var(--d-text); }
+.neon-home .af-password input { color:var(--d-text); }
+.neon-home .af-field input::placeholder { color:var(--d-subtle); }
+.neon-home .af-field input:focus, .neon-home .af-password:focus-within { border-color:var(--neon-green); }
+.neon-home .af-password button { color:var(--d-subtle); }
+.neon-home .af-password button:hover { color:var(--d-text); }
+.neon-home .af-check input { accent-color:var(--neon-green); }
+.neon-home .af-message { border-color:#3a4133; background:var(--d-raised); color:var(--d-text); }
