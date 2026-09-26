@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Pause, Play } from "lucide-react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { actions } from "@/lib/api";
@@ -19,12 +20,17 @@ const INCLUDED = [
   "Approved title and heading fixes on connected WordPress sites",
 ];
 
-const METRICS = {
-  "Scans per month": { note: "Your monthly allowance, shared across all your projects.", value: (p: Plan) => p.scans!, format: (n: number) => String(n) },
-  "Active projects": { note: "Websites you can track at the same time.", value: (p: Plan) => p.projects!, format: (n: number) => String(n) },
-  "Cost per scan": { note: "Monthly price divided by included scans. Lower is better.", value: (p: Plan) => p.price! / p.scans!, format: (n: number) => `$${n.toFixed(2)}` },
-} as const;
-type Metric = keyof typeof METRICS;
+const money = (n: number, cents = false) => `$${cents ? n.toFixed(2) : Math.round(n)}`;
+const METRICS = [
+  { name: "Monthly price", note: "What you pay each month, in USD before tax.", value: (p: Plan) => p.price!, format: (n: number) => money(n) },
+  { name: "Scans per month", note: "Your monthly allowance, shared across all your projects.", value: (p: Plan) => p.scans!, format: String },
+  { name: "Active projects", note: "Websites you can track at the same time.", value: (p: Plan) => p.projects!, format: String },
+  { name: "Scans per project", note: "Monthly scans if you spread them evenly across every project.", value: (p: Plan) => p.scans! / p.projects!, format: (n: number) => String(Math.round(n)) },
+  { name: "Cost per scan", note: "Monthly price divided by included scans. Lower is better.", value: (p: Plan) => p.price! / p.scans!, format: (n: number) => money(n, true) },
+  { name: "Cost per project", note: "Monthly price divided by active projects. Lower is better.", value: (p: Plan) => p.price! / p.projects!, format: (n: number) => money(n, true) },
+];
+const ROTATE_MS = 4000;
+const RESUME_MS = 5000;
 type Plan = (typeof PLANS)[number];
 
 function Switch<T extends string | number>({ label, options, value, onChange, format, tone }: {
@@ -43,7 +49,6 @@ function Switch<T extends string | number>({ label, options, value, onChange, fo
 
 export function PricingNeon() {
   const [audience, setAudience] = useState<Audience>("Business");
-  const [metric, setMetric] = useState<Metric>("Scans per month");
   const [status, setStatus] = useState<Record<string, Status>>({});
   const [message, setMessage] = useState<Record<string, string>>({});
 
@@ -61,8 +66,6 @@ export function PricingNeon() {
 
   const plans = PLANS.filter(p => p.audience === audience);
   const selfServe = PLANS.filter(p => p.price !== null).sort((a, b) => a.price! - b.price!);
-  const m = METRICS[metric];
-  const ceiling = Math.max(...selfServe.map(m.value));
 
   return (
     <>
@@ -130,26 +133,71 @@ export function PricingNeon() {
         </div>
       </section>
 
-      <section className="pn-cost">
-        <div className="page-shell pn-cost-grid">
-          <div className="pn-cost-copy">
-            <h2>What each plan gives you.</h2>
-            <p>{m.note}</p>
-            <Switch label="Compare by" tone="light" options={Object.keys(METRICS) as Metric[]} value={metric} onChange={setMetric} />
-          </div>
-          <div className="pn-bars" aria-live="polite">
-            {selfServe.map(plan => (
-              <div className="pn-bar-row" key={plan.name}>
-                <span>{plan.name}<small>${plan.price} / month</small></span>
-                <div className="pn-bar-track" aria-hidden="true">
-                  <div className={`pn-bar-fill pn-bar-fill--${plan.name.toLowerCase()}`} style={{ transform: `scaleX(${m.value(plan) / ceiling})` }} />
-                </div>
-                <strong>{m.format(m.value(plan))}</strong>
-              </div>
+      <PlanChart plans={selfServe} />
+    </>
+  );
+}
+
+function PlanChart({ plans }: { plans: Plan[] }) {
+  const [index, setIndex] = useState(0);
+  const [delay, setDelay] = useState(ROTATE_MS);
+  const [stopped, setStopped] = useState(false);
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mq.matches);
+    const on = () => setReduced(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+
+  const running = !reduced && !stopped;
+  useEffect(() => {
+    if (!running) return;
+    const t = setTimeout(() => { setIndex(i => (i + 1) % METRICS.length); setDelay(ROTATE_MS); }, delay);
+    return () => clearTimeout(t);
+  }, [running, index, delay]);
+
+  const pick = (i: number) => { setIndex(i); setDelay(RESUME_MS); };
+  const m = METRICS[index];
+  const ceiling = Math.max(...plans.map(m.value));
+
+  return (
+    <section className="pn-cost">
+      <div className="page-shell pn-cost-grid">
+        <div className="pn-cost-copy">
+          <h2>What each plan gives you.</h2>
+          <p>{m.note}</p>
+          <div className="pn-metrics" role="group" aria-label="Compare plans by">
+            {METRICS.map((x, i) => (
+              <button key={x.name} type="button" aria-pressed={i === index} onClick={() => pick(i)}>
+                {x.name}
+                {i === index && running && <i key={`${index}-${delay}`} style={{ animationDuration: `${delay}ms` }} aria-hidden="true" />}
+              </button>
             ))}
           </div>
+          {!reduced && (
+            <button type="button" className="pn-rotate" aria-pressed={stopped} onClick={() => { setStopped(s => !s); setDelay(RESUME_MS); }}>
+              {stopped ? <><Play size={14} /> Play</> : <><Pause size={14} /> Pause</>}
+            </button>
+          )}
         </div>
-      </section>
-    </>
+        <div className="pn-columns">
+          {plans.map(plan => {
+            const r = m.value(plan) / ceiling;
+            return (
+              <div className="pn-col" key={plan.name} style={{ "--r": r } as React.CSSProperties}>
+                <div className="pn-col-plot">
+                  <strong>{m.format(m.value(plan))}</strong>
+                  <div className={`pn-col-bar pn-col-bar--${plan.name.toLowerCase()}`} aria-hidden="true" />
+                </div>
+                <span>{plan.name}<small>${plan.price} / month</small></span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
   );
 }
