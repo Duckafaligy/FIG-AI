@@ -75,6 +75,46 @@ const capabilities = [
   { icon: Network, title: "Connect the source data", copy: "Bring performance context into the same working view." },
 ];
 
+const WEEKDAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+// May 2025 starts on a Thursday: three April days lead, one June day trails.
+const CAL_DAYS = [
+  ...[28, 29, 30].map(day => ({ day, muted: true })),
+  ...Array.from({ length: 31 }, (_, i) => ({ day: i + 1, muted: false })),
+  { day: 1, muted: true },
+];
+const UPCOMING = [
+  { day: 5, chip: "Blog post", title: "Vitamin C guide", meta: "Blog post · High", tone: "muted" },
+  { day: 7, chip: "Links", title: "Internal links audit", meta: "Optimization · Medium", tone: "green" },
+  { day: 10, chip: "Required", title: "Post new blog", meta: "Required · Approval", tone: "green" },
+  { day: 14, chip: "FAQ", title: "FAQ schema", meta: "Technical · Medium", tone: "ink" },
+];
+
+function ContentCalendar() {
+  return (
+    <div className="neon-cal" aria-label="Example content calendar">
+      <div className="neon-cal-top"><strong>May 2025</strong><div className="neon-cal-nav" aria-hidden="true"><span>‹</span><span>›</span><b>Month</b></div></div>
+      <div className="neon-cal-body">
+        <div className="neon-cal-month">
+          {WEEKDAYS.map(d => <span key={d} className="neon-cal-dow">{d}</span>)}
+          {CAL_DAYS.map(({ day, muted }, i) => {
+            const event = muted ? undefined : UPCOMING.find(u => u.day === day);
+            return (
+              <div key={i} className={`neon-cal-day${muted ? " is-muted" : ""}`}>
+                <span>{day}</span>
+                {event && <em className="neon-cal-chip"><i className={`tone-${event.tone}`} />{event.chip}</em>}
+              </div>
+            );
+          })}
+        </div>
+        <div className="neon-cal-list">
+          <strong>Upcoming</strong>
+          {UPCOMING.map(u => <p key={u.day}><b>MAY {u.day}</b><span>{u.title}<small>{u.meta}</small></span><i className={`tone-${u.tone}`} /></p>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function OverviewSurface({ id }: { id: string }) {
   return (
     <div className="neon-overview" aria-label="Example FIG project overview">
@@ -152,13 +192,7 @@ export default function HomePage() {
         <section className="neon-workbench-section">
           <div className="page-shell neon-workbench-grid">
             <div className="neon-workbench-copy"><span>CONTENT RHYTHM</span><h2>Keep the next piece of work in view.</h2><p>Plan from the opportunity, not a blank page. FIG keeps the signal, the brief, and the publishing moment connected.</p><Link href="/projects">Open content calendar <ArrowUpRight size={16} /></Link></div>
-            <div className="neon-calendar-surface" aria-label="Example content calendar">
-              <div className="neon-calendar-top"><strong>May 2025</strong><div><span>‹</span><span>›</span><b>Today</b></div></div>
-              <div className="neon-calendar-layout">
-                <div className="neon-calendar-grid"><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span><span>28</span><span>29</span><span>30</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5<i /></span><span>6</span><span>7<i /></span><span>8</span><span>9<i /></span><span>10</span><span>11</span><span>12</span><span>13</span><span>14<i /></span><span>15</span><span>16<i /></span><span>17</span><span>18</span><span>19</span><span>20</span><span>21<i /></span><span>22</span><span>23</span><span>24</span><span>25</span></div>
-                <div className="neon-calendar-list"><strong>Upcoming</strong><p><b>MAY<br />05</b><span>Vitamin C guide<small>Blog post · High</small></span><i /></p><p><b>MAY<br />07</b><span>Internal links audit<small>Optimization · Medium</small></span><i /></p><p><b>MAY<br />14</b><span>FAQ schema<small>Technical · Medium</small></span><i /></p><p><b>MAY<br />16</b><span>Skincare routine<small>Blog post · Medium</small></span><i /></p></div>
-              </div>
-            </div>
+            <ContentCalendar />
           </div>
         </section>
 
@@ -171,9 +205,9 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="neon-cta-section"><div className="page-shell neon-cta-grid"><div><span>START WITH A URL</span><h2>What could your website do next?</h2></div><div className="neon-cta-actions"><Link className="button" href="/#scan">Scan a website <ArrowUpRight size={17} /></Link><Link className="secondary-button" href="/signup">Create workspace</Link></div></div></section>
+        <section className="neon-cta-section"><div className="page-shell neon-cta-grid"><div><h2>What could your website do next?</h2></div><div className="neon-cta-actions"><Link className="button" href="/signin">Sign in <ArrowUpRight size={17} /></Link><Link className="secondary-button" href="/signup">Sign up <ArrowUpRight size={17} /></Link></div></div></section>
 
-        <section className="neon-faq-section page-shell" id="faq"><div><span>GOOD QUESTIONS</span><h2>Quick answers.</h2></div><Faq items={faqItems} /></section>
+        <section className="neon-faq-section page-shell" id="faq"><div><h2>Quick answers.</h2></div><Faq items={faqItems} /></section>
       </main>
       <Footer />
     </div>
