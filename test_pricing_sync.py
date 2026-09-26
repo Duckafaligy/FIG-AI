@@ -30,6 +30,13 @@ class PricingSyncTests(unittest.TestCase):
     def test_website_tiers_match_the_backend_and_stripe(self):
         self.assertEqual(frontend_tiers(), [tuple(t) for t in Account.TIERS])
 
+    def test_plan_prices_and_limits_shown_match_what_the_backend_enforces(self):
+        text = (FRONTEND / "plans.ts").read_text(encoding="utf-8")
+        shown = {m[0].lower(): (int(m[1]) * 100, int(m[2]), int(m[3])) for m in re.findall(
+            r'name: "(\w+)", audience: "\w+", price: (\d+), projects: (\d+), scans: (\d+)', text)}
+        real = {k: (v["price_cents"], v["max_projects"], v["scans_per_period"]) for k, v in Account.PLAN_LIMITS.items()}
+        self.assertEqual(shown, real)
+
     def test_the_trial_length_shown_matches_the_backend(self):
         text = (FRONTEND / "legal.ts").read_text(encoding="utf-8")
         shown = int(re.search(r"export const TRIAL_DAYS\s*=\s*(\d+)", text).group(1))

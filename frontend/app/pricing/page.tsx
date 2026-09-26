@@ -1,26 +1,46 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
 import { Footer } from "@/components/footer";
 import { PublicNav } from "@/components/public-nav";
-import { PlanCatalogue } from "@/components/plan-catalogue";
 import { Faq } from "@/components/faq";
-import { PricingPhotography, PricingComparison } from "@/components/pricing-visuals";
-import { PricingProductDetail } from "@/components/pricing-product-detail";
-export const metadata: Metadata = { title: "Business & Education Pricing — FIG", description: "FIG Business: Standard $49/month, Premium $99/month, Enterprise by enquiry. Education $19/month, with School Registered plans by enquiry.", alternates: { canonical: "/pricing" } };
+import { PricingNeon } from "@/components/pricing-neon";
+import { REFUND_WINDOW_DAYS, TRIAL_DAYS } from "@/lib/legal";
+
+export const metadata: Metadata = {
+  title: "Pricing - FIG",
+  description: "Standard $49, Premium $99 and Education $19 per month. Every plan runs all 21 checks; plans differ in projects and scans per month.",
+  alternates: { canonical: "/pricing" },
+};
+
+const faq = [
+  { question: "What counts as a scan?", answer: "One audit of one website. Auditing several projects at once uses one scan per website, and a scan that fails doesn't count." },
+  { question: "What happens when I run out of scans?", answer: "You can't start new scans until your billing period resets. Unused scans don't roll over, and nothing is charged beyond your plan price." },
+  { question: "Can I try it before paying?", answer: `Yes. Scan up to six public pages from the homepage with no account, or create an account for a ${TRIAL_DAYS}-day trial with no card.` },
+  { question: "Who is Education for?", answer: "Students and independent learners studying their own projects. It runs the same checks as the business plans, never grading or AI-use accusations." },
+  { question: "How do I cancel?", answer: `From Settings, Billing, at any time. Your plan runs to the end of the period you paid for, and your first payment is refundable within ${REFUND_WINDOW_DAYS} days.` },
+];
+
 export default function PricingPage() {
-  return <div className="public-page pricing-page neon-home"><PublicNav active="pricing" /><main>
-    <section className="section page-shell fig-pricing-intro"><span className="fig-pricing-pill">Two paths. One better web.</span><h1>Invest in your website.<br /><span>Or in what you know.</span></h1><p>Practical tools for business. Fresh perspectives for learning.<br />Find your place with FIG.</p><div className="fig-pricing-audiences"><a href="#business"><span>For businesses</span><small>From $49 / month ↓</small></a><a href="#education"><span>For education</span><small>From $19 / month ↓</small></a></div></section>
-    <PricingPhotography />
-    <div className="page-shell"><PlanCatalogue /></div>
-    <PricingComparison />
-    <PricingProductDetail />
-    <section className="neon-faq-section page-shell" id="faq"><div><h2>Good questions.<br />Clear answers.</h2><p>A little clarity for your next step.</p></div><Faq items={[
-      { question: "Which plan is right for me?", answer: "Standard and Premium are for business owners. Education is for students and individual learners. Contact us about Enterprise or School Registered for an organizational arrangement." },
-      { question: "How do I subscribe?", answer: "Use the enquiry button on your chosen plan. We’ll confirm its inclusions and subscription details before you make a payment." },
-      { question: "Can I try website analysis first?", answer: "Yes. You can run a free public website scan from the homepage without an account." },
-      { question: "Are prices monthly?", answer: "Yes. Standard, Premium, and Education prices are monthly USD amounts. Any applicable taxes are additional." },
-    ]} /></section>
-    <section className="neon-cta-section"><div className="page-shell neon-cta-grid"><div><span>READY WHEN YOU ARE</span><h2>Start with your website.</h2></div><div className="neon-cta-actions"><Link className="button" href="/#scan">Run a free scan <ArrowUpRight size={17} /></Link><Link className="secondary-button" href="/signup">Create workspace</Link></div></div></section>
-  </main><Footer /></div>;
+  return (
+    <div className="public-page pricing-page neon-home">
+      <PublicNav active="pricing" />
+      <main>
+        <PricingNeon />
+        <section className="neon-faq-section page-shell" id="faq">
+          <div><h2>Questions about plans.</h2></div>
+          <Faq items={faq} />
+        </section>
+        <section className="neon-cta-section">
+          <div className="page-shell neon-cta-grid">
+            <div><h2>Scan a site first. Decide after.</h2></div>
+            <div className="neon-cta-actions">
+              <Link className="button" href="/#scan">Run a free scan</Link>
+              <Link className="secondary-button" href="/signup">Start {TRIAL_DAYS}-day trial</Link>
+            </div>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </div>
+  );
 }

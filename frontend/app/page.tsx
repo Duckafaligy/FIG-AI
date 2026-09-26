@@ -8,12 +8,10 @@ import {
   Check,
   ChevronRight,
   CircleCheck,
-  Eye,
   FileSearch,
   Layers3,
   ListChecks,
   Network,
-  Search,
   Sparkles,
   Zap,
 } from "lucide-react";
@@ -41,10 +39,32 @@ const faqItems = [
 const integrations = ["Google Analytics", "Google Search Console", "Shopify", "Webflow", "Wix", "WordPress"];
 
 const signals = [
-  { icon: Search, label: "Search", value: "48.2K", change: "+18%" },
-  { icon: Eye, label: "Visibility", value: "62%", change: "+11%" },
-  { icon: Activity, label: "Impact", value: "84", change: "+16" },
+  { icon: Activity, label: "Site score", value: "81", change: "+29" },
+  { icon: ListChecks, label: "Open findings", value: "14", change: "-9" },
+  { icon: FileSearch, label: "Pages read", value: "38", change: "last scan" },
 ];
+
+const SCORES = [52, 55, 54, 61, 66, 64, 72, 77, 81];
+const SCAN_DATES = ["Jul 6", "", "Jul 20", "", "Aug 3", "", "Aug 17", "", "Aug 31"];
+
+function ScoreChart({ id }: { id: string }) {
+  const w = 520, h = 190, left = 34, right = 22, top = 16, bottom = 26;
+  const last = SCORES.length - 1;
+  const x = (i: number) => left + (i * (w - left - right)) / last;
+  const y = (v: number) => top + ((100 - v) / 60) * (h - top - bottom);
+  const line = SCORES.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(" ");
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Sample site score rising from 52 to 81 across nine scans">
+      <defs><linearGradient id={id} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#14c86b" stopOpacity=".26" /><stop offset="100%" stopColor="#14c86b" stopOpacity="0" /></linearGradient></defs>
+      {[50, 75, 100].map(v => <g key={v}><line className="neon-score-grid" x1={left} x2={w - right} y1={y(v)} y2={y(v)} /><text className="neon-score-axis" x={left - 8} y={y(v) + 3} textAnchor="end">{v}</text></g>)}
+      <path d={`${line} L${x(last)} ${h - bottom} L${left} ${h - bottom}Z`} fill={`url(#${id})`} />
+      <path className="neon-score-line" d={line} />
+      {SCORES.map((v, i) => <circle key={i} className={i === last ? "neon-score-dot neon-score-dot--last" : "neon-score-dot"} cx={x(i)} cy={y(v)} r={i === last ? 5 : 3} />)}
+      <text className="neon-score-value" x={x(last) - 12} y={y(SCORES[last]) - 10} textAnchor="end">{SCORES[last]}</text>
+      {SCAN_DATES.map((d, i) => d && <text key={i} className="neon-score-axis" x={x(i)} y={h - 6} textAnchor="middle">{d}</text>)}
+    </svg>
+  );
+}
 
 const capabilities = [
   { icon: FileSearch, title: "Read the whole signal", copy: "Content, structure, search, and answer-readiness in one view." },
@@ -55,7 +75,7 @@ const capabilities = [
   { icon: Network, title: "Connect the source data", copy: "Bring performance context into the same working view." },
 ];
 
-function OverviewSurface() {
+function OverviewSurface({ id }: { id: string }) {
   return (
     <div className="neon-overview" aria-label="Example FIG project overview">
       <div className="neon-overview-bar">
@@ -75,20 +95,14 @@ function OverviewSurface() {
       </div>
       <div className="neon-overview-main">
         <div className="neon-chart-panel">
-          <div className="neon-panel-heading"><strong>Performance</strong><span>28 days</span></div>
-          <svg viewBox="0 0 520 180" role="img" aria-label="Rising organic traffic and impressions chart">
-            <defs><linearGradient id="signalFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#b7ff45" stopOpacity=".36" /><stop offset="100%" stopColor="#b7ff45" stopOpacity="0" /></linearGradient></defs>
-            <path className="neon-chart-grid" d="M0 33H520M0 78H520M0 123H520M0 168H520M52 0V180M156 0V180M260 0V180M364 0V180M468 0V180" />
-            <path d="M0 158 C35 149 52 143 76 147 S114 121 140 129 S180 115 210 117 S244 96 278 102 S313 75 341 83 S380 60 408 66 S449 38 476 47 S503 26 520 18 V180 H0Z" fill="url(#signalFill)" />
-            <path className="neon-chart-line" d="M0 158 C35 149 52 143 76 147 S114 121 140 129 S180 115 210 117 S244 96 278 102 S313 75 341 83 S380 60 408 66 S449 38 476 47 S503 26 520 18" />
-            <path className="neon-chart-line neon-chart-line--muted" d="M0 170 C42 165 61 157 88 160 S133 146 160 151 S211 128 235 135 S287 120 310 127 S368 109 389 113 S430 89 457 96 S500 78 520 72" />
-          </svg>
+          <div className="neon-panel-heading"><strong>Site score</strong><span>9 scans</span></div>
+          <ScoreChart id={`${id}-fill`} />
         </div>
         <div className="neon-opportunities">
-          <div className="neon-panel-heading"><strong>Next moves</strong><span>04</span></div>
-          <p><i /> Vitamin C serum <b>High</b></p>
-          <p><i /> Improve internal links <b>Med</b></p>
-          <p><i /> Add FAQ schema <b>Med</b></p>
+          <div className="neon-panel-heading"><strong>Next fixes</strong><span>3</span></div>
+          <p><i /> Add meta descriptions <b>High</b></p>
+          <p><i /> Fix a skipped heading level <b>Med</b></p>
+          <p><i /> Answer common questions <b>Med</b></p>
         </div>
       </div>
     </div>
@@ -102,20 +116,16 @@ export default function HomePage() {
       <PublicNav />
       <main>
         <section className="neon-hero">
+          <div className="neon-hero-photo" aria-hidden="true"><Image src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=2000&q=80" alt="" fill priority sizes="100vw" /></div>
           <div className="page-shell neon-hero-grid">
             <div className="neon-hero-copy">
               <span className="neon-kicker"><Sparkles size={13} /> Content intelligence</span>
               <h1>Give your website <span>a clearer next move.</span></h1>
-              <p>FIG reads the signals across your content, search, and answer-readiness - then turns them into a focused plan.</p>
+              <p>FIG runs 21 checks across four layers, then shows where each issue is and how to fix it.</p>
               <div id="scan" className="neon-scan-wrap"><FreeScanForm /></div>
               <div className="neon-hero-links"><Link href="/projects">Open workspace <ArrowUpRight size={15} /></Link><span><CircleCheck size={15} /> Free scan, no account</span></div>
             </div>
-            <div className="neon-hero-visual">
-              <div className="neon-photo-frame"><Image src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1400&q=88" alt="Modern industrial workspace with a conference table" fill priority sizes="(max-width: 900px) 100vw, 52vw" /></div>
-              <div className="neon-photo-veil" />
-              <div className="neon-hero-surface"><OverviewSurface /></div>
-              <div className="neon-corner-label">FIG / 01</div>
-            </div>
+            <div className="neon-hero-panel"><OverviewSurface id="hero" /></div>
           </div>
         </section>
 
@@ -125,7 +135,7 @@ export default function HomePage() {
           <div className="page-shell">
             <div className="neon-system-grid">
               <div className="neon-system-image"><Image src="https://images.unsplash.com/photo-1751200065687-a126e7c304da?auto=format&fit=crop&w=1200&q=86" alt="Moody desk setup with a computer monitor" fill sizes="(max-width: 760px) 100vw, 42vw" /><div className="neon-system-story"><span>THE FIG SYSTEM</span><h2>From signal<br />to strategy.</h2><p>See what is working, find what is missing, and get a plan to move forward.</p><Link className="button" href="/projects">Explore the product <ArrowUpRight size={15} /></Link></div></div>
-              <div className="neon-system-product"><OverviewSurface /></div>
+              <div className="neon-system-product"><OverviewSurface id="system" /></div>
             </div>
           </div>
         </section>
