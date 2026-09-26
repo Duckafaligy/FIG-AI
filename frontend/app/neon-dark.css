@@ -130,3 +130,7 @@
 .neon-home .af-oauth-terms a { color:var(--d-muted); text-decoration:underline; }
 .neon-home .auth-simple-main--center { grid-template-columns:minmax(0,440px); justify-content:center; }
 .neon-home .oauth-status { display:flex; flex-direction:column; gap:16px; }
+.neon-home .af-left { text-align:left; }
+.neon-home .af-left strong { color:var(--d-text); }
+.neon-home .af-skip { align-self:center; border:0; background:none; color:var(--d-muted); font:inherit; font-size:13px; text-decoration:underline; cursor:pointer; }
+.neon-home .af-skip:hover { color:var(--d-text); }
