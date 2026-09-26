@@ -1,0 +1,288 @@
+{
+  "scan_id": "sample",
+  "hostname": "northwind-coffee.example",
+  "status": "done",
+  "pages": 4,
+  "score": 51,
+  "verdict": "fix",
+  "finished_at": "2026-09-26T15:00:00+00:00",
+  "layers": {
+    "craft": 41,
+    "structure": 43,
+    "search": 62,
+    "answers": 60
+  },
+  "findings": [
+    {
+      "check": "component_uniformity",
+      "title": "Uniform card styling",
+      "layer": "craft",
+      "layer_label": "Craft",
+      "severity": "medium",
+      "summary": "4 of 4 card-like elements all use the exact same 'rounded-2xl shadow-lg' combination",
+      "why": "When every card carries an identical corner radius and drop shadow, nothing sits forward or back, so the page reads flat no matter how much is on it. This pattern is commonly associated with an accepted default rather than a chosen one.",
+      "fix": "Give one tier of card a heavier surface \u2014 a stronger border or a lifted background \u2014 and let the rest sit quieter.",
+      "evidence": [
+        "rounded-2xl shadow-lg"
+      ],
+      "page": "https://northwind-coffee.example/"
+    },
+    {
+      "check": "numbered_eyebrows",
+      "title": "Numbered step/feature labels",
+      "layer": "craft",
+      "layer_label": "Craft",
+      "severity": "low",
+      "summary": "Found 3 short numbered labels (01, 02, 03) \u2014 a common auto-generated 'step/feature' eyebrow pattern",
+      "why": "Numbering every section is a layout habit that fills space without deciding what matters. Readers skip it, and it is one of the more recognisable generated-page tells.",
+      "fix": "Drop the numbers. If the order genuinely matters, say so in the heading itself.",
+      "evidence": [
+        "01",
+        "02",
+        "03"
+      ],
+      "page": "https://northwind-coffee.example/"
+    },
+    {
+      "check": "generic_copy",
+      "title": "Generic marketing phrasing",
+      "layer": "craft",
+      "layer_label": "Craft",
+      "severity": "high",
+      "summary": "9 instance(s) of generic marketing phrasing found in headings/copy",
+      "why": "These verbs describe no product in particular, which is why they turn up everywhere. A reader learns nothing from them, and a model reading the page has nothing specific it could repeat back about you.",
+      "fix": "Replace each with the specific thing it does, in your own words. If a sentence would be true of any company, it is not saying anything.",
+      "evidence": [
+        "\"Elevate your experience\"",
+        "\"Elevate your experienceSeamlessly integrate best-in-class care and unlock your potential.\"",
+        "\"Elevate your experienceSeamlessly integrate best-in-class care and unlock your potential.\"",
+        "\"Get started in minutes with our all-in-one solution.\"",
+        "\"Transform the way you think about care. Cutting-edge, next-generation, world-class.\"",
+        "\"Transform the way you think about care. Cutting-edge, next-generation, world-class.\"",
+        "\"Transform the way you think about care. Cutting-edge, next-generation, world-class.\"",
+        "\"Elevate your experienceSeamlessly integrate best-in-class care and unlock your potential.\""
+      ],
+      "page": "https://northwind-coffee.example/"
+    },
+    {
+      "check": "default_color_palette",
+      "title": "Unmodified default colors",
+      "layer": "craft",
+      "layer_label": "Craft",
+      "severity": "medium",
+      "summary": "3 colors on the page are unmodified defaults from common component libraries/page builders",
+      "why": "Framework defaults are recognisable precisely because nobody changed them. It is the quickest signal that a theme was accepted rather than chosen.",
+      "fix": "Shift the hue and lightness away from the default, even slightly. A 10\u201315 degree hue rotation is usually enough to stop it reading as stock.",
+      "evidence": [
+        "#8B5CF6 \u2248 tailwind-violet-500",
+        "#6366F1 \u2248 tailwind-indigo-500",
+        "#4F46E5 \u2248 tailwind-indigo-600"
+      ],
+      "page": "https://northwind-coffee.example/"
+    },
+    {
+      "check": "flat_typography",
+      "title": "Flat heading hierarchy",
+      "layer": "craft",
+      "layer_label": "Craft",
+      "severity": "medium",
+      "summary": "9 of 9 headings are all <h3> \u2014 little real heading hierarchy despite repeated sections",
+      "why": "A hierarchy that barely changes gives a reader nothing to land on. The eye needs a clear first stop, and a crawler needs to know which heading owns which block of text.",
+      "fix": "Widen the gap: one h1, real h2s for sections, h3s inside them. Cut a level if you are carrying four.",
+      "evidence": [
+        "<h3> x9"
+      ],
+      "page": "https://northwind-coffee.example/"
+    },
+    {
+      "check": "overused_icons",
+      "title": "Overused icon set",
+      "layer": "craft",
+      "layer_label": "Craft",
+      "severity": "low",
+      "summary": "4 uses of icons commonly overused in generated UI (sparkles, arrow-right, zap, check-circle)",
+      "why": "The same handful of glyphs carry most generated pages. They are not wrong, they are invisible from familiarity.",
+      "fix": "Keep them where they earn it, but let at least one visual on the page be specific to you.",
+      "evidence": [
+        "sparkles x1",
+        "arrow-right x1",
+        "zap x1",
+        "check-circle x1"
+      ],
+      "page": "https://northwind-coffee.example/"
+    },
+    {
+      "check": "missing_h1",
+      "title": "H1 count",
+      "layer": "structure",
+      "layer_label": "Structure",
+      "severity": "medium",
+      "summary": "The page has no h1",
+      "why": "The h1 is the one heading that says what this page is. Without it both a reader skimming and a crawler indexing have to infer it from context.",
+      "fix": "Promote the main headline to an h1. There should be exactly one.",
+      "evidence": [],
+      "page": "https://northwind-coffee.example/"
+    },
+    {
+      "check": "thin_page",
+      "title": "Thin page",
+      "layer": "structure",
+      "layer_label": "Structure",
+      "severity": "medium",
+      "summary": "Only 98 words of body copy on this page",
+      "why": "A page this short rarely answers the question that brought someone to it, and gives a model almost nothing to draw on when it is asked about you.",
+      "fix": "Either grow the page into something that answers a real question, or fold it into a page that already does.",
+      "evidence": [],
+      "page": "https://northwind-coffee.example/"
+    },
+    {
+      "check": "missing_meta_description",
+      "title": "Meta description",
+      "layer": "search",
+      "layer_label": "Search",
+      "severity": "medium",
+      "summary": "No meta description on this page",
+      "why": "Without one, the snippet under your result is whatever the engine decides to cut out of the page. That is your first impression, chosen by someone else.",
+      "fix": "Write a 120\u2013155 character description that says what is on this specific page.",
+      "evidence": [],
+      "page": "https://northwind-coffee.example/"
+    },
+    {
+      "check": "missing_canonical",
+      "title": "Canonical link",
+      "layer": "search",
+      "layer_label": "Search",
+      "severity": "low",
+      "summary": "No canonical link on this page",
+      "why": "Without a canonical, the same page reached by two URLs can be treated as two pages, splitting whatever weight it has earned.",
+      "fix": "Add <link rel=\"canonical\" href=\"...\"> pointing at the preferred URL.",
+      "evidence": [],
+      "page": "https://northwind-coffee.example/"
+    },
+    {
+      "check": "missing_lang",
+      "title": "Language attribute",
+      "layer": "search",
+      "layer_label": "Search",
+      "severity": "low",
+      "summary": "The <html> element has no lang attribute",
+      "why": "Screen readers use it to pick a voice and crawlers use it to decide who to show the page to. It is one attribute.",
+      "fix": "Add lang=\"en\" (or the right language) to the <html> tag.",
+      "evidence": [],
+      "page": "https://northwind-coffee.example/"
+    },
+    {
+      "check": "missing_alt",
+      "title": "Image alt text",
+      "layer": "search",
+      "layer_label": "Search",
+      "severity": "medium",
+      "summary": "4 of 4 images have no alt text",
+      "why": "A crawler reads alt text. An empty alt on a meaningful image removes it from everything a model could learn about you \u2014 and removes it from the page entirely for anyone using a screen reader.",
+      "fix": "Describe the meaningful images. Mark the purely decorative ones alt=\"\" on purpose so the distinction is deliberate.",
+      "evidence": [],
+      "page": "https://northwind-coffee.example/"
+    },
+    {
+      "check": "no_structured_data",
+      "title": "Structured data (JSON-LD)",
+      "layer": "answers",
+      "layer_label": "Answers",
+      "severity": "high",
+      "summary": "No JSON-LD structured data on this page",
+      "why": "Structured data is the one place you get to state plainly what you are, who you are, and what you sell, in a form a machine does not have to guess at. Without it a model is inferring all of that from prose.",
+      "fix": "Add an Organization or LocalBusiness block on the homepage and Product or Article blocks on the pages that warrant them.",
+      "evidence": [],
+      "page": "https://northwind-coffee.example/"
+    },
+    {
+      "check": "flat_typography",
+      "title": "Flat heading hierarchy",
+      "layer": "craft",
+      "layer_label": "Craft",
+      "severity": "medium",
+      "summary": "3 of 4 headings are all <h2> \u2014 little real heading hierarchy despite repeated sections",
+      "why": "A hierarchy that barely changes gives a reader nothing to land on. The eye needs a clear first stop, and a crawler needs to know which heading owns which block of text.",
+      "fix": "Widen the gap: one h1, real h2s for sections, h3s inside them. Cut a level if you are carrying four.",
+      "evidence": [
+        "<h2> x3",
+        "<h1> x1"
+      ],
+      "page": "https://northwind-coffee.example/pricing"
+    },
+    {
+      "check": "thin_page",
+      "title": "Thin page",
+      "layer": "structure",
+      "layer_label": "Structure",
+      "severity": "medium",
+      "summary": "Only 68 words of body copy on this page",
+      "why": "A page this short rarely answers the question that brought someone to it, and gives a model almost nothing to draw on when it is asked about you.",
+      "fix": "Either grow the page into something that answers a real question, or fold it into a page that already does.",
+      "evidence": [],
+      "page": "https://northwind-coffee.example/pricing"
+    },
+    {
+      "check": "section_order",
+      "title": "Sections out of a sensible order",
+      "layer": "structure",
+      "layer_label": "Structure",
+      "severity": "high",
+      "summary": "On /pricing, pricing sits above the section that justifies it (pricing is section 2, features is section 3)",
+      "why": "The page asks for a decision before it has made the case for one. A reader hitting a price with no context has nothing to weigh it against, so the number reads as expensive by default.",
+      "fix": "Move pricing below the features or how-it-works section, or put a short summary of what is included directly above the price.",
+      "evidence": [
+        "hero \u2192 pricing \u2192 features \u2192 FAQ \u2192 footer"
+      ],
+      "page": "https://northwind-coffee.example/pricing"
+    },
+    {
+      "check": "thin_page",
+      "title": "Thin page",
+      "layer": "structure",
+      "layer_label": "Structure",
+      "severity": "medium",
+      "summary": "Only 7 words of body copy on this page",
+      "why": "A page this short rarely answers the question that brought someone to it, and gives a model almost nothing to draw on when it is asked about you.",
+      "fix": "Either grow the page into something that answers a real question, or fold it into a page that already does.",
+      "evidence": [],
+      "page": "https://northwind-coffee.example/about"
+    },
+    {
+      "check": "missing_meta_description",
+      "title": "Meta description",
+      "layer": "search",
+      "layer_label": "Search",
+      "severity": "medium",
+      "summary": "No meta description on this page",
+      "why": "Without one, the snippet under your result is whatever the engine decides to cut out of the page. That is your first impression, chosen by someone else.",
+      "fix": "Write a 120\u2013155 character description that says what is on this specific page.",
+      "evidence": [],
+      "page": "https://northwind-coffee.example/about"
+    },
+    {
+      "check": "no_structured_data",
+      "title": "Structured data (JSON-LD)",
+      "layer": "answers",
+      "layer_label": "Answers",
+      "severity": "high",
+      "summary": "No JSON-LD structured data on this page",
+      "why": "Structured data is the one place you get to state plainly what you are, who you are, and what you sell, in a form a machine does not have to guess at. Without it a model is inferring all of that from prose.",
+      "fix": "Add an Organization or LocalBusiness block on the homepage and Product or Article blocks on the pages that warrant them.",
+      "evidence": [],
+      "page": "https://northwind-coffee.example/about"
+    },
+    {
+      "check": "missing_llms_txt",
+      "title": "No /llms.txt",
+      "layer": "answers",
+      "layer_label": "Answers",
+      "severity": "low",
+      "summary": "No /llms.txt found",
+      "why": "llms.txt is a routing guide for AI agents, not an access-control file -- it points a model at what's actually worth reading on the site instead of leaving it to guess from a sitemap built for search engines.",
+      "fix": "Add a Markdown file at /llms.txt: an H1 with the site's name, a one-line summary, and links to the pages most worth an agent's attention.",
+      "evidence": [],
+      "page": null
+    }
+  ]
+}

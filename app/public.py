@@ -35,6 +35,10 @@ from app.jobs import enqueue_scan
 from app.models import Account, Finding, PublicRead, Scan, Site
 from app.pipeline import is_cached
 from app.rules.scoring import LAYER_LABEL, verdict
+from app.rules.checks import CHECKLIST
+
+# A general name per check, so a report can head a pattern found on several pages.
+CHECK_TITLE = {cid: entry["title"] for entry in CHECKLIST for cid in entry["ids"]}
 
 router = APIRouter(tags=["public"])
 
@@ -254,7 +258,8 @@ def public_read_result(scan_id: str, session: Session = Depends(get_session)):
         "layers": {"craft": scan.score_craft, "structure": scan.score_structure,
                    "search": scan.score_search, "answers": scan.score_answers},
         "findings": [
-            {"check": f.check, "layer": f.layer, "layer_label": LAYER_LABEL.get(f.layer, f.layer),
+            {"check": f.check, "title": CHECK_TITLE.get(f.check), "layer": f.layer,
+             "layer_label": LAYER_LABEL.get(f.layer, f.layer),
              "severity": f.severity, "summary": f.summary, "why": f.why,
              "fix": f.fix, "evidence": f.evidence or [], "page": f.page_url}
             for f in scan.findings
