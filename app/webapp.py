@@ -243,6 +243,12 @@ def analytics(request: Request, project: str = Query(default=""),
                                    _project(session, account, project)))
 
 
+@router.get("/workspace-settings")
+def workspace_settings(request: Request, session: Session = Depends(get_session)):
+    account = _account(request, session)
+    return _public(pages.workspace_settings(session, account))
+
+
 @router.get("/project-notifications")
 def project_notifications(request: Request, project: str = Query(default=""),
                           session: Session = Depends(get_session)):

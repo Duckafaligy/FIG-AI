@@ -1,4 +1,5 @@
 .page { display: flex; flex-direction: column; gap: 14px; max-width: 1180px; }
+.page > * { min-width: 0; }
 
 .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; padding-bottom: 8px; }
 .head h1 { margin: 6px 0 8px; color: var(--fig-ink); font-size: clamp(26px, 3vw, 34px); font-weight: 600; letter-spacing: -.035em; line-height: 1.12; }

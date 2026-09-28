@@ -76,6 +76,15 @@ class ProjectOverviewTests(unittest.TestCase):
         self.assertEqual(card["status"], "attention")    # a high finding outranks a clean score
         self.assertEqual(card["platforms"], ["github"])
 
+    def test_workspace_settings_reads_projects_connections_and_plan(self):
+        data = self.client.get("/api/workspace-settings").json()
+        row = data["projects"][0]
+        self.assertEqual((row["hostname"], row["platform"], row["verified"]), ("northgate.studio", "github", False))
+        self.assertEqual(row["scans"], "When you run one")    # no Watch sweep, no schedule claimed
+        self.assertEqual([i["platform"] for i in data["connections"][0]["items"]], ["github"])
+        self.assertIsNone(data["billing"]["plan"])
+        self.assertEqual(data["billing"]["projects"], {"used": 1, "max": None})
+
     def test_findings_are_grouped_ranked_and_marked_by_what_github_can_apply(self):
         body = self.get()
         checks = [r["check"] for r in body["findings"]]

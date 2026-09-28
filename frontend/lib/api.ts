@@ -520,6 +520,21 @@ export type ApiSettingsPage = ApiChrome & {
   webhooks: { active: number; delivered: Nullable<number>; rate: Nullable<number> };
 };
 
+export type ApiConnectionItem = { platform: string; label: string; kind: "cms" | "data"; detail: string; since: Nullable<string>; ok: boolean; error: Nullable<string> };
+export type ApiWorkspaceSettings = {
+  profile: { name: string; email: string };
+  projects: { id: string; name: string; hostname: string; platform: Nullable<string>; verified: boolean; scans: string; public: boolean; can_share: boolean; score: Nullable<number> }[];
+  connections: { project: string; hostname: string; score: Nullable<number>; items: ApiConnectionItem[] }[];
+  workspace_connections: ApiConnectionItem[];
+  team: { email: string; initials: string; role: string; since: string }[];
+  billing: {
+    plan: Nullable<string>; label: Nullable<string>; price_cents: Nullable<number>; subscribed: boolean;
+    projects: { used: number; max: Nullable<number> };
+    scans: Nullable<{ used: number; cap: number }>;
+    plans: { id: string; label: string; price_cents: number; max_projects: number; scans_per_period: number }[];
+  };
+};
+
 export type ApiProjectSettingsPage = ApiChrome & {
   apis: ApiSettingsPage["apis"];
 };
@@ -544,6 +559,7 @@ export type ApiChangesPage = {
 
 export const api = {
   me: () => apiServer<ApiMe>("/api/me"),
+  workspaceSettings: () => apiClient<ApiWorkspaceSettings>("/api/workspace-settings"),
   // projects(), settings() and projectSettings() are called from Client
   // Components (app/projects/page.tsx, app/projects/settings/page.tsx,
   // app/projects/[id]/settings/page.tsx -- all "use client", fetching in a

@@ -599,10 +599,9 @@ def test_settings_integration_names_match_the_frontends_static_list():
     end = project_connectors_src.index("\n];", start)
     project_scoped_frontend_names = set(re.findall(r'name:\s*"([^"]+)"', project_connectors_src[start:end]))
 
-    account_settings_src = (ROOT / "frontend" / "app" / "projects" / "settings" / "page.tsx").read_text(encoding="utf-8")
-    start = account_settings_src.index('(["Google Analytics", "Google Search Console"] as const)')
-    account_scoped_frontend_names = set(re.findall(r'"([^"]+)"', account_settings_src[start:start + 60]))
-
+    # The account-wide Google rows (components/workspace-settings.tsx) are
+    # drawn from the backend's own Integration rows and labels since
+    # 2026-09-28, so there is no second, static list there to drift.
     backend_names = {row["name"] for row in pages._api_rows(None, [])}
 
     project_scoped = {"WordPress", "Shopify", "Webflow", "Wix", "GitHub"}
@@ -611,9 +610,6 @@ def test_settings_integration_names_match_the_frontends_static_list():
     missing_from_project_page = project_scoped - project_scoped_frontend_names
     assert not missing_from_project_page, \
         f"expected a static row for {missing_from_project_page} in project-connectors.tsx"
-    missing_from_account_page = account_scoped - account_scoped_frontend_names
-    assert not missing_from_account_page, \
-        f"expected a static row for {missing_from_account_page} in projects/settings/page.tsx"
     missing_from_backend = (project_scoped | account_scoped) - backend_names
     assert not missing_from_backend, \
         f"_api_rows() has no matching row for {missing_from_backend} -- Connect would never show as connected"

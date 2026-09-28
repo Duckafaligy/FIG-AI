@@ -1880,3 +1880,66 @@ def _api_rows(session: Session, integrations: list[Integration]) -> list[dict]:
         row("Email Notifications", "mail", "s", "email", "Team", "Send"),
         row("Webhooks", "webhook", "t", "webhooks", "Endpoint", "Send / Receive"),
     ]
+
+
+# --- 7b. workspace settings ------------------------------------------------
+
+
+def workspace_settings(session: Session, account: Account) -> dict:
+    """/projects/settings (Paper 3.1-3.4): the workspace's projects, what each
+    one is connected to, who is in the workspace, and the plan's real usage.
+    Per-project roles, invites and an in-app invoice list don't exist, so
+    none is shown; invoices live in the Stripe portal."""
+    sites = list(session.scalars(select(Site).where(Site.account_id == account.id)
+                                 .order_by(Site.created_at)))
+    ids = [s.id for s in sites]
+    integrations = list(session.scalars(select(Integration).where(or_(
+        Integration.account_id == account.id, Integration.site_id.in_(ids)))))
+
+    def item(i: Integration) -> dict:
+        return {"platform": i.platform, "label": INTEGRATION_LABELS.get(i.platform, i.platform),
+                "kind": "cms" if i.platform in CMS_PLATFORMS else "data",
+                "detail": i.endpoint or i.credential_hint or "",
+                "since": _d(i.connected_at) if i.connected_at else None,
+                "ok": i.is_connected() and not i.last_error,
+                "error": (i.last_error or "")[:140] or (None if i.is_connected() else "Not connected")}
+
+    latest = _latest_scans(session, sites)
+    projects, connections = [], []
+    for s in sites:
+        mine = [i for i in integrations if i.site_id == s.id]
+        cms = next((i.platform for i in mine if i.platform in CMS_PLATFORMS and i.is_connected()), None)
+        sc = latest.get(s.id)
+        projects.append({
+            "id": s.id, "name": s.client_name or s.label or s.hostname, "hostname": s.hostname,
+            "platform": cms, "verified": bool(s.is_verified),
+            # Nothing scans on a schedule unless the Watch sweep is switched on.
+            "scans": f"Every {s.monitor_days} days" if config.WATCH_ENABLED and s.monitor and s.is_verified else "When you run one",
+            "public": bool(s.reports_public), "can_share": sc is not None,
+            "score": sc.score if sc else None,
+        })
+        connections.append({"project": projects[-1]["name"], "hostname": s.hostname,
+                            "score": sc.score if sc else None,
+                            "items": [item(i) for i in mine]})
+
+    users = list(session.scalars(select(User).where(User.account_id == account.id)
+                                 .order_by(User.created_at)))
+    limits = account.plan_limits()
+    return {
+        "profile": {"name": account.name, "email": account.contact_email or ""},
+        "projects": projects,
+        "connections": connections,
+        "workspace_connections": [item(i) for i in integrations if i.site_id is None],
+        "team": [{"email": u.email, "initials": u.email[:2].upper(),
+                  "role": (u.role or "member").title(), "since": _d(u.created_at)} for u in users],
+        "billing": {
+            "plan": account.plan if limits else None,
+            "label": limits["label"] if limits else None,
+            "price_cents": limits["price_cents"] if limits else None,
+            "subscribed": bool(account.stripe_subscription_id),
+            "projects": {"used": len(sites), "max": limits["max_projects"] if limits else None},
+            "scans": ({"used": account.scans_used_this_period, "cap": limits["scans_per_period"]}
+                      if limits else None),
+            "plans": [{"id": k, **v} for k, v in Account.PLAN_LIMITS.items()],
+        },
+    }
