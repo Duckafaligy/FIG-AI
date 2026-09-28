@@ -1125,6 +1125,136 @@ def project_geo(session: Session, account: Account, site: Site | None) -> dict:
     }
 
 
+INTEGRATION_LABELS = {"google_analytics": "Google Analytics", "google_search_console": "Search Console",
+                      **PLATFORM_LABELS, "github": "GitHub"}
+
+
+def _project_payload(site: Site) -> dict:
+    return {"id": site.id, "hostname": site.hostname,
+            "name": site.client_name or site.label or site.hostname}
+
+
+def _project_needs(session: Session, account: Account, site: Site) -> list[dict]:
+    """What needs a person on this project. The Notifications page lists it
+    and the sidebar badge counts it, so the two can't disagree."""
+    base = f"/projects/{site.hostname}"
+    scans = session.scalars(select(Scan).where(Scan.site_id == site.id)
+                            .order_by(Scan.created_at.desc()).limit(10)).all()
+    done = [sc for sc in scans if sc.status == "done"]
+    needs: list[dict] = []
+    waiting = session.scalars(select(Change).where(
+        Change.site_id == site.id, Change.state == "proposed")).all()
+    if waiting:
+        newest = max(waiting, key=lambda c: _aware(c.proposed_at) or _now())
+        needs.append({"tone": "amber", "title": f"{_count_words(len(waiting), 'change')} waiting for approval",
+                      "sub": "Review them before anything reaches the live site.",
+                      "at": _aware(newest.proposed_at), "href": f"{base}/publish", "action": "Review"})
+    if scans and scans[0].status == "failed":
+        needs.append({"tone": "red", "title": "The latest scan failed",
+                      "sub": (scans[0].error or "No error was recorded.")[:140],
+                      "at": _aware(scans[0].finished_at or scans[0].created_at),
+                      "href": f"{base}/history", "action": "See history"})
+    integrations = session.scalars(select(Integration).where(or_(
+        Integration.site_id == site.id,
+        (Integration.account_id == account.id) & Integration.site_id.is_(None)))).all()
+    for i in integrations:
+        if i.is_connected() and i.last_error:
+            needs.append({"tone": "amber", "title": f"{INTEGRATION_LABELS.get(i.platform, i.platform)} needs reconnecting",
+                          "sub": i.last_error[:140], "at": None,
+                          "href": f"{base}/settings", "action": "Reconnect"})
+    if done:
+        high = session.scalar(select(func.count(func.distinct(Finding.check))).where(
+            Finding.scan_id == done[0].id, Finding.severity == "high")) or 0
+        if high:
+            needs.append({"tone": "red", "title": f"{_count_words(int(high), 'high-severity finding')} on the latest scan",
+                          "sub": "The ones most worth fixing first.", "at": _aware(done[0].finished_at),
+                          "href": base, "action": "See findings"})
+
+    return needs
+
+
+def project_notifications(session: Session, account: Account, site: Site | None) -> dict:
+    """/projects/{host}/notifications: what needs a person on this project,
+    then what happened recently. Every item is a real row; in-app only."""
+    if site is None:
+        return {"project": None}
+    base = f"/projects/{site.hostname}"
+    done = session.scalars(select(Scan).where(Scan.site_id == site.id, Scan.status == "done")
+                           .order_by(Scan.created_at.desc()).limit(10)).all()
+    needs = _project_needs(session, account, site)
+    recent: list[dict] = []
+    for idx, sc in enumerate(done):
+        prev = done[idx + 1].score if idx + 1 < len(done) else None
+        change = "" if sc.score is None or prev is None else f": score {prev} → {sc.score}"
+        recent.append({"tone": "green", "title": f"Scan finished{change}",
+                       "sub": f"{sc.pages_crawled} pages read.", "at": _aware(sc.finished_at),
+                       "href": base, "action": None})
+    for ch in session.scalars(select(Change).where(
+            Change.site_id == site.id, Change.state.in_(["published", "reverted", "failed"]))
+            .order_by(Change.proposed_at.desc()).limit(10)):
+        verb = {"published": "Published", "reverted": "Reverted", "failed": "Failed to publish"}[ch.state]
+        recent.append({"tone": "red" if ch.state == "failed" else "blue", "title": f"{verb}: {ch.title}",
+                       "sub": ch.error[:140] if ch.state == "failed" and ch.error else _path(ch.page_url) if ch.page_url else "Whole site",
+                       "at": _aware(ch.reverted_at or ch.published_at or ch.approved_at or ch.proposed_at),
+                       "href": f"{base}/publish", "action": None})
+    for p in session.scalars(select(ContentPost).where(
+            ContentPost.site_id == site.id, ContentPost.state == "published")
+            .order_by(ContentPost.created_at.desc()).limit(5)):
+        recent.append({"tone": "violet", "title": f"Published: {p.title}", "sub": "From the library.",
+                       "at": _aware(p.created_at), "href": f"{base}/library", "action": None})
+    recent = [r for r in recent if r["at"]]
+    recent.sort(key=lambda r: r["at"], reverse=True)
+    for item in needs + recent:
+        item["ago"] = _ago(item["at"]) if item["at"] else ""
+        item.pop("at")
+    return {"project": _project_payload(site), "needs": needs, "recent": recent[:20]}
+
+
+def project_history(session: Session, account: Account, site: Site | None) -> dict:
+    """/projects/{host}/history: the score scan by scan and a log of what
+    changed. Who did it isn't recorded yet, so no actor is shown."""
+    if site is None:
+        return {"project": None}
+    done = session.scalars(select(Scan).where(Scan.site_id == site.id, Scan.status == "done")
+                           .order_by(Scan.finished_at.desc()).limit(12)).all()
+    series = [{"date": _d(sc.finished_at), "score": sc.score} for sc in reversed(done) if sc.score is not None]
+    log: list[dict] = []
+    for sc in session.scalars(select(Scan).where(Scan.site_id == site.id)
+                              .order_by(Scan.created_at.desc()).limit(40)):
+        text = (f"Scan finished, {sc.pages_crawled} pages, score {sc.score}" if sc.status == "done"
+                else "Scan failed" if sc.status == "failed" else f"Scan {sc.status}")
+        log.append({"kind": "Scan", "text": text, "at": _aware(sc.finished_at or sc.created_at),
+                    "tone": "red" if sc.status == "failed" else "green"})
+    for ch in session.scalars(select(Change).where(Change.site_id == site.id)
+                              .order_by(Change.proposed_at.desc()).limit(40)):
+        where = _path(ch.page_url) if ch.page_url else "whole site"
+        for label, at in (("Proposed", ch.proposed_at), ("Approved", ch.approved_at),
+                          ("Published", ch.published_at), ("Reverted", ch.reverted_at)):
+            if at:
+                log.append({"kind": "Change", "text": f"{label}: {ch.title} on {where}",
+                            "at": _aware(at), "tone": "blue"})
+    for p in session.scalars(select(ContentPost).where(ContentPost.site_id == site.id)
+                             .order_by(ContentPost.created_at.desc()).limit(40)):
+        log.append({"kind": "Content", "text": f"{p.title} ({p.state.replace('_', ' ')})",
+                    "at": _aware(p.created_at), "tone": "violet"})
+    log = [x for x in log if x["at"]]
+    log.sort(key=lambda x: x["at"], reverse=True)
+    first, last = (series[0]["score"], series[-1]["score"]) if series else (None, None)
+    if len(series) < 2:
+        headline = "Not enough scans yet to show a trend." if series else "No scans yet."
+    elif last > first:
+        headline = f"Up {last - first} points since {series[0]['date']}."
+    elif last < first:
+        headline = f"Down {first - last} points since {series[0]['date']}."
+    else:
+        headline = f"Holding at {last} since {series[0]['date']}."
+    return {
+        "project": _project_payload(site), "headline": headline, "series": series,
+        "log": [{"kind": x["kind"], "text": x["text"], "tone": x["tone"], "when": _dt(x["at"])} for x in log[:60]],
+        "counts": {k: sum(1 for x in log if x["kind"] == k) for k in ("Scan", "Change", "Content")},
+    }
+
+
 def project_overview(session: Session, account: Account, site: Site | None) -> dict:
     """/projects/{host}: the latest scan's score by layer, one row per
     distinct finding with where/why/fix and whether the connected platform
@@ -1227,7 +1357,7 @@ def project_chrome(session: Session, account: Account, site: Site | None) -> dic
             "geo": layers.get("answers", 0) if latest else None,
             "publish": count(Change, Change.site_id == site.id, Change.state == "proposed"),
             "library": count(ContentPost, ContentPost.site_id == site.id),
-            "notifications": notification_count(session, account, [site]),
+            "notifications": len(_project_needs(session, account, site)),
         },
         "usage": ({"used": account.scans_used_this_period,
                    "cap": limits["scans_per_period"]} if limits else None),

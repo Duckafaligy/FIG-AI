@@ -96,6 +96,23 @@ def fixable_checks(platform: str) -> set[str]:
                          for name in ("TITLE_CHECKS", "META_CHECKS", "STRUCTURAL_CHECKS")))
 
 
+def proposable_checks(platform: str | None) -> set[str]:
+    """What is worth proposing: with a platform connected, what it can apply;
+    with none yet, what at least one supported platform could apply once
+    connected. Anything else would only ever fail at publish time."""
+    if platform:
+        return fixable_checks(platform)
+    return set().union(*(fixable_checks(p) for p in _ADAPTER_MODULES))
+
+
+def site_platform(session: Session, site: Site) -> str | None:
+    """The site's connected write platform, if any."""
+    integ = session.scalars(select(Integration).where(
+        Integration.site_id == site.id,
+        Integration.platform.in_(list(_ADAPTER_MODULES)))).first()
+    return integ.platform if integ and integ.is_connected() else None
+
+
 def propose(session: Session, site: Site) -> list[Change]:
     """Derive changes from the site's latest audit.
 
@@ -112,9 +129,10 @@ def propose(session: Session, site: Site) -> list[Change]:
         if c.finding_id
     }
 
+    wanted = proposable_checks(site_platform(session, site))
     made = []
     for f in scan.findings:
-        if f.id in existing or f.check not in MECHANICAL:
+        if f.id in existing or f.check not in MECHANICAL or f.check not in wanted:
             continue
         kind, title = MECHANICAL[f.check]
         change = Change(
@@ -175,8 +193,9 @@ def queue(session: Session, account: Account, layer: str | None = None,
             "_change": c, "id": c.id, "site_id": c.site_id,
             "hostname": site.hostname if site else "—",
             "client": site.client_name if site else None,
-            "page": c.page_url, "kind": c.kind, "title": c.title,
-            "detail": c.detail, "state": c.state, "error": c.error,
+            "page": c.page_url, "kind": c.kind, "layer": c.layer, "title": c.title,
+            "detail": c.detail, "before": c.before, "after": c.after,
+            "state": c.state, "error": c.error,
             "platform": integ.platform if integ else None,
             "can_publish": bool(integ and integ.is_connected()),
             "at": c.proposed_at,

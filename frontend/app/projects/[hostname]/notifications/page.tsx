@@ -1,7 +1,10 @@
-import { LiveDashboardPage } from "@/components/live-dashboard-page";
-import { fetchOverlay } from "@/lib/live";
+import { ProjectNotifications } from "@/components/project-activity";
+import { ServiceUnavailable } from "@/components/service-unavailable";
+import { api } from "@/lib/api";
 
-export default async function Page() {
-  const { overlay } = await fetchOverlay("notifications");
-  return <LiveDashboardPage page="notifications" overlay={overlay} />;
+export default async function Page({ params }: { params: Promise<{ hostname: string }> }) {
+  const { hostname } = await params;
+  const result = await api.projectNotifications(decodeURIComponent(hostname));
+  if (!result.ok || !result.data.project) return <ServiceUnavailable message={result.ok ? "This project couldn't be found." : result.error} />;
+  return <ProjectNotifications data={result.data} />;
 }

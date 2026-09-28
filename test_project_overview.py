@@ -30,7 +30,7 @@ class ProjectOverviewTests(unittest.TestCase):
             db.flush()
             db.add(Site(id="s", account_id="a", hostname="northgate.studio", client_name="Northgate"))
             db.flush()
-            db.add_all([Scan(id="old", site_id="s", status="done", score=79, finished_at=now - timedelta(days=7)),
+            db.add_all([Scan(id="old", site_id="s", status="done", score=79, finished_at=now - timedelta(days=7), created_at=now - timedelta(days=7)),
                         Scan(id="new", site_id="s", status="done", score=83, pages_crawled=12, finished_at=now,
                              score_craft=86, score_structure=81, score_search=84, score_answers=76,
                              trace={"stages": [{"stage": "rules", "status": "ok", "detail": {"site_checks": True}}]})])
@@ -151,6 +151,56 @@ class ProjectOverviewTests(unittest.TestCase):
         self.assertIsNone(body["llms_txt"])
         states = {c["title"]: c["state"] for c in body["checks"]}
         self.assertEqual(states["AI crawlers blocked"], "unchecked")
+
+
+    def test_publish_lists_what_the_platform_cannot_apply(self):
+        body = self.client.get("/api/changes?project=northgate.studio").json()
+        checks = {r["check"] for r in body["not_queueable"]}
+        self.assertIn("heading_skips", checks)                  # GitHub can't restructure headings
+        self.assertNotIn("meta_description_length", checks)     # it can rewrite this
+        self.assertEqual(body["platform"], "github")
+
+
+    def test_propose_only_offers_what_the_connected_platform_can_apply(self):
+        body = self.client.post("/api/changes/propose", params={"project": "northgate.studio"}).json()
+        rows = self.client.get("/api/changes?project=northgate.studio").json()["rows"]
+        self.assertEqual({r["kind"] for r in rows}, {"meta"})       # GitHub: meta description only here
+        self.assertEqual(body["changes"], 2)                        # /work and /about
+
+    def test_with_nothing_connected_propose_skips_what_no_platform_can_do(self):
+        from app.models import Finding
+        with Session(self.engine) as db:
+            for i in db.scalars(select(Integration)):
+                db.delete(i)
+            db.add(Finding(scan_id="new", check="missing_alt", layer="search", severity="medium", summary="alt"))
+            db.commit()
+        self.client.post("/api/changes/propose", params={"project": "northgate.studio"})
+        body = self.client.get("/api/changes?project=northgate.studio").json()
+        kinds = {r["kind"] for r in body["rows"]}
+        self.assertNotIn("alt", kinds)                                   # no adapter writes alt text
+        self.assertIn("missing_alt", {r["check"] for r in body["not_queueable"]})
+        self.assertNotIn("meta_description_length", {r["check"] for r in body["not_queueable"]})
+
+
+    def test_notifications_split_what_needs_you_from_what_happened(self):
+        self.client.post("/api/changes/propose", params={"project": "northgate.studio"})
+        with Session(self.engine) as db:
+            db.add(Integration(account_id="a", platform="google_search_console", credential_ref="r",
+                               connected_at=datetime.now(timezone.utc), last_error="token expired"))
+            db.commit()
+        body = self.client.get("/api/project-notifications?project=northgate.studio").json()
+        titles = [n["title"] for n in body["needs"]]
+        self.assertIn("Two changes waiting for approval", titles)
+        self.assertIn("Search Console needs reconnecting", titles)
+        self.assertIn("One high-severity finding on the latest scan", titles)
+        self.assertEqual(body["recent"][0]["title"], "Scan finished: score 79 → 83")
+
+    def test_history_headline_and_series_come_from_scans(self):
+        body = self.client.get("/api/project-history?project=northgate.studio").json()
+        self.assertEqual([p["score"] for p in body["series"]], [79, 83])
+        self.assertTrue(body["headline"].startswith("Up 4 points since "))
+        self.assertEqual(body["counts"]["Scan"], 2)
+        self.assertNotIn("actor", body["log"][0])
 
 
 if __name__ == "__main__":

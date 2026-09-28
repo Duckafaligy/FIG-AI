@@ -82,7 +82,8 @@ class ProjectChromeTests(unittest.TestCase):
 
     def test_another_workspaces_failures_stay_out_of_yours(self):
         chrome = self.client.get("/api/project-chrome?project=northgate.studio").json()
-        self.assertEqual(chrome["badges"]["notifications"], 1)   # this project's one proposed change, nothing of B's
+        # this project's one proposed change + its expired Search Console; nothing of B's
+        self.assertEqual(chrome["badges"]["notifications"], 2)
         body = self.client.get("/api/notifications").text
         self.assertNotIn("B's private error", body)
         self.auth.stop()

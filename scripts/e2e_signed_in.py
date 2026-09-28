@@ -217,6 +217,9 @@ def main() -> int:
         project = r.json() if ok else {}
         pid = project.get("id", "")
         check("same hostname again is 409", A.call("POST", "/api/projects", json={"hostname": HOST}).status_code == 409)
+        for path in ("/api/project-chrome", "/api/project-overview", "/api/project-seo", "/api/project-geo"):
+            r = A.call("GET", path, params={"project": HOST})
+            check(f"GET {path} answers for A's project", r.status_code == 200 and r.json().get("project", {}).get("hostname") == HOST, r.text[:120])
         for bad in ("localhost", "10.0.0.1", "http://169.254.169.254"):
             r = A.call("POST", "/api/projects", json={"hostname": bad})
             check(f"unsafe hostname {bad!r} is refused", r.status_code in (400, 422), str(r.status_code))
@@ -274,6 +277,8 @@ def main() -> int:
         unlock(b)
         check("B sees no posts", B.call("GET", "/api/content").json().get("total") == 0)
         check("B's project list does not include A's", HOST not in B.call("GET", "/api/projects").text)
+        for path in ("/api/project-chrome", "/api/project-overview", "/api/project-seo", "/api/project-geo"):
+            check(f"B gets 404 from {path} for A's project", B.call("GET", path, params={"project": HOST}).status_code == 404)
         r = B.call("GET", f"/api/content/{post_id}")
         check("B cannot read A's post", r.status_code == 404 and "E2E draft" not in r.text, str(r.status_code))
         other = r.text

@@ -1,102 +1,83 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, RotateCcw, Send, Wand2, XCircle } from "lucide-react";
 import { actions, api, type ApiChangeRow, type ApiChangesPage } from "@/lib/api";
+import styles from "./project-page.module.css";
 
-const STATE_LABEL: Record<string, string> = {
-  proposed: "Proposed", approved: "Approved", published: "Published",
-  failed: "Failed", rejected: "Rejected", reverted: "Reverted",
+type Action = "approve" | "reject" | "publish" | "revert";
+type Tab = "proposed" | "approved" | "failed" | "published";
+
+const TABS: [Tab, string][] = [["proposed", "Proposed"], ["approved", "Approved"], ["failed", "Failed"], ["published", "Published"]];
+const LAYER_LABEL: Record<string, string> = { craft: "Craft", structure: "Structure", search: "Search", answers: "Answers" };
+const STATE_CLASS: Record<string, string> = { proposed: "answers", approved: "structure", published: "search", failed: "failed" };
+const HOW: Record<string, string> = {
+  github: "Opens a pull request on the connected repository. Nothing reaches the live site until you merge it.",
+  wordpress: "Writes to WordPress through the connected account.",
+  shopify: "Writes to Shopify through the connected store.",
+  webflow: "Writes to Webflow through the connected site.",
+  wix: "Writes to Wix through the connected site.",
 };
-const STATE_TONE: Record<string, string> = {
-  proposed: "blue", approved: "purple", published: "green",
-  failed: "red", rejected: "grey", reverted: "grey",
-};
+const NUMBER = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
 
-function StateBadge({ state }: { state: string }) {
-  return <b className={`pq-status pq-status--${STATE_TONE[state] ?? "grey"}`}>{STATE_LABEL[state] ?? state}</b>;
+function pathOf(row: ApiChangeRow): string {
+  if (!row.page) return "whole site";
+  try { return new URL(row.page).pathname || "/"; } catch { return row.page; }
 }
 
-function pageLabel(row: ApiChangeRow): string {
-  if (!row.page) return row.hostname;
-  try {
-    const u = new URL(row.page);
-    return u.pathname === "/" ? u.hostname : `${u.hostname}${u.pathname}`;
-  } catch {
-    return row.page;
-  }
+function Change({ row, busy, onAction }: { row: ApiChangeRow; busy: boolean; onAction: (id: string, a: Action) => void }) {
+  const act = (a: Action) => () => onAction(row.id, a);
+  const published = row.state === "published";
+  return <article className={`${styles.change} ${row.state === "proposed" ? styles.changeWaiting : ""}`}>
+    <div className={styles.changeHead}>
+      <span className={`${styles.layerTag} ${styles[STATE_CLASS[row.state]] ?? ""}`}>{row.state[0].toUpperCase() + row.state.slice(1)}</span>
+      {row.layer && <span className={`${styles.layerTag} ${styles[row.layer] ?? ""}`}>{LAYER_LABEL[row.layer] ?? row.layer}</span>}
+      <strong>{row.title}</strong>
+      <code>{pathOf(row)}</code>
+    </div>
+    {(row.before || row.after) && <div className={styles.beforeAfter}>
+      <div className={published ? styles.beforeQuiet : styles.before}><span>{published ? "Before" : "Now"}{row.before ? ` · ${row.before.length} characters` : ""}</span><p>{row.before || "Nothing there yet."}</p></div>
+      <div className={styles.after}><span>{published ? "Live" : "After"}{row.after ? ` · ${row.after.length} characters` : ""}</span><p>{row.after || "Written when you approve it."}</p></div>
+    </div>}
+    {row.detail && !row.before && !row.after && <p className={styles.bodyText}>{row.detail}</p>}
+    {row.state === "failed" && row.error && <p className="form-message" role="alert">{row.error}</p>}
+    <div className={styles.changeFoot}>
+      <span>{row.platform ? HOW[row.platform] ?? `Writes through ${row.platform}.` : "No site connection yet. Connect one under Settings to publish."}</span>
+      {row.state === "proposed" && <>
+        <button type="button" className={styles.ghost} disabled={busy} onClick={act("reject")}>Reject</button>
+        <button type="button" className={styles.primarySmall} disabled={busy} onClick={act("approve")}>Approve</button>
+      </>}
+      {row.state === "approved" && <>
+        <button type="button" className={styles.ghost} disabled={busy} onClick={act("reject")}>Reject</button>
+        <button type="button" className={styles.primarySmall} disabled={busy || !row.can_publish} title={row.can_publish ? undefined : "Connect a site under Settings first"} onClick={act("publish")}>
+          {row.platform === "github" ? "Open pull request" : "Publish"}
+        </button>
+      </>}
+      {row.state === "failed" && <>
+        <button type="button" className={styles.ghost} disabled={busy} onClick={act("reject")}>Reject</button>
+        <button type="button" className={styles.primarySmall} disabled={busy} onClick={act("approve")} title="Sends it back to Approved so it can be retried">Retry</button>
+      </>}
+      {published && <button type="button" className={styles.ghost} disabled={busy} onClick={act("revert")}>Revert</button>}
+    </div>
+  </article>;
 }
 
-function Row({ row, onAction, busy }: {
-  row: ApiChangeRow; busy: boolean;
-  onAction: (id: string, action: "approve" | "reject" | "publish" | "revert") => void;
-}) {
-  const act = (action: "approve" | "reject" | "publish" | "revert") => onAction(row.id, action);
-  return (
-    <article className="pq-row">
-      <div className="pq-row-main">
-        <span className="pq-kind">{row.kind}</span>
-        <div>
-          <strong>{row.title}</strong>
-          <small>{pageLabel(row)}{row.client ? ` · ${row.client}` : ""}</small>
-          {row.detail && <p className="pq-detail">{row.detail}</p>}
-          {row.state === "failed" && row.error && <p className="pq-error">{row.error}</p>}
-        </div>
-      </div>
-      <span className="pq-platform">{row.platform ?? "Not connected"}</span>
-      <StateBadge state={row.state} />
-      <div className="pq-actions">
-        {row.state === "proposed" && <>
-          <button type="button" className="button button--small" disabled={busy} onClick={() => act("approve")}>
-            <CheckCircle2 size={14} />Approve
-          </button>
-          <button type="button" className="secondary-button" disabled={busy} onClick={() => act("reject")}>
-            <XCircle size={14} />Reject
-          </button>
-        </>}
-        {row.state === "approved" && <>
-          <button type="button" className="button button--small" disabled={busy || !row.can_publish}
-                  title={row.can_publish ? "" : "Connect a CMS for this site under Settings first"}
-                  onClick={() => act("publish")}>
-            <Send size={14} />Publish
-          </button>
-          <button type="button" className="secondary-button" disabled={busy} onClick={() => act("reject")}>
-            <XCircle size={14} />Reject
-          </button>
-        </>}
-        {row.state === "failed" && <>
-          <button type="button" className="button button--small" disabled={busy} onClick={() => act("approve")}
-                  title="Sends it back to Approved so Publish can be retried">
-            <Wand2 size={14} />Retry
-          </button>
-          <button type="button" className="secondary-button" disabled={busy} onClick={() => act("reject")}>
-            <XCircle size={14} />Reject
-          </button>
-        </>}
-        {row.state === "published" && (
-          <button type="button" className="secondary-button" disabled={busy} onClick={() => act("revert")}>
-            <RotateCcw size={14} />Revert
-          </button>
-        )}
-      </div>
-    </article>
-  );
-}
-
-export function PublishQueue({ projectId }: { projectId?: string } = {}) {
+/** One project's publish queue (Paper 2c.6). FIG proposes, a person
+ *  approves, and every published change keeps its before-state. */
+export function PublishQueue({ projectId }: { projectId: string }) {
   const [data, setData] = useState<ApiChangesPage | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [tab, setTab] = useState<Tab>("proposed");
   const [proposing, setProposing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
   const request = useRef(0);
+  const base = `/projects/${encodeURIComponent(projectId)}`;
 
   const load = useCallback(async () => {
     const id = ++request.current;
-    const result = await api.changes(projectId ?? "");
+    const result = await api.changes(projectId);
     if (id !== request.current) return;
-    setLoading(false);
     if (!result.ok) { setError(result.status === 401 ? "Your session expired. Please sign in again." : result.error); return; }
     setData(result.data); setError("");
   }, [projectId]);
@@ -104,12 +85,15 @@ export function PublishQueue({ projectId }: { projectId?: string } = {}) {
 
   const propose = async () => {
     setProposing(true);
-    const result = await actions.proposeChanges(projectId ?? "");
+    setActionError("");
+    const result = await actions.proposeChanges(projectId);
     setProposing(false);
-    if (result.ok) load();
+    if (!result.ok) { setActionError(result.error); return; }
+    setTab("proposed");
+    load();
   };
 
-  const onAction = async (id: string, action: "approve" | "reject" | "publish" | "revert") => {
+  const onAction = async (id: string, action: Action) => {
     setBusyId(id);
     setActionError("");
     const result = await actions.changeAction(id, action);
@@ -118,71 +102,56 @@ export function PublishQueue({ projectId }: { projectId?: string } = {}) {
     load();
   };
 
-  if (loading) return <div className="pq-state">Loading the publish queue…</div>;
-  if (error) return <div className="pq-state pq-state--error">{error}</div>;
-  if (!data) return null;
+  if (error) return <p className="form-message" role="alert">{error}</p>;
+  if (!data) return <p className={styles.empty} role="status">Loading the publish queue…</p>;
 
-  const rows = data.rows;
-  const activeRows = rows.filter(r => !["rejected", "reverted"].includes(r.state));
-  const doneRows = rows.filter(r => ["rejected", "reverted"].includes(r.state));
+  const waiting = data.counts.proposed ?? 0;
+  const rows = data.rows.filter((r) => r.state === tab);
+  const closed = data.rows.filter((r) => r.state === "rejected" || r.state === "reverted");
+  const blocked = data.not_queueable ?? [];
 
-  return (
-    <div className="publish-queue">
-      <header className="dashboard-heading-row">
-        <div>
-          <span className="dashboard-eyebrow">{projectId ? "Project / Publish" : "Workspace / Publish"}</span>
-          <h1>Publish queue</h1>
-          <p>{projectId
-            ? "Mechanical fixes from this project's latest scan, reviewed here before anything touches the live site."
-            : "Mechanical fixes from your latest scans, reviewed here before anything touches a live site."}</p>
-        </div>
-        <button type="button" className="button" disabled={proposing || data.sites === 0} onClick={propose}>
-          <Wand2 size={16} />{proposing ? "Checking…" : "Propose changes"}
-        </button>
-      </header>
+  return <div className={styles.page}>
+    <header className={styles.head}>
+      <div>
+        <span className={styles.eyebrow}>{projectId} · Publish</span>
+        <h1>{waiting ? `${NUMBER[waiting] ?? waiting} change${waiting === 1 ? " is" : "s are"} waiting for you.` : "Nothing is waiting for you."}</h1>
+        <p>FIG proposes the change and keeps the old text, you approve it, and it goes out through the connected site. Every published change can be reverted.</p>
+      </div>
+      <div className={styles.headActions}>
+        <button type="button" className={styles.primary} disabled={proposing} onClick={propose}>{proposing ? "Checking…" : "Check for fixes"}</button>
+      </div>
+    </header>
 
-      {data.sites === 0 && (
-        <div className="pq-empty">
-          <p>Add a project first, then come back here — proposed fixes are drawn from a site's most recent scan.</p>
-        </div>
-      )}
+    {data.connected === 0 && <div className={styles.banner} role="status">
+      <div><strong>No site connection yet</strong><span>You can review and approve here, but nothing can be published until this project is connected to its CMS or repository.</span></div>
+      <Link className={styles.bannerAction} href={`${base}/settings`}>Connect</Link>
+    </div>}
+    {actionError && <p className="form-message" role="alert">{actionError}</p>}
 
-      {data.sites > 0 && data.connected === 0 && (
-        <div className="pq-note">
-          <p>No CMS is connected {projectId ? "for this project" : "on any of your sites"} yet. Proposed changes
-            can still be reviewed and approved here, but Publish stays disabled until you connect one
-            under Settings.</p>
-        </div>
-      )}
-
-      {actionError && <div className="pq-note pq-note--error"><p>{actionError}</p></div>}
-
-      {data.sites > 0 && rows.length === 0 && (
-        <div className="pq-empty">
-          <p>Nothing proposed yet. Click <strong>Propose changes</strong> to check {projectId ? "this project's" : "your sites'"} latest
-            scan for fixes FIG can apply mechanically — titles, heading structure, and (where a platform supports it)
-            meta descriptions.</p>
-        </div>
-      )}
-
-      {activeRows.length > 0 && (
-        <div className="pq-list">
-          {activeRows.map(row => (
-            <Row key={row.id} row={row} busy={busyId === row.id} onAction={onAction} />
-          ))}
-        </div>
-      )}
-
-      {doneRows.length > 0 && (
-        <details className="pq-history">
-          <summary>{doneRows.length} rejected or reverted</summary>
-          <div className="pq-list">
-            {doneRows.map(row => (
-              <Row key={row.id} row={row} busy={busyId === row.id} onAction={onAction} />
-            ))}
-          </div>
-        </details>
-      )}
+    <div className={styles.tabs} role="tablist" aria-label="Changes by state">
+      {TABS.map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={tab === key} className={tab === key ? styles.tabOn : ""} onClick={() => setTab(key)}>
+        {label}<em>{data.counts[key] ?? 0}</em>
+      </button>)}
     </div>
-  );
+
+    {rows.length
+      ? <div className={styles.changes}>{rows.map((row) => <Change key={row.id} row={row} busy={busyId === row.id} onAction={onAction} />)}</div>
+      : <p className={styles.emptyCard}>{tab === "proposed"
+        ? "Nothing proposed. “Check for fixes” looks at the latest scan for fixes FIG can apply: titles, meta descriptions and heading structure, where the connected platform supports them."
+        : `No ${tab} changes.`}</p>}
+
+    {blocked.length > 0 && <section className={styles.card} aria-labelledby="blocked-title">
+      <div className={styles.cardHead}><div><h2 id="blocked-title">{data.platform ? "Can’t go through the connected site" : "Needs a person"}</h2>
+        <p>{data.platform ? "These findings need a person: the connected platform can’t make these edits." : "Connect a site to send the mechanical fixes from here. Everything below needs a person either way."}</p></div></div>
+      <ul className={styles.blockedList}>{blocked.map((b) => <li key={b.check}>
+        <span className={`${styles.layerTag} ${styles[b.layer] ?? ""}`}>{LAYER_LABEL[b.layer] ?? b.layer}</span>
+        <div><strong>{b.title}</strong><span>{b.pages.length ? b.pages.slice(0, 3).join(", ") + (b.pages.length > 3 ? ", …" : "") : "whole site"}</span>{b.fix && <small>Fix: {b.fix}</small>}</div>
+      </li>)}</ul>
+    </section>}
+
+    {closed.length > 0 && <details className={styles.history}>
+      <summary>{closed.length} rejected or reverted</summary>
+      <div className={styles.changes}>{closed.map((row) => <Change key={row.id} row={row} busy={busyId === row.id} onAction={onAction} />)}</div>
+    </details>}
+  </div>;
 }

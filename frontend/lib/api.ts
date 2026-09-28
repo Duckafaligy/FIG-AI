@@ -272,6 +272,20 @@ export type ApiProjectGeo = {
   checks?: ApiLayerCheck[];
 };
 
+export type ApiNotice = { tone: string; title: string; sub: string; ago: string; href: string; action: string | null };
+export type ApiProjectNotifications = {
+  project: { id: string; hostname: string; name: string } | null;
+  needs?: ApiNotice[];
+  recent?: ApiNotice[];
+};
+export type ApiProjectHistory = {
+  project: { id: string; hostname: string; name: string } | null;
+  headline?: string;
+  series?: { date: string; score: number }[];
+  log?: { kind: string; text: string; tone: string; when: string }[];
+  counts?: Record<string, number>;
+};
+
 export type ApiProjectChrome = {
   project: { id: string; hostname: string; name: string; score: Nullable<number> } | null;
   connections?: { platform: string; ok: boolean }[];
@@ -508,7 +522,8 @@ export type ApiProjectSettingsPage = ApiChrome & {
 
 export type ApiChangeRow = {
   id: string; site_id: string; hostname: string; client: Nullable<string>;
-  page: Nullable<string>; kind: string; title: string; detail: Nullable<string>;
+  page: Nullable<string>; kind: string; layer?: string; title: string; detail: Nullable<string>;
+  before?: Nullable<string>; after?: Nullable<string>;
   state: "proposed" | "approved" | "published" | "failed" | "rejected" | "reverted";
   error: Nullable<string>; platform: Nullable<string>; can_publish: boolean; at: string;
 };
@@ -517,6 +532,8 @@ export type ApiChangesPage = {
   counts: Record<string, number>;
   connected: number;
   sites: number;
+  platform?: string | null;
+  not_queueable?: { check: string; layer: string; title: string; pages: string[]; fix: string | null }[];
 };
 
 /* ------------------------------------------------------------------ calls */
@@ -547,6 +564,10 @@ export const api = {
     apiServer<ApiProjectSeo>(`/api/project-seo?project=${encodeURIComponent(project)}`),
   projectGeo: (project: string) =>
     apiServer<ApiProjectGeo>(`/api/project-geo?project=${encodeURIComponent(project)}`),
+  projectNotifications: (project: string) =>
+    apiServer<ApiProjectNotifications>(`/api/project-notifications?project=${encodeURIComponent(project)}`),
+  projectHistory: (project: string) =>
+    apiServer<ApiProjectHistory>(`/api/project-history?project=${encodeURIComponent(project)}`),
   projectChrome: (project: string) =>
     apiServer<ApiProjectChrome>(`/api/project-chrome?project=${encodeURIComponent(project)}`),
   analytics: (project: string) =>

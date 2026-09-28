@@ -243,6 +243,20 @@ def analytics(request: Request, project: str = Query(default=""),
                                    _project(session, account, project)))
 
 
+@router.get("/project-notifications")
+def project_notifications(request: Request, project: str = Query(default=""),
+                          session: Session = Depends(get_session)):
+    account = _account(request, session)
+    return _public(pages.project_notifications(session, account, _project(session, account, project)))
+
+
+@router.get("/project-history")
+def project_history(request: Request, project: str = Query(default=""),
+                    session: Session = Depends(get_session)):
+    account = _account(request, session)
+    return _public(pages.project_history(session, account, _project(session, account, project)))
+
+
 @router.get("/project-geo")
 def project_geo(request: Request, project: str = Query(default=""),
                 session: Session = Depends(get_session)):
@@ -632,11 +646,22 @@ def _post_json(session: Session, post) -> dict:
 def changes(request: Request, layer: str = Query(default=""), project: str = Query(default=""),
             session: Session = Depends(get_session)):
     account = _account(request, session)
-    site_id = _project(session, account, project).id if project else None
-    result = publishing.queue(session, account, layer=layer or None, site_id=site_id)
+    site = _project(session, account, project) if project else None
+    result = publishing.queue(session, account, layer=layer or None,
+                              site_id=site.id if site else None)
     # _public() only strips top-level keys; each row also carries its own
     # internal-only "_change" (the raw ORM object), one level down.
     result["rows"] = [_public(row) for row in result["rows"]]
+    if site:
+        # Findings no connected platform can apply: the Publish page lists
+        # them so "why isn't this here?" has an answer.
+        reading = pages._scan_reading(session, site)
+        proposable = publishing.proposable_checks(reading["platform"])
+        result["platform"] = reading["platform"]
+        result["not_queueable"] = [
+            {"check": r["check"], "layer": r["layer"], "title": r["title"],
+             "pages": r["pages"], "fix": r["fix"]}
+            for r in reading["findings"] if r["check"] not in proposable]
     return _public(result)
 
 

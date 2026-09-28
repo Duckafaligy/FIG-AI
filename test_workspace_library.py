@@ -252,8 +252,8 @@ class PublishQueueEndpointTests(unittest.TestCase):
         self.assertEqual(len(body["rows"]), 1)
         row = body["rows"][0]
         self.assertEqual(set(row.keys()), {
-            "id", "site_id", "hostname", "client", "page", "kind", "title",
-            "detail", "state", "error", "platform", "can_publish", "at",
+            "id", "site_id", "hostname", "client", "page", "kind", "layer", "title",
+            "detail", "before", "after", "state", "error", "platform", "can_publish", "at",
         })
         self.assertEqual(row["state"], "proposed")
         self.assertEqual(row["platform"], "wordpress")
