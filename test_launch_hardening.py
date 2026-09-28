@@ -134,13 +134,13 @@ class LaunchHardeningTests(unittest.TestCase):
         self.assertTrue(result["plan"]["subscribed"])
         self.assertFalse(result["plan"]["checkout_available"])
         usage = {row["label"]: row for row in result["usage"]}
-        self.assertEqual(usage["Projects"]["cap"], 2)
+        self.assertEqual(usage["Projects"]["cap"], 3)   # PLAN_LIMITS / frontend/lib/plans.ts
         self.assertEqual(usage["Scans this period"], {"label": "Scans this period", "used": 12, "cap": 100})
 
     def test_frontend_signup_contract(self):
         from pathlib import Path
         source = (Path(__file__).parent / "frontend/components/auth-form.tsx").read_text(encoding="utf-8")
-        self.assertIn('window.location.replace("/projects")', source)
+        self.assertIn('needs_plan ? "/choose-plan" : "/projects"', source)   # paid-only since 2026-09-27
         self.assertIn('full_name: fullName, company', source)
         self.assertNotIn('name="website"', source)
 

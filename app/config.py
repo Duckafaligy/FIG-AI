@@ -30,6 +30,10 @@ DATABASE_URL = (os.environ.get("FIG_DATABASE_URL")
 # admin panel if it ever reaches a public URL.
 DEV_NO_AUTH = os.environ.get("FIG_DEV_NO_AUTH", "0") == "1"
 DEMO_ACCOUNT_SLUG = "northgate"
+# Workspaces that may use the paid-only app without a subscription: the
+# owner's own, or a partner on a manual contract. Comma-separated slugs.
+COMPED_ACCOUNT_SLUGS = frozenset(
+    s.strip() for s in os.environ.get("FIG_COMPED_ACCOUNTS", "").split(",") if s.strip())
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 # Safe to send to the browser: it is the key the Supabase JS client uses, and

@@ -203,3 +203,77 @@ def fetch_overview_metrics(session: Session, site: Site) -> list[dict] | None:
         delta = _pct_change(float(cur_raw), float(prev_raw)) if prev_raw is not None else None
         panel.append({"value": _fmt(key, cur_raw), "label": label, "delta": delta})
     return panel
+
+
+def _report_target(session: Session, site: Site):
+    """(integration, token, property) when a report can be requested, else None."""
+    integ = _integration(session, site)
+    if integ is None:
+        return None
+    prop = site.ga_property
+    if not prop or not re.fullmatch(r"properties/\d+", prop):
+        return None
+    token = _access_token(session, integ)
+    return (integ, token, prop) if token else None
+
+
+def _rows(report: dict) -> list[tuple[list[str], list[str]]]:
+    return [([d["value"] for d in r.get("dimensionValues", [])],
+             [m["value"] for m in r.get("metricValues", [])])
+            for r in report.get("rows", [])]
+
+
+def fetch_detail(session: Session, site: Site) -> dict | None:
+    """The project Analytics page: sessions per day for the last 60 days
+    (split into this 30 and the 30 before), top landing pages and channel
+    groups for the last 30. One batchRunReports call. `None` means not
+    connected or not readable right now; nothing is filled in."""
+    target = _report_target(session, site)
+    if target is None:
+        return None
+    integ, token, prop = target
+    last30 = [{"startDate": "29daysAgo", "endDate": "today"}]
+    body = {"requests": [
+        {"dateRanges": [{"startDate": "59daysAgo", "endDate": "today"}],
+         "dimensions": [{"name": "date"}], "metrics": [{"name": "sessions"}],
+         "orderBys": [{"dimension": {"dimensionName": "date"}}], "limit": 100},
+        {"dateRanges": last30, "dimensions": [{"name": "landingPage"}],
+         "metrics": [{"name": "sessions"}, {"name": "engagementRate"}],
+         "orderBys": [{"metric": {"metricName": "sessions"}, "desc": True}], "limit": 10},
+        {"dateRanges": last30, "dimensions": [{"name": "sessionDefaultChannelGroup"}],
+         "metrics": [{"name": "sessions"}],
+         "orderBys": [{"metric": {"metricName": "sessions"}, "desc": True}], "limit": 8},
+    ]}
+    try:
+        resp = httpx.post(f"{DATA_API}/{prop}:batchRunReports",
+                          headers={"Authorization": f"Bearer {token}"}, json=body, timeout=15.0)
+    except httpx.HTTPError as exc:
+        log.warning("ga: detail request failed for site %s: %s", site.id, exc)
+        return None
+    if resp.status_code != 200:
+        log.warning("ga: detail rejected for site %s: %s %s",
+                    site.id, resp.status_code, resp.text[:300])
+        integ.last_error = f"GA4 report failed: HTTP {resp.status_code}"
+        session.commit()
+        return None
+    reports = resp.json().get("reports", [])
+    if len(reports) != 3:
+        return None
+    daily_rows, page_rows, channel_rows = (_rows(r) for r in reports)
+
+    # GA leaves out days with no sessions, so the 60 days are laid out here
+    # and missing ones are real zeros.
+    # ponytail: days counted in UTC, the property's own timezone can shift the edge by one day.
+    today = time.gmtime()
+    end = time.mktime((today.tm_year, today.tm_mon, today.tm_mday, 12, 0, 0, 0, 0, -1))
+    days = [time.strftime("%Y%m%d", time.localtime(end - 86400 * i)) for i in range(59, -1, -1)]
+    by_day = {d[0]: int(float(m[0])) for d, m in daily_rows}
+    counts = [by_day.get(d, 0) for d in days]
+    return {
+        "days": [f"{d[:4]}-{d[4:6]}-{d[6:]}" for d in days[30:]],
+        "current": counts[30:],
+        "previous": counts[:30],
+        "pages": [{"path": d[0], "sessions": int(float(m[0])),
+                   "engaged": round(float(m[1]) * 100)} for d, m in page_rows],
+        "channels": [{"name": d[0], "sessions": int(float(m[0]))} for d, m in channel_rows],
+    }

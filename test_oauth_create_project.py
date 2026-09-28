@@ -278,6 +278,103 @@ class OAuthCreateProjectTests(unittest.TestCase):
             self.assertEqual(integ.endpoint, "octocat/site")
             self.assertTrue(integ.is_connected())
 
+    # -- GitHub picker: sign in first, then choose the repo (Vercel-style) --
+
+    def github_get(self, repos=None, repo_info=None, pages=None):
+        """Fake GitHub REST by path: /user/repos, /repos/{r}, /repos/{r}/pages."""
+        def get(url, **kwargs):
+            path = urlparse(url).path
+            if path == "/user/repos":
+                return FakeResp(200, repos or [])
+            if path.endswith("/pages"):
+                return FakeResp(200, pages) if pages else FakeResp(404, {})
+            return FakeResp(200, repo_info) if repo_info is not None else FakeResp(404, {})
+        return get
+
+    def picker_pending(self):
+        start = self.client.get("/oauth/github/start", headers=self.headers())
+        self.assertEqual(start.status_code, 307)
+        with patch("app.oauth.httpx.post") as post:
+            post.return_value = FakeResp(200, {"access_token": "gh_token", "scope": "repo"})
+            r = self.client.get("/oauth/github/callback", params={"code": "c", "state": self.state_from(start)})
+        loc = urlparse(r.headers["location"])
+        self.assertEqual(loc.path, "/projects/pick-repo")
+        return parse_qs(loc.query)["pending"][0]
+
+    def test_github_without_a_repo_signs_in_first_and_lands_on_the_picker(self):
+        self.picker_pending()
+        self.assertEqual(self.sites(), [])
+        with Session(self.engine) as db:   # the token is kept, just not attached yet
+            self.assertEqual(db.scalar(select(__import__("sqlalchemy").func.count()).select_from(Secret)), 1)
+
+    def test_the_picker_lists_only_repos_the_account_can_push_to(self):
+        pending = self.picker_pending()
+        repos = [{"full_name": "me/site", "private": True, "homepage": "https://site.example",
+                  "pushed_at": "2026-09-26T10:00:00Z", "permissions": {"push": True}},
+                 {"full_name": "someone/readonly", "permissions": {"push": False}}]
+        with patch("app.oauth.httpx.get", side_effect=self.github_get(repos=repos)):
+            r = self.client.get("/api/github/repos", params={"pending": pending}, headers=self.headers())
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual([x["full_name"] for x in r.json()["repos"]], ["me/site"])
+        self.assertTrue(r.json()["repos"][0]["private"])
+
+    def test_picking_a_repo_with_a_website_field_creates_the_project(self):
+        pending = self.picker_pending()
+        with patch("app.oauth.httpx.get",
+                  side_effect=self.github_get(repo_info={"homepage": "https://www.mysite.dev/"})):
+            r = self.client.post("/api/projects/finish-github-pick", headers=self.headers(),
+                                 json={"pending": pending, "repo": "me/site"})
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json()["hostname"], "www.mysite.dev")
+        with Session(self.engine) as db:
+            integ = db.scalars(select(Integration)).one()
+            self.assertEqual((integ.platform, integ.endpoint), ("github", "me/site"))
+            self.assertEqual(read_secret(db, integ.credential_ref)["access_token"], "gh_token")
+
+    def test_picking_a_repo_github_cant_place_asks_for_the_url_next(self):
+        pending = self.picker_pending()
+        with patch("app.oauth.httpx.get", side_effect=self.github_get(repo_info={"homepage": ""})):
+            r = self.client.post("/api/projects/finish-github-pick", headers=self.headers(),
+                                 json={"pending": pending, "repo": "me/site"})
+        self.assertTrue(r.json()["needs_hostname"])
+        self.assertEqual(self.sites(), [])
+        finish = self.client.post("/api/projects/finish-oauth-create", headers=self.headers(),
+                                  json={"pending": r.json()["pending"], "hostname": "me-site.vercel.app"})
+        self.assertEqual(finish.status_code, 200, finish.text)
+        with Session(self.engine) as db:
+            self.assertEqual(db.scalars(select(Integration)).one().endpoint, "me/site")
+
+    def test_picking_a_repo_the_token_cannot_see_is_refused(self):
+        pending = self.picker_pending()
+        with patch("app.oauth.httpx.get", side_effect=self.github_get(repo_info=None)):
+            r = self.client.post("/api/projects/finish-github-pick", headers=self.headers(),
+                                 json={"pending": pending, "repo": "someone/private"})
+        self.assertEqual(r.status_code, 404)
+        self.assertEqual(self.sites(), [])
+
+    def test_a_repo_less_github_token_cannot_skip_the_picker(self):
+        pending = oauth._make_pending_create("a", "github", credential_ref="ref-1")
+        r = self.client.post("/api/projects/finish-oauth-create", headers=self.headers(),
+                             json={"pending": pending, "hostname": "x.example"})
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(self.sites(), [])
+
+    def test_the_repo_list_is_not_readable_by_another_account(self):
+        with Session(self.engine) as db:
+            db.add(Account(id="other", name="Other", slug="other"))
+            db.commit()
+        pending = self.picker_pending()
+        r = self.client.get("/api/github/repos", params={"pending": pending},
+                            headers={"x-test-account": "other"})
+        self.assertEqual(r.status_code, 400)
+
+    def test_reconnecting_an_existing_project_still_names_its_repo(self):
+        with Session(self.engine) as db:
+            db.add(Site(id="site-a", account_id="a", hostname="a.example"))
+            db.commit()
+        r = self.client.get("/oauth/github/start", params={"site_id": "site-a"}, headers=self.headers())
+        self.assertEqual(r.status_code, 422)
+
     # -- Wix: never discoverable, always the confirm-URL step --
 
     def test_wix_create_mode_always_lands_on_the_confirm_url_step(self):

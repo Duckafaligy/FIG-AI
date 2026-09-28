@@ -54,6 +54,7 @@ const SERVER_BASE = (process.env.FIG_BACKEND_URL ?? process.env.NEXT_PUBLIC_API_
 
 export type ApiOk<T> = { ok: true; data: T };
 export type ApiErr = { ok: false; status: number; error: string };
+export type GithubRepo = { full_name: string; private: boolean; description: string; homepage: string; pushed_at: string };
 export type ApiResult<T> = ApiOk<T> | ApiErr;
 
 export function apiUrl(path: string): string {
@@ -192,8 +193,9 @@ export type ApiMe =
         name: string;
         slug: string;
         kind: string;
-        on_trial: boolean;
-        trial_days_left: number;
+        /** No paid plan yet: the workspace API answers 402, send them to /choose-plan. */
+        needs_plan: boolean;
+        plan: string | null;
         projects: number;
       };
     };
@@ -215,6 +217,19 @@ export type ApiChart = {
   xlabels: { x: number; label: string }[];
   lines: ApiChartLine[];
   max: number;
+};
+
+export type ApiAnalyticsPage = {
+  project: { id: string; hostname: string; name: string } | null;
+  connected: boolean;
+  property: string | null;
+  kpis: { value: string | null; label: string; delta: number | null }[] | null;
+  detail: {
+    chart: ApiChart;
+    pages: { path: string; sessions: number; engaged: number; findings: { check: string; layer: string; summary: string }[] }[];
+    channels: { name: string; sessions: number; share: number }[];
+    scanned: boolean;
+  } | null;
 };
 
 export type ApiDonut = {
@@ -463,11 +478,15 @@ export const api = {
     ),
   geo: (project = "") =>
     apiServer<ApiGeoPage>(`/api/geo${project ? `?project=${encodeURIComponent(project)}` : ""}`),
+  analytics: (project: string) =>
+    apiServer<ApiAnalyticsPage>(`/api/analytics?project=${encodeURIComponent(project)}`),
   notifications: () => apiServer<ApiNotificationsPage>("/api/notifications"),
   history: () => apiServer<ApiHistoryPage>("/api/history"),
   // Account-wide only (workspace profile, team, billing, ...) -- reached
   // from /projects' account menu, not from the per-project dashboard sidebar.
   settings: () => apiClient<ApiSettingsPage>("/api/settings"),
+  githubRepos: (pending: string) =>
+    apiClient<{ repos: GithubRepo[] }>(`/api/github/repos?pending=${encodeURIComponent(pending)}`),
   // /projects/[id]/settings' real data: one project's own connectors, scoped
   // the same way overview()/seo()/geo() are -- empty defaults to the
   // account's first site (same as those three), a real id 404s if it isn't
@@ -520,6 +539,11 @@ export const actions = {
   finishOauthCreate: (pending: string, hostname: string) =>
     apiSend<{ id: string; hostname: string; scan_id: string }>(
       "/api/projects/finish-oauth-create", "POST", { pending, hostname }),
+  // GitHub's picker (/projects/pick-repo): the chosen repo becomes the
+  // project, or comes back needing a URL when GitHub can't say where it's deployed.
+  finishGithubPick: (pending: string, repo: string) =>
+    apiSend<{ id: string; hostname: string; scan_id: string } | { needs_hostname: true; suggested: string; pending: string }>(
+      "/api/projects/finish-github-pick", "POST", { pending, repo }),
   startCheckout: (plan?: string) =>
     apiSend<{ url: string; plan?: string; quantity?: number; trial_days: number }>(
       "/api/billing/checkout", "POST", plan ? { plan } : undefined),

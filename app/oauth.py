@@ -830,19 +830,25 @@ def _valid_repo(repo: str) -> str | None:
 
 
 @router.get("/github/start")
-def github_start(request: Request, repo: str = Query(...),
+def github_start(request: Request, repo: str | None = Query(default=None),
                  site_id: str | None = Query(default=None),
                  session: Session = Depends(get_session)):
-    """`site_id` omitted means this connects a new project. Picking a repo
-    is still required either way -- that's not the "type your site's URL"
-    complaint this create-mode otherwise removes, it's the platform's own
-    "which one" question, the same as Shopify's `shop` param."""
+    """`site_id` omitted means this connects a new project. `repo` omitted
+    too (2026-09-27) means "let me pick after signing in", the way Vercel
+    imports a project: the callback holds the token in a pending token and
+    sends the browser to /projects/pick-repo, which lists the account's
+    repos (GET /api/github/repos). Reconnecting an existing project still
+    names its repo up front -- it already has one."""
     if not config.GITHUB_OAUTH_ENABLED:
         raise HTTPException(503, "GitHub OAuth is not configured on this server "
                                  "(set GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET)")
-    repo_name = _valid_repo(repo)
-    if repo_name is None:
-        raise HTTPException(422, "repo must look like owner/name")
+    repo_name = None
+    if repo is not None:
+        repo_name = _valid_repo(repo)
+        if repo_name is None:
+            raise HTTPException(422, "repo must look like owner/name")
+    elif site_id:
+        raise HTTPException(422, "repo is required when reconnecting an existing project")
     site, account = _resolve_site_or_account(session, request, site_id)
 
     state = _serializer().dumps({"site_id": site.id if site else None, "account_id": account.id,
@@ -914,8 +920,16 @@ def github_callback(request: Request, code: str = Query(default=""),
         log.error("cannot store github token for account %s: %s", account.id, exc)
         return _return(integration=PLATFORM_GITHUB, error="secrets_not_configured")
 
+    if site is None and not repo_name:
+        # Picker mode: connected, but no repo chosen yet.
+        pending = _make_pending_create(account.id, PLATFORM_GITHUB, credential_ref=ref,
+                                       scopes=tokens.get("scope", GITHUB_SCOPE).split(","))
+        session.commit()   # the secret above is only flushed until this
+        return RedirectResponse(
+            f"{config.FRONTEND_URL}/projects/pick-repo?pending={quote(pending, safe='')}")
+
     if site is None:
-        hostname = _github_pages_hostname(repo_name, access_token)
+        hostname = github_hostname(repo_name, access_token)
         if not hostname:
             # Common case, not an error: GitHub Pages isn't enabled at all
             # (a Vercel/Netlify/Cloudflare-deployed repo) or has no custom
@@ -953,6 +967,53 @@ def github_callback(request: Request, code: str = Query(default=""),
     integ.last_error = None
     session.commit()
     return _return(_site_return_url(site.hostname), integration=PLATFORM_GITHUB, connected="1")
+
+
+def _github_get(path: str, access_token: str, **params):
+    """One GitHub REST GET; None on a network error or non-200."""
+    try:
+        resp = httpx.get(f"https://api.github.com{path}", params=params or None,
+                         headers={"Authorization": f"Bearer {access_token}",
+                                  "Accept": "application/vnd.github+json"}, timeout=15.0)
+    except httpx.HTTPError as exc:
+        log.warning("github GET %s failed: %s", path, exc)
+        return None
+    return resp.json() if resp.status_code == 200 else None
+
+
+def list_github_repos(access_token: str) -> list[dict] | None:
+    """The repos the connected account can push to, most recently pushed
+    first -- the list /projects/pick-repo shows. First 100 only (one page);
+    None means GitHub refused or was unreachable, not "no repos"."""
+    # ponytail: one page of 100, add Link-header pagination if someone has more
+    data = _github_get("/user/repos", access_token, per_page=100, sort="pushed",
+                       affiliation="owner,collaborator,organization_member")
+    if data is None:
+        return None
+    return [{"full_name": r["full_name"], "private": bool(r.get("private")),
+             "description": r.get("description") or "", "homepage": r.get("homepage") or "",
+             "pushed_at": r.get("pushed_at") or ""}
+            for r in data if (r.get("permissions") or {}).get("push")]
+
+
+def github_repo(repo: str, access_token: str) -> dict | None:
+    """GET /repos/{repo} -- None if this token can't see it."""
+    return _github_get(f"/repos/{repo}", access_token)
+
+
+def github_hostname(repo: str, access_token: str, info: dict | None = None) -> str | None:
+    """The repo's live domain, if GitHub knows it: a Pages domain first,
+    else the repo's own "Website" field (`homepage`), which is where a
+    Vercel/Netlify-deployed repo usually lists its URL. Neither is
+    guaranteed, so None just means "ask the person"."""
+    hostname = _github_pages_hostname(repo, access_token)
+    if hostname:
+        return hostname
+    homepage = (info if info is not None else github_repo(repo, access_token) or {}).get("homepage") or ""
+    if homepage.startswith(("http://", "https://")):
+        from urllib.parse import urlparse
+        return urlparse(homepage).hostname
+    return homepage.strip().split("/")[0] or None
 
 
 def _github_pages_hostname(repo: str, access_token: str) -> str | None:

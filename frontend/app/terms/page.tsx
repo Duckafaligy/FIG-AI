@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Callout, LegalPage, type LegalSection } from "@/components/legal-page";
-import { OPERATOR, TRIAL_DAYS } from "@/lib/legal";
+import { OPERATOR } from "@/lib/legal";
 
 export const metadata: Metadata = {
   title: "Terms of Service - FIG",
@@ -90,7 +90,7 @@ const sections: LegalSection[] = [
     title: "Subscriptions, fees and payment",
     body: (
       <>
-        <p>New accounts get a free trial of <strong>{TRIAL_DAYS} days</strong>. We do not take a card at sign-up, so <strong>nothing is charged unless you start a subscription yourself</strong>. Once the trial ends, we may require a paid subscription to keep using workspace features, and we will tell you before that changes anything. Business and Education plans are listed on the <Link href="/pricing">pricing page</Link>. Plan inclusions and payment details are confirmed before purchase. Existing subscriptions retain their agreed billing terms unless a change is agreed with you.</p>
+        <p>Using the FIG workspace requires a paid subscription. Creating an account is free and <strong>nothing is charged unless you start a subscription yourself</strong>; the one-off free scan needs no account at all. Business and Education plans are listed on the <Link href="/pricing">pricing page</Link>. Plan inclusions and payment details are confirmed before purchase. Existing subscriptions retain their agreed billing terms unless a change is agreed with you.</p>
         <ul>
           <li><strong>Billing.</strong> Payments are handled by Stripe. Subscriptions renew automatically each month until you cancel, and are charged in advance to the payment method you provide. You authorise those charges.</li>
           <li><strong>Changing your number of sites</strong> during a billing period adjusts the amount you owe from that point, prorated, so you pay for what you use.</li>

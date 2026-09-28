@@ -172,8 +172,11 @@ def _start_plan_checkout(session: Session, account: Account, plan: str) -> dict:
         customer=customer_id,
         line_items=[{"price": price_id, "quantity": 1}],
         subscription_data=sub_data,
-        success_url=f"{config.FRONTEND_URL}/projects/settings?tab=billing&checkout=done",
-        cancel_url=f"{config.FRONTEND_URL}/projects/settings?tab=billing&checkout=cancelled",
+        # /choose-plan, not Settings: an account with no plan can't open the
+        # workspace yet, and that page waits for the webhook to land before
+        # sending the browser in (the redirect usually beats it).
+        success_url=f"{config.FRONTEND_URL}/choose-plan?checkout=done",
+        cancel_url=f"{config.FRONTEND_URL}/choose-plan?checkout=cancelled",
         metadata={"fig_account_id": account.id, "fig_plan": plan},
     )
     return {"url": s["url"], "plan": plan, "trial_days": trial_left}

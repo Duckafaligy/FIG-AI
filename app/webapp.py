@@ -38,29 +38,30 @@ router = APIRouter(prefix="/api", tags=["workspace"])
 # --- plumbing ------------------------------------------------------------
 
 
-def _account(request: Request, session: Session) -> Account:
+NEEDS_PLAN = "Choose a plan to use FIG. The free one-off scan needs no account."
+
+
+def _account(request: Request, session: Session, *, paid: bool = True) -> Account:
+    """The signed-in workspace. The workspace is paid-only (2026-09-27): with
+    no plan, every endpoint answers 402 except the ones `paid=False` opts out
+    (paying, the billing portal, deleting the account), and the frontend sends
+    the browser to /choose-plan. See Account.needs_plan for who is exempt."""
     account = current_account(request, session)
     if account is None:
         raise HTTPException(401, "sign in required")
+    if paid and account.needs_plan():
+        raise HTTPException(402, NEEDS_PLAN)
     return account
 
 
 def _require_scanning_allowed(account: Account) -> None:
-    """Trial enforcement. A scan is the cost-incurring action here -- it
-    crawls a real site and calls the LLM -- so it's the one thing gated once
-    the trial runs out with nothing subscribed. Everything else (existing
-    data, drafts, settings, billing) stays fully visible and editable, so
-    someone whose trial lapsed can still see what they had and subscribe.
-    The seeded demo account is exempt: FIG_DEV_NO_AUTH and the public
-    showcase both resolve to it, and its trial (set once, at seed time) is
-    permanently in the past."""
+    """The cost-incurring action -- a scan crawls a real site and calls the
+    LLM. Also reached from OAuth create-project callbacks, which don't go
+    through `_account`, so the plan check is repeated here."""
+    if account.needs_plan():
+        raise HTTPException(402, NEEDS_PLAN)
     if account.slug == config.DEMO_ACCOUNT_SLUG:
         return
-    if account.trial_expired():
-        raise HTTPException(
-            402,
-            "Your free trial has ended. Subscribe in Settings → Billing "
-            "to keep scanning sites.")
     remaining = account.scans_remaining()
     if remaining is not None and remaining <= 0:
         raise HTTPException(
@@ -117,8 +118,8 @@ def me(request: Request, session: Session = Depends(get_session)):
         "account": {
             "id": account.id, "name": account.name, "slug": account.slug,
             "kind": account.kind,
-            "on_trial": account.on_trial(),
-            "trial_days_left": account.trial_days_left(),
+            "needs_plan": account.needs_plan(),
+            "plan": account.plan,
             "projects": len(pages.sites_of(session, account)),
         },
     }
@@ -185,7 +186,7 @@ def delete_account(request: Request, payload: dict = Body(...),
     """Delete this workspace and everything in it. Requires the account email
     typed as confirmation. POST rather than DELETE-with-a-body, which proxies
     and CDNs are free to drop."""
-    account = _account(request, session)
+    account = _account(request, session, paid=False)
     user = session_user(request, session)
     if user is None:
         raise HTTPException(401, "sign in required")
@@ -232,6 +233,14 @@ def geo(request: Request, project: str = Query(default=""),
     account = _account(request, session)
     return _public(pages.geo(session, account,
                              _project(session, account, project)))
+
+
+@router.get("/analytics")
+def analytics(request: Request, project: str = Query(default=""),
+              session: Session = Depends(get_session)):
+    account = _account(request, session)
+    return _public(pages.analytics(session, account,
+                                   _project(session, account, project)))
 
 
 @router.get("/notifications")
@@ -714,6 +723,12 @@ def finish_oauth_create(request: Request, payload: dict = Body(...),
     if not hostname:
         raise HTTPException(400, "a site URL is required")
     data = resolve_pending_create(pending, account.id)
+    if data["platform"] == "github" and not data.get("endpoint"):
+        raise HTTPException(400, "pick a repository first")
+    return _create_from_pending(session, account, data, hostname)
+
+
+def _create_from_pending(session: Session, account: Account, data: dict, hostname: str) -> dict:
     site, scan = create_project(session, account, hostname)
     integ = Integration(site_id=site.id, platform=data["platform"],
                         endpoint=data.get("endpoint"), credential_ref=data["credential_ref"],
@@ -722,6 +737,60 @@ def finish_oauth_create(request: Request, payload: dict = Body(...),
     session.add(integ)
     session.commit()
     return {"id": site.id, "hostname": site.hostname, "scan_id": scan.id}
+
+
+def _github_pending(request: Request, session: Session, pending: str) -> tuple[Account, dict, str]:
+    """A repo-less GitHub pending token (app/oauth.py's picker mode) and its
+    access token. Same one answer for bad/expired/not-yours as every
+    pending-token check."""
+    from app.oauth import resolve_pending_create
+    from app.secrets_store import read_secret
+    account = _account(request, session)
+    data = resolve_pending_create(pending, account.id)
+    if data["platform"] != "github" or data.get("endpoint"):
+        raise HTTPException(400, "this connection has expired -- reconnect the platform")
+    return account, data, read_secret(session, data["credential_ref"])["access_token"]
+
+
+@router.get("/github/repos")
+def github_repos(request: Request, pending: str = Query(...),
+                 session: Session = Depends(get_session)):
+    """What /projects/pick-repo lists: the repos the just-connected GitHub
+    account can push to."""
+    from app.oauth import list_github_repos
+    _, _, token = _github_pending(request, session, pending)
+    repos = list_github_repos(token)
+    if repos is None:
+        raise HTTPException(502, "GitHub didn't return your repositories -- try reconnecting")
+    return {"repos": repos}
+
+
+@router.post("/projects/finish-github-pick")
+def finish_github_pick(request: Request, payload: dict = Body(...),
+                       session: Session = Depends(get_session)):
+    """The picked repo becomes the project. If GitHub knows the live domain
+    (Pages, or the repo's Website field) the project is created now;
+    otherwise this hands back a fresh pending token that carries the repo,
+    and the browser goes on to the usual confirm-URL step."""
+    from app.oauth import _make_pending_create, _valid_repo, github_hostname, github_repo
+    p = payload or {}
+    account, data, token = _github_pending(request, session, p.get("pending", ""))
+    repo = _valid_repo(p.get("repo", ""))
+    info = github_repo(repo, token) if repo else None
+    if info is None:
+        raise HTTPException(404, "that repository isn't visible to the connected GitHub account")
+    data = {**data, "endpoint": repo, "credential_hint": repo}
+    hostname = github_hostname(repo, token, info)
+    if hostname:
+        try:
+            return _create_from_pending(session, account, data, hostname)
+        except HTTPException as exc:
+            if exc.status_code != 422:   # trial over, plan full, already added: say so
+                raise
+            session.rollback()           # an unusable Website field: ask instead
+    return {"needs_hostname": True, "suggested": hostname or "",
+            "pending": _make_pending_create(account.id, "github", credential_ref=data["credential_ref"],
+                                            credential_hint=repo, endpoint=repo, scopes=data.get("scopes"))}
 
 
 @router.post("/integrations")
@@ -764,11 +833,11 @@ def disconnect(integration_id: str, request: Request,
 @router.post("/billing/checkout")
 def billing_checkout(request: Request, payload: dict = Body(default={}),
                      session: Session = Depends(get_session)):
-    account = _account(request, session)
+    account = _account(request, session, paid=False)
     return billing.start_checkout(session, account, plan=(payload or {}).get("plan"))
 
 
 @router.post("/billing/portal")
 def billing_portal(request: Request, session: Session = Depends(get_session)):
-    account = _account(request, session)
+    account = _account(request, session, paid=False)
     return billing.start_portal(session, account)

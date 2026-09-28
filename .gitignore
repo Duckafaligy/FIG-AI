@@ -22,6 +22,9 @@ node_modules/
 out/
 *.tsbuildinfo
 fig-preview*.log
+.npm-cache/
+frontend/test-results/
+frontend/playwright-report/
 
 # vercel project link (created at repo root for CLI deploys of frontend/)
 .vercel/

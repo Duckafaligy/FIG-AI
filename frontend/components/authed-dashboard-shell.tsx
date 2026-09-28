@@ -14,5 +14,6 @@ export async function AuthedDashboardShell({ children }: { children: React.React
     redirect("/signin");
   }
   if (me.data.dev_no_auth) return <ServiceUnavailable message="Live workspaces require authenticated sessions. Disable FIG_DEV_NO_AUTH on the backend." />;
+  if (me.data.account.needs_plan) redirect("/choose-plan");
   return <DashboardShell workspaceName={me.data.account.name}>{children}</DashboardShell>;
 }

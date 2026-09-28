@@ -37,10 +37,15 @@ class PricingSyncTests(unittest.TestCase):
         real = {k: (v["price_cents"], v["max_projects"], v["scans_per_period"]) for k, v in Account.PLAN_LIMITS.items()}
         self.assertEqual(shown, real)
 
-    def test_the_trial_length_shown_matches_the_backend(self):
-        text = (FRONTEND / "legal.ts").read_text(encoding="utf-8")
-        shown = int(re.search(r"export const TRIAL_DAYS\s*=\s*(\d+)", text).group(1))
-        self.assertEqual(shown, Account.TRIAL_DAYS)
+    def test_no_page_promises_a_free_trial(self):
+        """The workspace is paid-only (2026-09-27, Account.TRIAL_DAYS == 0).
+        The free thing is the one-off scan, so no page may still offer a trial."""
+        self.assertEqual(Account.TRIAL_DAYS, 0)
+        root = FRONTEND.parent
+        offenders = [str(p.relative_to(root)) for d in ("app", "components", "lib")
+                     for p in (root / d).rglob("*.tsx")
+                     if re.search(r"free trial|TRIAL_DAYS|day trial", p.read_text(encoding="utf-8"), re.I)]
+        self.assertEqual(offenders, [])
 
     def test_the_frontend_rate_function_agrees_with_the_backend_for_every_size(self):
         tiers = frontend_tiers()

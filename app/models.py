@@ -135,7 +135,11 @@ class Account(Base):
             return None
         return max(0, limits["scans_per_period"] - self.scans_used_this_period)
 
-    TRIAL_DAYS = 3
+    # No free trial since 2026-09-27: the workspace is paid-only, and the free
+    # thing is the one-off public /scan. New accounts still get trial_ends_at
+    # (= sign-up time), which is what marks a row as needing a plan; rows with
+    # None predate trials and stay grandfathered (see needs_plan).
+    TRIAL_DAYS = 0
 
     def trial_days_left(self) -> int:
         """Whole days remaining, 0 once it has run out."""
@@ -161,6 +165,17 @@ class Account(Base):
         return (not self.stripe_subscription_id
                 and self.trial_ends_at is not None
                 and self.trial_days_left() <= 0)
+
+    def needs_plan(self) -> bool:
+        """True when this workspace can't be used until someone subscribes:
+        the gate on the whole /api workspace (webapp._account) and the
+        frontend's redirect to /choose-plan. The seeded demo account and any
+        slug in FIG_COMPED_ACCOUNTS (the owner's own, a partner on a manual
+        contract) are exempt."""
+        from app import config
+        if self.slug == config.DEMO_ACCOUNT_SLUG or self.slug in config.COMPED_ACCOUNT_SLUGS:
+            return False
+        return self.trial_expired()
 
 
 class ApiKey(Base):

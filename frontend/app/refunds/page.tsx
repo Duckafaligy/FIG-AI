@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Callout, LegalPage, type LegalSection } from "@/components/legal-page";
-import { OPERATOR, REFUND_WINDOW_DAYS, TRIAL_DAYS } from "@/lib/legal";
+import { OPERATOR, REFUND_WINDOW_DAYS } from "@/lib/legal";
 
 export const metadata: Metadata = {
   title: "Refunds & Cancellation - FIG",
@@ -15,16 +15,17 @@ export const metadata: Metadata = {
  *    that, with no proration credit on cancel);
  *  - changing the number of sites is prorated (`sync_quantity` uses
  *    `create_prorations`);
- *  - no card is taken at sign-up, so a trial cannot bill by surprise.
+ *  - the workspace is paid-only (trials ended 2026-09-27); you are
+ *    charged when you subscribe, and the free one-off scan needs no account.
  * The 14-day money-back window is a business decision, not a legal minimum;
  * change `REFUND_WINDOW_DAYS` in lib/legal.ts to change it everywhere.
  */
 const sections: LegalSection[] = [
   {
-    id: "trial",
-    title: "The free trial",
+    id: "subscribing",
+    title: "When you are charged",
     body: (
-      <p>Every new account starts with a free trial of <strong>{TRIAL_DAYS} days</strong>. We do not ask for a card to start it, so nothing can be charged until you choose to subscribe. If you never subscribe, you are never billed.</p>
+      <p>Creating an account is free, but using the FIG workspace needs a paid plan. You are charged when you choose a plan and subscribe, never before, and your first payment is covered by the refund window below. The one-off free scan on our home page needs no account and no payment.</p>
     ),
   },
   {

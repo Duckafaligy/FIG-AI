@@ -50,7 +50,8 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
     pendingSession.current = null;
     setCanRetrySession(false);
     // A full navigation avoids reusing a prefetched, signed-out App Router tree.
-    window.location.replace("/projects");
+    // No plan yet (every new account) goes to the plan page, not the workspace.
+    window.location.replace(session.data.account.needs_plan ? "/choose-plan" : "/projects");
   };
   const retrySession = async () => {
     if (busy || !pendingSession.current) return;
@@ -147,7 +148,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
       </div>
 
       {signup && <div className="af-check"><input id="terms" required type="checkbox" aria-label="Agree to the terms and privacy policy, and confirm you are at least 13" /><div><label htmlFor="terms">I&rsquo;m at least 13 and I agree to the </label><Link href="/terms" target="_blank">Terms &amp; Conditions</Link> and <Link href="/privacy" target="_blank">Privacy Policy</Link>.</div></div>}
-      <button className="button af-submit" type="submit" disabled={busy} aria-busy={busy}>{busy ? "Please wait…" : signup ? "Start free trial" : "Sign in"}</button>
+      <button className="button af-submit" type="submit" disabled={busy} aria-busy={busy}>{busy ? "Please wait…" : signup ? "Create account" : "Sign in"}</button>
 
       {OAUTH_PROVIDERS.length > 0 && (
         <div className="af-oauth">

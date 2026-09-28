@@ -106,6 +106,21 @@ def make_user(label: str) -> dict:
     return {"email": email, "uid": uid, "password": password, "token": t.json()["access_token"], "client": Client()}
 
 
+def unlock(user: dict) -> None:
+    """The workspace is paid-only (2026-09-27). This run's throwaway accounts
+    get past the paywall the way a pre-trial row does: no trial_ends_at.
+    Scoped to this run's own fig-e2e-* accounts; cleanup() deletes them."""
+    from sqlalchemy import update
+
+    from app.db import session_scope
+    from app.models import Account
+
+    assert user["email"].startswith(f"fig-e2e-{TAG}-") and user["email"].endswith("@example.com")
+    with session_scope() as db:
+        db.execute(update(Account).where(Account.contact_email == user["email"])
+                   .values(trial_ends_at=None))
+
+
 def cleanup(users: list[dict]) -> None:
     """Delete what this run made. Scoped by the e2e accounts, nothing wider."""
     print("\ncleanup")
@@ -190,6 +205,11 @@ def main() -> int:
         check("session survives the next request", me.get("signed_in") is True, str(me)[:120])
         check("A got their own empty workspace", me.get("account", {}).get("projects") == 0, str(me.get("account")))
         check("workspace name came from sign-up", me.get("account", {}).get("name") == "E2E A")
+        check("a new account has no plan yet", me.get("account", {}).get("needs_plan") is True, str(me.get("account")))
+        r = A.call("GET", "/api/projects")
+        check("the paywall answers 402 with no plan", r.status_code == 402, str(r.status_code))
+        unlock(a)
+        check("past the paywall once unlocked", A.call("GET", "/api/me").json().get("account", {}).get("needs_plan") is False)
 
         print("\n3. projects")
         r = A.call("POST", "/api/projects", json={"hostname": HOST, "name": "E2E project"})
@@ -251,6 +271,7 @@ def main() -> int:
         print("\n5. B cannot touch A's work")
         r = B.call("POST", "/api/session", json={"access_token": b["token"], "workspace_name": "E2E B"})
         check("B signs in", r.status_code == 200)
+        unlock(b)
         check("B sees no posts", B.call("GET", "/api/content").json().get("total") == 0)
         check("B's project list does not include A's", HOST not in B.call("GET", "/api/projects").text)
         r = B.call("GET", f"/api/content/{post_id}")

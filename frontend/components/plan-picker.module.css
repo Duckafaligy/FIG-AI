@@ -1,0 +1,33 @@
+.head { max-width: 680px; display: grid; gap: 12px; }
+.head h1 { margin: 0; font-size: clamp(30px, 4vw, 42px); line-height: 1.1; letter-spacing: -0.03em; color: var(--d-text, #f3f5ef); }
+.head p { margin: 0; color: var(--d-muted, #aeb6a7); font-size: 15px; line-height: 1.55; }
+.eyebrow { color: #14c86b; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; }
+.notice { color: #e8c877 !important; }
+
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 32px; }
+.card { display: flex; flex-direction: column; gap: 18px; padding: 24px; background: var(--d-panel, #111310); border: 1px solid var(--d-line, #2a2f24); }
+.featured { border-color: #14c86b; background: #0f1a12; }
+.top { display: grid; gap: 6px; }
+.audience { color: var(--d-subtle, #8f968a); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.top h2 { margin: 0; font-size: 18px; color: var(--d-text, #f3f5ef); }
+.price { margin: 0; color: var(--d-subtle, #8f968a); font-size: 13px; }
+.price strong { color: var(--d-text, #f3f5ef); font-size: 32px; letter-spacing: -0.03em; }
+.desc { margin: 0; color: var(--d-muted, #aeb6a7); font-size: 13px; line-height: 1.5; }
+.limits { flex: 1; display: grid; align-content: start; gap: 8px; margin: 0; padding: 14px 0 0; list-style: none; border-top: 1px solid var(--d-line-soft, #1d2119); }
+.limits li { display: flex; align-items: center; gap: 8px; color: var(--d-muted, #aeb6a7); font-size: 13px; }
+.limits svg { color: #14c86b; flex-shrink: 0; }
+.card button { width: 100%; justify-content: center; }
+
+.contact { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.contact a { display: grid; gap: 4px; padding: 16px 20px; border: 1px dashed var(--d-line, #2a2f24); color: var(--d-muted, #aeb6a7); text-decoration: none; font-size: 13px; }
+.contact a:hover { border-color: #14c86b; }
+.contact strong { color: var(--d-text, #f3f5ef); font-size: 14px; }
+.free { margin-top: 20px; color: var(--d-subtle, #8f968a); font-size: 13px; }
+.free a { color: #7fe0a9; }
+
+.status { max-width: 520px; display: grid; gap: 12px; color: var(--d-muted, #aeb6a7); }
+.status h1 { margin: 0; font-size: 28px; color: var(--d-text, #f3f5ef); letter-spacing: -0.02em; }
+
+@media (max-width: 860px) {
+  .grid, .contact { grid-template-columns: 1fr; }
+}

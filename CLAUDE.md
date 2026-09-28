@@ -335,20 +335,20 @@ again (unmounts `/api`, allows no browser origin); `/v1`, `/scan` and
 - `app/models.py` — `Account` → `Site` → `Scan` → `Finding`/`Page`, plus
   `ApiKey`, `Job`, `User`. **The meter is sites, not seats.** A column added to
   an existing table also goes in `app/db.py:_ADDED_COLUMNS`, because
-  `create_all` never alters a table. **`TRIAL_DAYS` is 3 (2026-09-23, was 7),
-  and it is now enforced, not just displayed:** `Account.trial_expired()`
-  gates the three cost-incurring actions in `app/webapp.py` (adding a
-  project, auditing one, auditing the estate) with a 402 once the trial has
-  run out and nothing is subscribed. Everything else — existing data,
-  drafts, settings, billing — stays fully visible and editable, so a lapsed
-  trial can still see what it had and subscribe. A subscription always
-  overrides it, and an account that was never given a `trial_ends_at` at all
-  (a row from before trials existed) is never gated — not having a deadline
-  is different from having missed one. The seeded demo account is exempt by
-  slug at the call site, since `FIG_DEV_NO_AUTH` and the public showcase
-  both resolve to it and its trial (set once, at seed time) is permanently
-  in the past. `frontend/lib/legal.ts`'s `TRIAL_DAYS` moved to 3 alongside
-  it (`test_pricing_sync.py` fails if the two drift).
+  `create_all` never alters a table. **The workspace is paid-only
+  (2026-09-27, owner's call; was a 3-day trial).** `TRIAL_DAYS` is 0, so a
+  new sign-up's `trial_ends_at` is its creation time and it immediately
+  `needs_plan()`. `app/webapp.py:_account` answers 402 on every `/api`
+  workspace endpoint for such an account, except checkout, the billing
+  portal and account deletion (`paid=False`), and `/api/me` exposes
+  `needs_plan` so the frontend sends the browser to `/choose-plan`
+  (`components/plan-picker.tsx`). After Stripe checkout that page polls
+  `/api/me` until the webhook grants the plan. Exempt: any subscription,
+  rows with no `trial_ends_at` (they predate trials), the seeded demo
+  account, and slugs listed in `FIG_COMPED_ACCOUNTS` (comma-separated; for
+  the owner's own workspace or a partner on a manual contract). **The free
+  thing is the one-off public `/scan`**, not a trial; `test_pricing_sync.py`
+  fails if any page still promises a free trial.
 - `app/api.py` — `/v1` with API-key auth: provision a site, scan one or the
   whole estate, poll a scan and pull its pages and trace, pull `/v1/report` as
   a partner-renderable roll-up, run ownership verification. `GET /v1/checklist`
@@ -617,6 +617,16 @@ with frontend work in flight):
     from `html_url`. A 404 (Pages not enabled — the common case for a
     Vercel/Netlify/Cloudflare-deployed repo) is not an error, just "this
     repo can't tell us its own domain."
+    **GitHub now picks the repo after sign-in (2026-09-27), Vercel-style.**
+    A new project's GitHub button goes to `/oauth/github/start` with no
+    `repo`; the callback holds the token in a pending token and sends the
+    browser to `/projects/pick-repo` (`components/repo-picker.tsx`), which
+    lists repos the account can push to (`GET /api/github/repos`, first 100
+    by last push). `POST /api/projects/finish-github-pick` creates the
+    project from a Pages domain or the repo's Website field, else hands a
+    repo-carrying pending token to the confirm-URL step. Reconnecting an
+    existing project still names its repo up front. Covered by 8 tests in
+    `test_oauth_create_project.py`; not yet run against a real GitHub account.
 
   Two genuinely can't, checked and confirmed rather than assumed: **Wix**'s
   Site Properties API (`dev.wix.com`) has no URL/domain field anywhere in
@@ -662,6 +672,17 @@ with frontend work in flight):
   numbers for the overview's `ga` panel, current vs. prior 30 days in one
   request. No connected integration means `None`, same as before this
   existed — `app/pages.py` never guesses a number.
+- **Project Analytics page — built 2026-09-27** (`/projects/{hostname}/analytics`,
+  `components/project-analytics.tsx`, `GET /api/analytics`, `pages.analytics`).
+  `ga.fetch_detail` makes one `batchRunReports` call: sessions per day for 60
+  days (this 30 against the 30 before, missing days laid out as real zeros),
+  the top 10 landing pages, and channel groups. Landing pages are joined by
+  path to the latest scan's findings, shown as one chip per layer, so the
+  busiest pages with problems stand out. Not connected, no property chosen,
+  or a failed report each get their own empty state and never an estimate.
+  Covered by `test_analytics.py` against a fake GA response. Checked in a
+  browser against a fixture backend only, **not yet against a real GA4
+  property**, and days are counted in UTC, not the property's timezone.
 - `app/search_console.py` — same shape as `app/ga.py`, sharing the same
   Google OAuth client (`app/oauth.py` requests both scopes on one consent
   screen). Discovers the matching verified Search Console property and
@@ -1459,7 +1480,10 @@ python scripts/e2e_signed_in.py --cleanup <tag>    # remove rows a crashed run l
 ```
 
 It never touches billing (a checkout here is real money in live mode) and does
-not cover session expiry. Point it at a local backend started with
+not cover session expiry. Since the paywall (2026-09-27) it checks that a new account gets 402, then
+clears `trial_ends_at` on its own fig-e2e-* accounts to get past it, so it
+writes to whichever database `FIG_DATABASE_URL`/`DATABASE_URL` names: set
+`FIG_DATABASE_URL` to the local backend's database for a local run. Point it at a local backend started with
 `FIG_DATABASE_URL=sqlite:///...` to check a change before pushing it.
 
 The end-to-end run — real network, real database, real Claude tokens (under a

@@ -18,6 +18,7 @@ export function ConfirmUrlForm() {
   const [pending, setPending] = useState("");
   const [platform, setPlatform] = useState("");
   const [hostname, setHostname] = useState("");
+  const [repo, setRepo] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -25,6 +26,8 @@ export function ConfirmUrlForm() {
     const params = new URLSearchParams(window.location.search);
     setPending(params.get("pending") ?? "");
     setPlatform(params.get("platform") ?? "");
+    setRepo(params.get("repo") ?? "");
+    setHostname(params.get("suggested") ?? "");
   }, []);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -47,8 +50,12 @@ export function ConfirmUrlForm() {
   }
 
   return <>
-    <h1>One more thing</h1>
-    <p>{platformLabel} is connected, but it can&rsquo;t tell FIG this site&rsquo;s live URL on its own. What&rsquo;s it deployed at?</p>
+    <div className="auth-heading">
+      <span className="eyebrow">New project · {platformLabel}</span>
+      <h2>One more thing</h2>
+      <p>{repo ? <><strong>{repo}</strong> is connected, but GitHub doesn&rsquo;t list where it&rsquo;s deployed.</>
+        : <>{platformLabel} is connected, but it can&rsquo;t tell FIG this site&rsquo;s live URL on its own.</>} What&rsquo;s it deployed at?</p>
+    </div>
     <form onSubmit={submit} className="auth-fields">
       <label className="auth-field" htmlFor="confirm-hostname">
         <span>Website URL</span>

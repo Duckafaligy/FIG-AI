@@ -131,7 +131,10 @@ export function ProjectConnectors({ projectId, apis = [], onChanged, compact = f
         if (isShopify) return <button key={service.name} type="button" className={className} onClick={() => setShopifyFormOpen((open) => !open)}><IntegrationLogo name={service.name} />{label}</button>;
         if (isWebflow) return <a key={service.name} className={className} href={startUrl("webflow")}><IntegrationLogo name={service.name} />{label}</a>;
         if (isWix) return <a key={service.name} className={className} href={startUrl("wix")}><IntegrationLogo name={service.name} />{label}</a>;
-        if (isGithub) return <button key={service.name} type="button" className={className} onClick={() => setGithubFormOpen((open) => !open)}><IntegrationLogo name={service.name} />{label}</button>;
+        if (isGithub) return projectId
+          ? <button key={service.name} type="button" className={className} onClick={() => setGithubFormOpen((open) => !open)}><IntegrationLogo name={service.name} />{label}</button>
+          // New project: sign in first, pick the repo after (/projects/pick-repo).
+          : <a key={service.name} className={className} href={startUrl("github")}><IntegrationLogo name={service.name} />{label}</a>;
         return null;
       })}
     </div>
@@ -171,6 +174,8 @@ export function ProjectConnectors({ projectId, apis = [], onChanged, compact = f
                       <a className="settings-row-action button button--small" href={startUrl("webflow")}>{remote?.ok ? "Reconnect" : "Connect"}</a>
                     ) : isWix ? (
                       <a className="settings-row-action button button--small" href={startUrl("wix")}>{remote?.ok ? "Reconnect" : "Connect"}</a>
+                    ) : isGithub && !projectId ? (
+                      <a className="settings-row-action button button--small" href={startUrl("github")}>Connect</a>
                     ) : isGithub ? (
                       <button type="button" className="settings-row-action button button--small" onClick={() => setGithubFormOpen((open) => !open)}>{remote?.ok ? "Reconnect" : "Connect"}</button>
                     ) : <ServiceIcon size={14} />}

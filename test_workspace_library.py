@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 from app import config, pages
@@ -468,21 +468,44 @@ class TrialEnforcementTests(unittest.TestCase):
     def test_an_expired_trial_is_blocked_from_all_three(self):
         added = self.client.post("/api/projects", headers=self.headers("expired"), json={"hostname": "new.example"})
         self.assertEqual(added.status_code, 402)
-        self.assertIn("trial has ended", added.json()["detail"])
+        self.assertIn("Choose a plan", added.json()["detail"])
         self.assertEqual(self.client.post("/api/projects/site-expired/audit", headers=self.headers("expired")).status_code, 402)
         self.assertEqual(self.client.post("/api/audit-all", headers=self.headers("expired")).status_code, 402)
 
     def test_nothing_was_created_by_the_blocked_add(self):
         self.client.post("/api/projects", headers=self.headers("expired"), json={"hostname": "new.example"})
-        listing = self.client.get("/api/projects", headers=self.headers("expired")).text
-        self.assertNotIn("new.example", listing)
+        with Session(self.engine) as db:
+            self.assertIsNone(db.scalars(select(Site).where(Site.hostname == "new.example")).first())
 
-    def test_an_expired_trial_can_still_read_and_edit_existing_data(self):
-        r = self.client.get("/api/projects", headers=self.headers("expired"))
-        self.assertEqual(r.status_code, 200)
-        self.assertIn("expired.example", r.text)
-        renamed = self.client.patch("/api/settings/profile", headers=self.headers("expired"), json={"name": "Still mine"})
-        self.assertEqual(renamed.status_code, 200)
+    def test_no_plan_means_no_workspace_at_all(self):
+        """Paid-only since 2026-09-27: reading is gated too, not just scanning."""
+        for path in ("/api/projects", "/api/overview", "/api/settings", "/api/history"):
+            self.assertEqual(self.client.get(path, headers=self.headers("expired")).status_code, 402, path)
+        renamed = self.client.patch("/api/settings/profile", headers=self.headers("expired"), json={"name": "x"})
+        self.assertEqual(renamed.status_code, 402)
+
+    def test_no_plan_can_still_pay_or_leave(self):
+        """Checkout, the billing portal and deleting the account stay reachable,
+        or there'd be no way out of the paywall."""
+        with patch("app.webapp.billing.start_checkout", return_value={"url": "https://checkout"}) as checkout:
+            r = self.client.post("/api/billing/checkout", headers=self.headers("expired"), json={"plan": "standard"})
+        self.assertEqual(r.status_code, 200, r.text)
+        checkout.assert_called_once()
+        with patch("app.webapp.billing.start_portal", return_value={"url": "https://portal"}):
+            self.assertEqual(self.client.post("/api/billing/portal", headers=self.headers("expired")).status_code, 200)
+        # Reaches the handler (then fails its own sign-in check), not the paywall.
+        with patch("app.webapp.session_user", return_value=None):
+            self.assertEqual(self.client.post("/api/account/delete", headers=self.headers("expired"),
+                                              json={"confirm": ""}).status_code, 401)
+
+    def test_me_tells_the_frontend_whether_to_show_the_plan_page(self):
+        with patch("app.webapp.session_user", return_value=None):
+            self.assertTrue(self.client.get("/api/me", headers=self.headers("expired")).json()["account"]["needs_plan"])
+            self.assertFalse(self.client.get("/api/me", headers=self.headers("subscribed")).json()["account"]["needs_plan"])
+
+    def test_a_comped_workspace_needs_no_plan(self):
+        with patch.object(config, "COMPED_ACCOUNT_SLUGS", frozenset({"expired"})):
+            self.assertEqual(self.client.get("/api/projects", headers=self.headers("expired")).status_code, 200)
 
     def test_a_subscription_overrides_an_expired_trial(self):
         added = self.client.post("/api/projects", headers=self.headers("subscribed"), json={"hostname": "new.example"})

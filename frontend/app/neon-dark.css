@@ -135,6 +135,7 @@
 .neon-home .af-skip { align-self:center; border:0; background:none; color:var(--d-muted); font:inherit; font-size:13px; text-decoration:underline; cursor:pointer; }
 .neon-home .af-skip:hover { color:var(--d-text); }
 .neon-home .recovery-card { width:min(440px,100%); }
+.neon-home .recovery-card--wide { width:min(560px,100%); }
 .neon-home .recovery-card .auth-heading h2 { font-weight:700; }
 .public-page.neon-home { overflow:visible; overflow-x:clip; }
 /* Legal pages: the nav stays pinned; the "On this page" sidebar sits just below it (top:92px). */

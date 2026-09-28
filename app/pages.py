@@ -26,6 +26,7 @@ Three rules this module follows:
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlparse
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -896,6 +897,55 @@ def geo(session: Session, account: Account, site: Site | None) -> dict:
             total=sum(v for _n, v, _c in demo.CITATION_TYPES) if fill else 0),
     })
     return ctx
+
+
+# --- 4b. analytics --------------------------------------------------------
+
+
+def analytics(session: Session, account: Account, site: Site | None) -> dict:
+    """One project's Google Analytics, next to what FIG found on each landing
+    page. Not connected, or no property chosen, means `detail: None` and the
+    page says what it needs; nothing is estimated."""
+    ctx = _chrome(session, account, "analytics", site)
+    site = ctx["_site"]
+    connected = bool(site) and ga.is_connected(session, site)
+    detail = ga.fetch_detail(session, site) if connected else None
+    ctx.update({"connected": connected,
+                "property": site.ga_property if site else None,
+                "kpis": ga.fetch_overview_metrics(session, site) if detail else None,
+                "detail": None})
+    if detail is None:
+        return ctx
+
+    latest = session.scalars(
+        select(Scan).where(Scan.site_id == site.id, Scan.status == "done")
+        .order_by(Scan.finished_at.desc()).limit(1)).first()
+    found: dict[str, list[dict]] = {}
+    if latest:
+        for f in session.scalars(select(Finding).where(Finding.scan_id == latest.id)).all():
+            if f.page_url:
+                found.setdefault(_path(f.page_url), []).append(
+                    {"check": f.check, "layer": f.layer, "summary": f.summary})
+
+    dates = [datetime.strptime(d, "%Y-%m-%d") for d in detail["days"]]
+    labels = [f"{d:%b} {d.day}" for d in dates]
+    total = sum(c["sessions"] for c in detail["channels"])
+    ctx["detail"] = {
+        "chart": charts.series(labels, [
+            {"name": "Last 30 days", "colour": charts.VIOLET, "values": detail["current"]},
+            {"name": "30 days before", "colour": charts.SKY, "values": detail["previous"]},
+        ]),
+        "pages": [{**p, "findings": found.get(_path(p["path"]), [])} for p in detail["pages"]],
+        "channels": [{**c, "share": round(c["sessions"] * 100 / total) if total else 0}
+                     for c in detail["channels"]],
+        "scanned": latest is not None,
+    }
+    return ctx
+
+
+def _path(url: str) -> str:
+    path = urlparse(url).path or "/"
+    return path.rstrip("/") or "/"
 
 
 # --- 5. notifications -----------------------------------------------------

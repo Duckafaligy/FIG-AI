@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { actions } from "@/lib/api";
 import { PLANS, monthly, planContact, type Plan } from "@/lib/plans";
-import { REFUND_WINDOW_DAYS, TRIAL_DAYS } from "@/lib/legal";
+import { REFUND_WINDOW_DAYS } from "@/lib/legal";
 
 type Audience = "Business" | "Education";
 type Status = "idle" | "loading" | "signed_out" | "error";
@@ -83,7 +83,7 @@ export function PricingNeon() {
           </div>
           <dl className="pn-facts">
             <div><dt>From</dt><dd>$19 / month</dd></div>
-            <div><dt>Free trial</dt><dd>{TRIAL_DAYS} days, no card</dd></div>
+            <div><dt>Free scan</dt><dd>Any site, no account</dd></div>
             <div><dt>Refund</dt><dd>{REFUND_WINDOW_DAYS} days on your first payment</dd></div>
           </dl>
         </div>
