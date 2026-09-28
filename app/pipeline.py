@@ -186,6 +186,9 @@ def run_scan(session: Session, scan_id: str, max_pages: int = MAX_PAGES_PER_SCAN
             all_flags.append(flag)
 
     trace.add("rules", "ok", started, pages=len(signals), flags=len(all_flags),
+              # Read by pages.project_overview: without it, "no llms.txt
+              # finding" could mean "not checked" rather than "found".
+              site_checks=True,
               distinct_checks=len({f.check for f in all_flags}),
               by_layer=dict(Counter(f.layer for f in all_flags)),
               by_check=dict(Counter(f.check for f in all_flags).most_common()))

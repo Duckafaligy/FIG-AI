@@ -476,3 +476,7 @@
 
 /* GitHub's mark is near-black (#181717); on the dark tiles it turns light, as in the rail. */
 .dashboard-shell .settings-service-icon svg path[fill="#181717"] { fill: var(--fig-ink); }
+
+@media (min-width: 901px) {
+  .dashboard-shell .dashboard-content { padding: 28px 32px 56px; }
+}

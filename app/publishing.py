@@ -82,6 +82,20 @@ ADVISORY = {
 }
 
 
+_ADAPTER_MODULES = {m.PLATFORM: m for m in (wordpress, shopify, webflow, wix, github_repo)}
+
+
+def fixable_checks(platform: str) -> set[str]:
+    """The checks a platform's adapter can actually apply, read from the sets
+    each adapter module declares. Everything else refuses at publish time, so
+    the UI can say "advice only" up front instead of after a click."""
+    module = _ADAPTER_MODULES.get(platform)
+    if module is None:
+        return set()
+    return set().union(*(getattr(module, name, set())
+                         for name in ("TITLE_CHECKS", "META_CHECKS", "STRUCTURAL_CHECKS")))
+
+
 def propose(session: Session, site: Site) -> list[Change]:
     """Derive changes from the site's latest audit.
 

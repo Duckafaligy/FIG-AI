@@ -1,0 +1,8 @@
+.figure { margin: 14px 0 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 10px; color: var(--fig-copy); font-size: 11.5px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 12px; height: 2px; }
+.legend i.dashed { background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px) !important; color: var(--fig-faint); }
+.svg { display: block; width: 100%; height: 200px; }
+.grid { stroke: var(--fig-line-soft); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.axis { display: flex; justify-content: space-between; margin-top: 6px; color: var(--fig-faint); font: 10px var(--fig-mono-font); }

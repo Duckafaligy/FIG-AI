@@ -32,6 +32,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app import charts, config, demo, ga, search_console
+from app.rules.checks import AI_CRAWLER_TOKENS, CHECKLIST
 from app.models import (Account, ApiKey, Change, ContentPost, Finding,
                         Integration, Job, Page, Scan, Site, User)
 
@@ -943,6 +944,7 @@ def analytics(session: Session, account: Account, site: Site | None) -> dict:
             {"name": "Last 30 days", "colour": charts.VIOLET, "values": detail["current"]},
             {"name": "30 days before", "colour": charts.SKY, "values": detail["previous"]},
         ]),
+        "days": detail["days"], "current": detail["current"], "previous": detail["previous"],
         "pages": [{**p, "findings": found.get(_path(p["path"]), [])} for p in detail["pages"]],
         "channels": [{**c, "share": round(c["sessions"] * 100 / total) if total else 0}
                      for c in detail["channels"]],
@@ -954,6 +956,231 @@ def analytics(session: Session, account: Account, site: Site | None) -> dict:
 def _path(url: str) -> str:
     path = urlparse(url).path or "/"
     return path.rstrip("/") or "/"
+
+
+# --- 4d. project overview -------------------------------------------------
+
+
+SEVERITY_RANK = {"high": 0, "medium": 1, "low": 2}
+LAYERS = ("craft", "structure", "search", "answers")
+PLATFORM_LABELS = {"wordpress": "WordPress", "shopify": "Shopify", "webflow": "Webflow",
+                   "wix": "Wix", "github": "a GitHub pull request"}
+NUMBER_WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"]
+
+
+def _count_words(n: int, noun: str) -> str:
+    word = NUMBER_WORDS[n] if n < len(NUMBER_WORDS) else str(n)
+    return f"{word} {noun}{'' if n == 1 else 's'}"
+
+
+def _scan_reading(session: Session, site: Site) -> dict:
+    """The latest finished scan read once, for every project page: one row per
+    distinct finding (most serious first, pages it appears on, whether the
+    connected platform can apply its fix), and whether this scan ran the
+    site-level checks (recorded in its trace since 2026-09-28) -- without that
+    record, "no llms.txt finding" could mean "not checked" rather than "found"."""
+    from app import publishing   # publishing imports modules that import pages
+    scans = session.scalars(
+        select(Scan).where(Scan.site_id == site.id, Scan.status == "done")
+        .order_by(Scan.finished_at.desc()).limit(2)).all()
+    latest = scans[0] if scans else None
+    cms = session.scalars(select(Integration).where(
+        Integration.site_id == site.id, Integration.platform.in_(CMS_PLATFORMS))).first()
+    platform = cms.platform if cms and cms.is_connected() else None
+    fixable = publishing.fixable_checks(platform) if platform else set()
+
+    rows: dict[str, dict] = {}
+    blocked: list = []
+    if latest:
+        for f in session.scalars(select(Finding).where(Finding.scan_id == latest.id)):
+            if f.check == "ai_crawlers_blocked":
+                blocked = list(f.evidence or [])
+            path = _path(f.page_url) if f.page_url else None
+            row = rows.get(f.check)
+            if row is None:
+                rows[f.check] = {"check": f.check, "layer": f.layer, "severity": f.severity,
+                                 "title": f.summary, "why": f.why, "fix": f.fix,
+                                 "pages": [path] if path else [], "fixable": f.check in fixable,
+                                 "weight": f.weight or 0}
+            elif path and path not in row["pages"]:
+                row["pages"].append(path)
+    findings = sorted(rows.values(), key=lambda r: (SEVERITY_RANK.get(r["severity"], 3), -r["weight"]))
+    findings = [{k: v for k, v in r.items() if k != "weight"} for r in findings]
+    # A site-level finding is itself proof the checks ran.
+    site_checked = bool(latest and (SITE_LEVEL_CHECKS & rows.keys() or any(
+        st.get("stage") == "rules" and (st.get("detail") or {}).get("site_checks")
+        for st in ((latest.trace or {}).get("stages") or []))))
+    return {"latest": latest, "previous": scans[1] if len(scans) > 1 else None,
+            "platform": platform, "findings": findings,
+            "rows": {r["check"]: r for r in findings},
+            "site_checked": site_checked, "blocked": blocked}
+
+
+SITE_LEVEL_CHECKS = {"ai_crawlers_blocked", "missing_llms_txt"}
+
+
+def _layer_checks(reading: dict, layers: tuple[str, ...]) -> list[dict]:
+    """Every check in these layers against the latest scan: "flag" with the
+    pages and the fix, "pass", or "unchecked" when this scan didn't run it."""
+    latest, rows = reading["latest"], reading["rows"]
+    out = []
+    for item in CHECKLIST:
+        if item["layer"] not in layers:
+            continue
+        hits = [rows[i] for i in item["ids"] if i in rows]
+        ran = bool(latest) and (reading["site_checked"] or not SITE_LEVEL_CHECKS & set(item["ids"]))
+        pages = sorted({p for h in hits for p in h["pages"]})
+        out.append({
+            "title": item["title"], "layer": item["layer"],
+            "state": "flag" if hits else "pass" if ran else "unchecked",
+            "pages": pages, "site_wide": bool(hits) and not pages,
+            "summary": hits[0]["title"] if hits else None,
+            "fix": hits[0]["fix"] if hits else None,
+            "fixable": any(h["fixable"] for h in hits),
+            "rule": item["flags"],
+        })
+    out.sort(key=lambda c: {"flag": 0, "unchecked": 1, "pass": 2}[c["state"]])
+    return out
+
+
+def project_seo(session: Session, account: Account, site: Site | None) -> dict:
+    """/projects/{host}/seo: Search Console traffic (null when not connected
+    or not readable -- never estimated) next to the search and structure
+    checks from the latest scan."""
+    if site is None:
+        return {"project": None}
+    reading = _scan_reading(session, site)
+    latest = reading["latest"]
+    connected = search_console.is_connected(session, site)
+    gsc = search_console.fetch_search_data(session, site, 28) if connected else None
+    traffic = None
+    if gsc:
+        clicks = sum(d["clicks"] for d in gsc["daily"])
+        impressions = sum(d["impressions"] for d in gsc["daily"])
+        traffic = {"clicks": clicks, "impressions": impressions,
+                   "ctr": round(clicks * 100 / impressions, 1) if impressions else None,
+                   "daily": gsc["daily"], "queries": gsc["queries"]}
+    checks = _layer_checks(reading, ("search", "structure"))
+    flagged = sum(1 for c in checks if c["state"] == "flag")
+    if traffic:
+        headline = f"{traffic['clicks']:,} clicks from search in the last 28 days."
+    elif connected:
+        headline = "Search Console didn't return any data."
+    else:
+        headline = "Search checks, without Search Console yet."
+    sub = (f"{flagged} of {len(checks)} search and structure checks found something on the latest scan."
+           if latest else "Run a scan to check titles, descriptions, headings and links.")
+    return {
+        "project": {"id": site.id, "hostname": site.hostname,
+                    "name": site.client_name or site.label or site.hostname},
+        "headline": headline, "sub": sub,
+        "search_console": {"connected": connected, "readable": gsc is not None},
+        "traffic": traffic,
+        "scores": ({"search": latest.score_search, "structure": latest.score_structure} if latest else None),
+        "pages_scanned": latest.pages_crawled if latest else None,
+        "platform": reading["platform"],
+        "checks": checks,
+    }
+
+
+def project_geo(session: Session, account: Account, site: Site | None) -> dict:
+    """/projects/{host}/geo: what AI answer engines can read and quote -- the
+    named crawlers in robots.txt, llms.txt and the answer checks. Citation
+    tracking (asking the engines themselves) is not built; nothing here
+    stands in for it."""
+    if site is None:
+        return {"project": None}
+    reading = _scan_reading(session, site)
+    latest, checked = reading["latest"], reading["site_checked"]
+    blocked = set(reading["blocked"])
+    checks = _layer_checks(reading, ("answers",))
+    no_schema = next((c for c in checks if c["title"].startswith("Structured data")), None)
+    jsonld_pages = (latest.pages_crawled - len(no_schema["pages"])
+                    if latest and no_schema and no_schema["state"] != "unchecked" else None)
+    if not latest:
+        headline = "No scan yet."
+    elif not checked:
+        headline = "Run a scan to check what AI crawlers can read."
+    elif blocked:
+        n = len(blocked)
+        headline = f"robots.txt blocks {NUMBER_WORDS[n].lower() if n < len(NUMBER_WORDS) else n} AI crawler{'' if n == 1 else 's'}."
+    elif "missing_llms_txt" in reading["rows"]:
+        headline = "Every AI crawler can get in. There's no llms.txt."
+    else:
+        headline = "Every AI crawler can get in, and llms.txt is there."
+    return {
+        "project": {"id": site.id, "hostname": site.hostname,
+                    "name": site.client_name or site.label or site.hostname},
+        "headline": headline,
+        "score": latest.score_answers if latest else None,
+        "site_checked": checked,
+        "crawlers": [{"token": token, "owner": owner,
+                      "allowed": (token not in blocked) if checked else None}
+                     for token, owner in AI_CRAWLER_TOKENS.items()],
+        "llms_txt": ("missing_llms_txt" not in reading["rows"]) if checked else None,
+        "jsonld_pages": jsonld_pages,
+        "pages_scanned": latest.pages_crawled if latest else None,
+        "platform": reading["platform"],
+        "checks": checks,
+    }
+
+
+def project_overview(session: Session, account: Account, site: Site | None) -> dict:
+    """/projects/{host}: the latest scan's score by layer, one row per
+    distinct finding with where/why/fix and whether the connected platform
+    can apply it, and the SEO/GEO/Analytics headline numbers. The headline
+    sentence is built from counts by fixed rules. Unknown values stay None."""
+    if site is None:
+        return {"project": None}
+    reading = _scan_reading(session, site)
+    latest, previous, platform = reading["latest"], reading["previous"], reading["platform"]
+    findings, rows = reading["findings"], reading["rows"]
+    layer_counts = {layer: sum(1 for r in findings if r["layer"] == layer) for layer in LAYERS}
+    fix_count = sum(1 for r in findings if r["fixable"])
+    if not latest:
+        headline = "No scan yet."
+        sub = "Run a scan to see what FIG finds on this site."
+    elif not findings:
+        headline = "Nothing flagged on the latest scan."
+        sub = f"{latest.pages_crawled} pages read and none tripped a check."
+    else:
+        layers_hit = sum(1 for n in layer_counts.values() if n)
+        headline = f"{_count_words(len(findings), 'finding')} across {_count_words(layers_hit, 'layer').lower()}."
+        if platform:
+            name = PLATFORM_LABELS.get(platform, platform)
+            sub = (f"{_count_words(fix_count, 'fix')} can go out through {name}; the rest need a person."
+                   if fix_count else f"None of these can be applied through {name}; each needs a person.")
+        else:
+            sub = "Connect a CMS or repository to send the mechanical fixes from here."
+
+    site_checked, blocked = reading["site_checked"], reading["blocked"]
+    gsc = search_console.fetch_search_data(session, site, 28) if latest else None
+    ga_panel = ga.fetch_overview_metrics(session, site) if ga.is_connected(session, site) else None
+    sessions = next((m for m in (ga_panel or []) if m["label"] == "Sessions"), None)
+    return {
+        "project": {"id": site.id, "hostname": site.hostname,
+                    "name": site.client_name or site.label or site.hostname},
+        "headline": headline, "sub": sub,
+        "scan": ({"score": latest.score,
+                  "previous": previous.score if previous else None,
+                  "pages": latest.pages_crawled,
+                  "ago": _ago(latest.finished_at),
+                  "layers": [{"layer": layer, "score": getattr(latest, f"score_{layer}"),
+                              "findings": layer_counts[layer]} for layer in LAYERS]}
+                 if latest else None),
+        "platform": platform,
+        "findings": findings,
+        "tiles": {
+            "seo": {"clicks": sum(d["clicks"] for d in gsc["daily"]) if gsc else None,
+                    "connected": search_console.is_connected(session, site)},
+            "geo": {"crawlers_allowed": len(AI_CRAWLER_TOKENS) - len(blocked) if site_checked else None,
+                    "crawlers_total": len(AI_CRAWLER_TOKENS),
+                    "llms_txt": ("missing_llms_txt" not in rows) if site_checked else None},
+            "analytics": ({"sessions": sessions["value"], "delta": sessions["delta"]}
+                          if sessions and sessions["value"] is not None else None),
+        },
+        "activity": [{k: v for k, v in a.items() if k != "at"} for a in _site_activity(session, site)],
+    }
 
 
 # --- 4c. project chrome ---------------------------------------------------

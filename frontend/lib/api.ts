@@ -219,6 +219,59 @@ export type ApiChart = {
   max: number;
 };
 
+export type ApiProjectFinding = {
+  check: string; layer: string; severity: string; title: string;
+  why: string | null; fix: string | null; pages: string[]; fixable: boolean;
+};
+
+export type ApiProjectOverview = {
+  project: { id: string; hostname: string; name: string } | null;
+  headline?: string;
+  sub?: string;
+  scan?: { score: Nullable<number>; previous: Nullable<number>; pages: number; ago: string;
+           layers: { layer: string; score: Nullable<number>; findings: number }[] } | null;
+  platform?: string | null;
+  findings?: ApiProjectFinding[];
+  tiles?: {
+    seo: { clicks: Nullable<number>; connected: boolean };
+    geo: { crawlers_allowed: Nullable<number>; crawlers_total: number; llms_txt: boolean | null };
+    analytics: { sessions: string; delta: Nullable<number> } | null;
+  };
+  activity?: { icon: string; tone: string; title: string; sub: string; ago: string }[];
+};
+
+export type ApiLayerCheck = {
+  title: string; layer: string; state: "flag" | "pass" | "unchecked"; pages: string[]; site_wide: boolean;
+  summary: string | null; fix: string | null; fixable: boolean; rule: string;
+};
+
+export type ApiProjectSeo = {
+  project: { id: string; hostname: string; name: string } | null;
+  headline?: string;
+  sub?: string;
+  search_console?: { connected: boolean; readable: boolean };
+  traffic?: { clicks: number; impressions: number; ctr: Nullable<number>;
+              daily: { date: string; clicks: number; impressions: number }[];
+              queries: { query: string; clicks: number; impressions: number; position: number }[] } | null;
+  scores?: { search: Nullable<number>; structure: Nullable<number> } | null;
+  pages_scanned?: Nullable<number>;
+  platform?: string | null;
+  checks?: ApiLayerCheck[];
+};
+
+export type ApiProjectGeo = {
+  project: { id: string; hostname: string; name: string } | null;
+  headline?: string;
+  score?: number | null;
+  site_checked?: boolean;
+  crawlers?: { token: string; owner: string; allowed: boolean | null }[];
+  llms_txt?: boolean | null;
+  jsonld_pages?: number | null;
+  pages_scanned?: number | null;
+  platform?: string | null;
+  checks?: ApiLayerCheck[];
+};
+
 export type ApiProjectChrome = {
   project: { id: string; hostname: string; name: string; score: Nullable<number> } | null;
   connections?: { platform: string; ok: boolean }[];
@@ -233,6 +286,9 @@ export type ApiAnalyticsPage = {
   kpis: { value: string | null; label: string; delta: number | null }[] | null;
   detail: {
     chart: ApiChart;
+    days: string[];
+    current: number[];
+    previous: number[];
     pages: { path: string; sessions: number; engaged: number; findings: { check: string; layer: string; summary: string }[] }[];
     channels: { name: string; sessions: number; share: number }[];
     scanned: boolean;
@@ -485,6 +541,12 @@ export const api = {
     ),
   geo: (project = "") =>
     apiServer<ApiGeoPage>(`/api/geo${project ? `?project=${encodeURIComponent(project)}` : ""}`),
+  projectOverview: (project: string) =>
+    apiServer<ApiProjectOverview>(`/api/project-overview?project=${encodeURIComponent(project)}`),
+  projectSeo: (project: string) =>
+    apiServer<ApiProjectSeo>(`/api/project-seo?project=${encodeURIComponent(project)}`),
+  projectGeo: (project: string) =>
+    apiServer<ApiProjectGeo>(`/api/project-geo?project=${encodeURIComponent(project)}`),
   projectChrome: (project: string) =>
     apiServer<ApiProjectChrome>(`/api/project-chrome?project=${encodeURIComponent(project)}`),
   analytics: (project: string) =>

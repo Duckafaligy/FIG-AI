@@ -243,6 +243,28 @@ def analytics(request: Request, project: str = Query(default=""),
                                    _project(session, account, project)))
 
 
+@router.get("/project-geo")
+def project_geo(request: Request, project: str = Query(default=""),
+                session: Session = Depends(get_session)):
+    account = _account(request, session)
+    return _public(pages.project_geo(session, account, _project(session, account, project)))
+
+
+@router.get("/project-seo")
+def project_seo(request: Request, project: str = Query(default=""),
+                session: Session = Depends(get_session)):
+    account = _account(request, session)
+    return _public(pages.project_seo(session, account, _project(session, account, project)))
+
+
+@router.get("/project-overview")
+def project_overview(request: Request, project: str = Query(default=""),
+                     session: Session = Depends(get_session)):
+    account = _account(request, session)
+    return _public(pages.project_overview(session, account,
+                                          _project(session, account, project)))
+
+
 @router.get("/project-chrome")
 def project_chrome(request: Request, project: str = Query(default=""),
                    session: Session = Depends(get_session)):
