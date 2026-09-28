@@ -164,15 +164,23 @@ def _chrome(session: Session, account: Account, page: str,
     }
 
 
-def notification_count(session: Session, account: Account) -> int:
-    """Unread alerts = things genuinely needing a person: failed jobs, changes
-    waiting for approval, and high-severity findings on the latest scans."""
-    sites = sites_of(session, account)
+def notification_count(session: Session, account: Account,
+                       sites: list[Site] | None = None) -> int:
+    """Unread alerts = things genuinely needing a person: a project whose
+    latest scan failed, changes waiting for approval, and high-severity
+    findings on the latest finished scans. Everything is scoped to this
+    account's sites (Job rows carry no account, so failures are read off
+    the scans they mark failed)."""
+    sites = sites_of(session, account) if sites is None else sites
     if not sites:
         return 0
     ids = [s.id for s in sites]
-    failed = session.scalar(select(func.count()).select_from(Job)
-                            .where(Job.status == "failed")) or 0
+    newest = (select(Scan.site_id, func.max(Scan.created_at).label("at"))
+              .where(Scan.site_id.in_(ids)).group_by(Scan.site_id).subquery())
+    failed = session.scalar(
+        select(func.count()).select_from(Scan)
+        .join(newest, (Scan.site_id == newest.c.site_id) & (Scan.created_at == newest.c.at))
+        .where(Scan.status == "failed")) or 0
     waiting = session.scalar(
         select(func.count()).select_from(Change)
         .where(Change.site_id.in_(ids), Change.state == "proposed")) or 0
@@ -948,7 +956,65 @@ def _path(url: str) -> str:
     return path.rstrip("/") or "/"
 
 
+# --- 4c. project chrome ---------------------------------------------------
+
+
+CMS_PLATFORMS = ("wordpress", "shopify", "webflow", "wix", "github")
+
+
+def project_chrome(session: Session, account: Account, site: Site | None) -> dict:
+    """The small payload the project sidebar needs on every page: name, score,
+    connection health and real counts for the nav badges. Kept separate from
+    projects() so a page load doesn't pay for every chart on the estate."""
+    if site is None:
+        return {"project": None}
+    latest = session.scalars(
+        select(Scan).where(Scan.site_id == site.id, Scan.status == "done")
+        .order_by(Scan.finished_at.desc()).limit(1)).first()
+    layers: dict[str, int] = {}
+    if latest:
+        for layer, n in session.execute(
+                select(Finding.layer, func.count(func.distinct(Finding.check)))
+                .where(Finding.scan_id == latest.id).group_by(Finding.layer)):
+            layers[layer] = int(n)
+    integrations = list(session.scalars(select(Integration).where(or_(
+        Integration.site_id == site.id,
+        (Integration.account_id == account.id) & Integration.site_id.is_(None)))))
+    order = CMS_PLATFORMS + (ga.PLATFORM, search_console.PLATFORM)
+    connections = sorted(
+        [{"platform": i.platform, "ok": i.is_connected() and not i.last_error}
+         for i in integrations if i.platform in order],
+        key=lambda c: order.index(c["platform"]))
+
+    def count(model, *where):
+        return int(session.scalar(select(func.count()).select_from(model).where(*where)) or 0)
+
+    limits = account.plan_limits()
+    return {
+        "project": {"id": site.id, "hostname": site.hostname,
+                    "name": site.client_name or site.label or site.hostname,
+                    "score": latest.score if latest else None},
+        "connections": connections,
+        "badges": {
+            "seo": layers.get("search", 0) + layers.get("structure", 0) if latest else None,
+            "geo": layers.get("answers", 0) if latest else None,
+            "publish": count(Change, Change.site_id == site.id, Change.state == "proposed"),
+            "library": count(ContentPost, ContentPost.site_id == site.id),
+            "notifications": notification_count(session, account, [site]),
+        },
+        "usage": ({"used": account.scans_used_this_period,
+                   "cap": limits["scans_per_period"]} if limits else None),
+    }
+
+
 # --- 5. notifications -----------------------------------------------------
+
+
+def _own_jobs(site_ids: list[str]):
+    """Job rows carry no account; each names its scan in the payload. This is
+    the filter that keeps one workspace from seeing another's jobs."""
+    return Job.payload["scan_id"].as_string().in_(
+        select(Scan.id).where(Scan.site_id.in_(site_ids)))
 
 
 def notifications(session: Session, account: Account) -> dict:
@@ -960,8 +1026,8 @@ def notifications(session: Session, account: Account) -> dict:
     fill = demo.is_demo(account)
 
     failed_jobs = list(session.scalars(
-        select(Job).where(Job.status == "failed")
-        .order_by(Job.finished_at.desc().nullslast()).limit(10)).all())
+        select(Job).where(Job.status == "failed", _own_jobs(ids))
+        .order_by(Job.finished_at.desc().nullslast()).limit(10)).all()) if ids else []
 
     waiting = list(session.scalars(
         select(Change).where(Change.site_id.in_(ids), Change.state == "proposed")
@@ -1012,9 +1078,9 @@ def notifications(session: Session, account: Account) -> dict:
               for k in ("approval", "automation", "sync", "reminder")}
 
     ok = int(session.scalar(select(func.count()).select_from(Job)
-                            .where(Job.status == "done")) or 0)
+                            .where(Job.status == "done", _own_jobs(ids))) or 0) if ids else 0
     bad = int(session.scalar(select(func.count()).select_from(Job)
-                             .where(Job.status == "failed")) or 0)
+                             .where(Job.status == "failed", _own_jobs(ids))) or 0) if ids else 0
 
     ctx.update({
         "kpis": {"unread": len(feed), "approvals": counts["approval"],

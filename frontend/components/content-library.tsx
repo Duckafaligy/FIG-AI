@@ -23,11 +23,10 @@ export function ContentLibrary() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { hostname: pathProjectHostname } = useParams<{ hostname: string }>();
-  // This library is cross-project by default (the "All projects" filter
-  // below) -- the ?project= query param is that filter, deliberately
-  // independent of which project's sidebar you reached this page from
-  // (the [id] path segment, used only to rebuild this page's own base URL).
-  const project = searchParams.get("project") ?? "";
+  // The library opens on the project in the URL; ?project= switches it to
+  // another project, and ?project=all shows every project.
+  const projectParam = searchParams.get("project");
+  const project = projectParam === "all" ? "" : projectParam ?? pathProjectHostname ?? "";
   const [data, setData] = useState<Library | null>(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
@@ -41,7 +40,7 @@ export function ContentLibrary() {
   useEffect(() => { setOffset(0); }, [globalSearch, project]);
   const setProject = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (value) params.set("project", value); else params.delete("project");
+    if (value === pathProjectHostname) params.delete("project"); else params.set("project", value || "all");
     router.replace(`/projects/${encodeURIComponent(pathProjectHostname)}/library${params.size ? `?${params}` : ""}`, { scroll: false });
   };
   const load = useCallback(async () => {
@@ -61,7 +60,7 @@ export function ContentLibrary() {
     <nav className="cms-status-tabs" aria-label="Content status">{[["", "All content"], ["queued", "Queued"], ["in_progress", "Drafts"], ["review", "In review"], ["scheduled", "Scheduled"], ["published", "Published"]].map(([value, name]) => <button type="button" key={value} aria-pressed={status === value} onClick={() => { setStatus(value); setOffset(0); }}>{name}</button>)}</nav>
     <div className="library-toolbar">
       <label><Search size={16} /><input aria-label="Search library" placeholder="Search titles…" value={query} onChange={e => { setQuery(e.target.value); setOffset(0); }} /></label>
-      <select aria-label="Filter library by project" value={project} onChange={e => { setProject(e.target.value); setOffset(0); }}><option value="">All projects</option>{data?.projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+      <select aria-label="Filter library by project" value={project} onChange={e => { setProject(e.target.value); setOffset(0); }}><option value="">All projects</option>{data?.projects.map(p => <option key={p.id} value={p.hostname}>{p.name}</option>)}</select>
       <div className="cms-view-controls" aria-label="Library layout"><button type="button" aria-label="List view" aria-pressed={view === "list"} onClick={() => setView("list")}><List size={18} /></button><button type="button" aria-label="Grid view" aria-pressed={view === "grid"} onClick={() => setView("grid")}><LayoutGrid size={18} /></button></div>
       <button className="secondary-button" type="button" onClick={load} disabled={loading}><RefreshCw size={15} />Refresh</button>
     </div>
@@ -85,7 +84,7 @@ function ContentEditor({ initial, defaultProject, projects, onClose, onSaved }: 
   const [title, setTitle] = useState(initial?.title ?? "");
   const [body, setBody] = useState(initial?.body ?? "");
   const [keyword, setKeyword] = useState(initial?.keyword ?? "");
-  const [project, setProject] = useState(initial?.project?.id ?? (projects.some(p => p.id === defaultProject) ? defaultProject : projects[0]?.id) ?? "");
+  const [project, setProject] = useState(initial?.project?.id ?? projects.find(p => p.id === defaultProject || p.hostname === defaultProject)?.id ?? projects[0]?.id ?? "");
   const [editorView, setEditorView] = useState<"edit" | "preview">("edit");
   const [mobile, setMobile] = useState(false);
   const [category, setCategory] = useState(initial?.category ?? "blog");

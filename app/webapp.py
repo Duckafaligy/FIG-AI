@@ -243,6 +243,14 @@ def analytics(request: Request, project: str = Query(default=""),
                                    _project(session, account, project)))
 
 
+@router.get("/project-chrome")
+def project_chrome(request: Request, project: str = Query(default=""),
+                   session: Session = Depends(get_session)):
+    account = _account(request, session)
+    return _public(pages.project_chrome(session, account,
+                                        _project(session, account, project)))
+
+
 @router.get("/notifications")
 def notifications(request: Request, session: Session = Depends(get_session)):
     account = _account(request, session)
@@ -494,8 +502,7 @@ def content_library(request: Request, project: str = Query(default=""),
     account = _account(request, session)
     filters = [Site.account_id == account.id]
     if project:
-        _project(session, account, project)
-        filters.append(ContentPost.site_id == project)
+        filters.append(ContentPost.site_id == _project(session, account, project).id)
     if state:
         if state not in content.STATES:
             raise HTTPException(422, "Unknown content status")

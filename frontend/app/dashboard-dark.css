@@ -1,0 +1,478 @@
+/*
+ * The signed-in dashboard, dark (Paper "Live site", 2026-09-27).
+ *
+ * Loaded last and scoped to .dashboard-shell, so the public site and the
+ * sign-in screens are untouched. Colours come from the tokens below; the
+ * rules after them restyle the shell and override the older light-theme
+ * component rules that hard-code white surfaces.
+ */
+
+.dashboard-shell {
+  --fig-bg: #090a09;
+  --fig-rail: #0c0d0b;
+  --fig-panel: #111310;
+  --fig-raised: #161914;
+  --fig-line: #2a2f24;
+  --fig-line-soft: #1d2119;
+  --fig-ink: #f3f5ef;
+  --fig-copy: #aeb6a7;
+  --fig-muted: #8f968a;
+  --fig-faint: #6f7869;
+  --fig-green: #14c86b;
+  --fig-green-soft: #12301d;
+  --fig-green-text: #7fe0a9;
+  --fig-amber: #d9a441;
+  --fig-amber-soft: #251e0e;
+  --fig-amber-text: #e8c877;
+  --fig-red: #e0674f;
+  --fig-red-soft: #2a1511;
+  --fig-red-text: #f0a08f;
+  --fig-blue-soft: #14203a;
+  --fig-blue-text: #8fb8f0;
+  --fig-violet-soft: #221b33;
+  --fig-violet-text: #c9b6f5;
+  --fig-radius: 2px;
+  --fig-sans: var(--font-inter), Inter, system-ui, sans-serif;
+  --fig-mono-font: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
+
+  /* The older dashboard rules read these, so remapping them turns most of
+     the page dark without touching each rule. */
+  --dashboard-sidebar-width: 232px;
+  --dashboard-topbar-height: 60px;
+  --dashboard-bg: var(--fig-bg);
+  --dashboard-panel: var(--fig-panel);
+  --dashboard-ink: var(--fig-ink);
+  --dashboard-copy: var(--fig-copy);
+  --dashboard-muted: var(--fig-muted);
+  --dashboard-line: var(--fig-line);
+  --dashboard-line-soft: var(--fig-line-soft);
+  --dashboard-violet: var(--fig-green);
+  --dashboard-violet-soft: var(--fig-green-soft);
+  --dashboard-blue: #8fb8f0;
+  --dashboard-blue-soft: var(--fig-blue-soft);
+  --dashboard-green: var(--fig-green);
+  --dashboard-green-soft: var(--fig-green-soft);
+  --dashboard-amber: var(--fig-amber);
+  --dashboard-amber-soft: var(--fig-amber-soft);
+  --dashboard-red: var(--fig-red);
+  --dashboard-red-soft: var(--fig-red-soft);
+  --surface: var(--fig-panel);
+  --ink: var(--fig-ink);
+  --muted: var(--fig-muted);
+  --line: var(--fig-line);
+  --green: var(--fig-green);
+  --red: var(--fig-red);
+
+  color: var(--fig-ink);
+  background: var(--fig-bg);
+  font-family: var(--fig-sans);
+  color-scheme: dark;
+}
+
+.dashboard-shell .fig-mono { font-family: var(--fig-mono-font); }
+
+/* --- rail ---------------------------------------------------------------- */
+
+.dashboard-shell .fig-rail {
+  padding: 20px 16px 16px;
+  gap: 2px;
+  color: var(--fig-copy);
+  background: var(--fig-rail);
+  border-right: 1px solid var(--fig-line-soft);
+  box-shadow: none;
+}
+
+.dashboard-shell .fig-rail-brand {
+  padding: 0 8px 18px;
+  color: var(--fig-ink);
+  font-family: var(--font-bricolage), system-ui, sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -.04em;
+  line-height: 1;
+}
+
+.dashboard-shell .fig-rail-back {
+  padding: 4px 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fig-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.dashboard-shell .fig-rail-back:hover { color: var(--fig-ink); }
+
+.dashboard-shell .fig-rail-project {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  background: var(--fig-panel);
+  border: 1px solid var(--fig-line);
+  border-left: 3px solid var(--fig-green);
+}
+
+.dashboard-shell .fig-rail-project-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.dashboard-shell .fig-rail-project-top strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fig-ink);
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-shell .fig-rail-project-top span { color: var(--fig-green); font-size: 12px; font-weight: 700; }
+.dashboard-shell .fig-rail-host { overflow: hidden; color: var(--fig-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+
+.dashboard-shell .fig-rail-logos { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.dashboard-shell .fig-rail-logos > span {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  background: var(--fig-rail);
+  border: 1px solid var(--fig-line);
+}
+
+.dashboard-shell .fig-rail-logos > span.is-broken { border-color: #6b2a1f; }
+
+.dashboard-shell .fig-rail-label {
+  padding: 18px 10px 8px;
+  color: var(--fig-faint);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.dashboard-shell .fig-rail nav { gap: 2px; }
+
+.dashboard-shell .fig-rail nav a {
+  min-height: 36px;
+  padding: 0 10px;
+  gap: 10px;
+  color: var(--fig-copy);
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.dashboard-shell .fig-rail nav a svg { width: 16px; height: 16px; color: var(--fig-muted); }
+.dashboard-shell .fig-rail nav a:hover { color: var(--fig-ink); background: var(--fig-line-soft); }
+
+.dashboard-shell .fig-rail nav a.active {
+  color: var(--fig-ink);
+  background: var(--fig-green-soft);
+  border-left-color: var(--fig-green);
+  box-shadow: none;
+  font-weight: 700;
+}
+
+.dashboard-shell .fig-rail nav a.active::after { display: none; }
+.dashboard-shell .fig-rail nav a.active svg { color: var(--fig-green); }
+
+.dashboard-shell .fig-rail nav a em {
+  margin-left: auto;
+  color: var(--fig-faint);
+  font-family: var(--fig-mono-font);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.dashboard-shell .fig-rail nav a em.is-alert {
+  padding: 1px 6px;
+  color: var(--fig-amber-text);
+  background: var(--fig-amber-soft);
+  font-weight: 700;
+}
+
+.dashboard-shell .fig-rail-usage {
+  margin-top: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--fig-panel);
+  border: 1px solid var(--fig-line);
+}
+
+.dashboard-shell .fig-rail-usage > div { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.dashboard-shell .fig-rail-usage strong { color: var(--fig-ink); font-size: 12px; font-weight: 700; }
+.dashboard-shell .fig-rail-usage span { color: var(--fig-copy); font-size: 11px; }
+.dashboard-shell .fig-rail-usage i { display: flex; height: 4px; background: var(--fig-line-soft); }
+.dashboard-shell .fig-rail-usage b { display: block; height: 4px; background: var(--fig-green); }
+.dashboard-shell .fig-rail-usage p { margin: 0; color: var(--fig-muted); font-size: 11px; line-height: 1.45; }
+
+/* --- top bar ------------------------------------------------------------- */
+
+.dashboard-shell .fig-topbar {
+  padding: 0 32px;
+  background: rgba(9, 10, 9, .92);
+  border-bottom: 1px solid var(--fig-line-soft);
+  box-shadow: none;
+}
+
+.dashboard-shell .fig-crumbs {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.dashboard-shell .fig-crumbs a { overflow: hidden; color: var(--fig-copy); text-overflow: ellipsis; }
+.dashboard-shell .fig-crumbs a:hover { color: var(--fig-ink); }
+.dashboard-shell .fig-crumbs span { color: var(--fig-faint); }
+.dashboard-shell .fig-crumbs strong { color: var(--fig-ink); font-weight: 600; }
+
+.dashboard-shell .fig-topbar .dashboard-search {
+  width: min(320px, 32vw);
+  height: 36px;
+  margin-left: auto;
+  color: var(--fig-muted);
+  background: var(--fig-rail);
+  border: 1px solid var(--fig-line);
+  border-radius: var(--fig-radius);
+  box-shadow: none;
+}
+
+.dashboard-shell .fig-topbar .dashboard-search:focus-within { border-color: var(--fig-green); box-shadow: none; }
+.dashboard-shell .fig-topbar .dashboard-search svg { color: var(--fig-faint); }
+.dashboard-shell .fig-topbar .dashboard-search input { color: var(--fig-ink); font-size: 13px; }
+.dashboard-shell .fig-topbar .dashboard-search input::placeholder { color: var(--fig-faint); }
+
+.dashboard-shell .icon-button,
+.dashboard-shell .avatar-button {
+  height: 36px;
+  color: var(--fig-copy);
+  background: transparent;
+  border: 1px solid var(--fig-line);
+  border-radius: var(--fig-radius);
+  box-shadow: none;
+}
+
+.dashboard-shell .icon-button { width: 36px; }
+
+.dashboard-shell .avatar-button {
+  width: 32px;
+  height: 32px;
+  color: var(--fig-green-text);
+  background: var(--fig-green-soft);
+  border-color: var(--fig-green);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.dashboard-shell [role="menu"] {
+  background: var(--fig-panel) !important;
+  border: 1px solid var(--fig-line) !important;
+  border-radius: var(--fig-radius) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .45) !important;
+}
+
+.dashboard-shell [role="menu"] a,
+.dashboard-shell [role="menu"] button { color: var(--fig-ink) !important; }
+.dashboard-shell [role="menu"] a:hover,
+.dashboard-shell [role="menu"] button:hover { background: var(--fig-line-soft) !important; }
+
+.dashboard-shell .dashboard-content { color: var(--fig-ink); }
+
+/* --- headings ------------------------------------------------------------ */
+
+.dashboard-shell .dashboard-heading-row h1 { color: var(--fig-ink); font-family: var(--fig-sans); font-weight: 600; letter-spacing: -.035em; }
+.dashboard-shell .dashboard-heading-row p { color: var(--fig-copy); }
+.dashboard-shell .dashboard-eyebrow { color: var(--fig-green); letter-spacing: .14em; }
+
+/* --- shared surfaces the older rules paint white ------------------------- */
+
+.dashboard-shell :is(.dashboard-panel, .metric-card, .summary-stat, .preview-table, .answer-card, .answer-query,
+  .empty-flow > div, .funnel-total, .health-score, .panel-tabs, .panel-meta, .bar-chart, .settings-surface,
+  .settings-tab-sidebar, .library-card, .library-empty, .cms-collection-heading, .cms-status-tabs, .cms-view-controls,
+  .pq-row, .pq-empty, .pq-note, .route-feedback, .dashboard-table-search, .feed-action) {
+  color: var(--fig-ink);
+  background: var(--fig-panel);
+  border-color: var(--fig-line);
+  border-radius: var(--fig-radius);
+  box-shadow: none;
+}
+
+.dashboard-shell :is(.dashboard-panel, .metric-card, .settings-surface, .library-card, .pq-row) h2,
+.dashboard-shell :is(.dashboard-panel, .metric-card, .settings-surface, .library-card, .pq-row) strong { color: var(--fig-ink); }
+
+.dashboard-shell :is(.dashboard-panel, .metric-card, .settings-surface, .library-card, .pq-row, .summary-stat) :is(p, small, span:not([class*="pill"])) { color: var(--fig-copy); }
+
+.dashboard-shell .metric-icon,
+.dashboard-shell .panel-icon {
+  color: var(--fig-green);
+  background: var(--fig-green-soft);
+  border-radius: var(--fig-radius);
+  box-shadow: none;
+}
+
+.dashboard-shell .metric-card strong { color: var(--fig-ink); letter-spacing: -.02em; }
+.dashboard-shell .metric-card small em { color: var(--fig-muted); }
+
+.dashboard-shell :is(.chart-grid-lines, .reliability-bars i) { background-color: transparent; border-color: var(--fig-line-soft); }
+.dashboard-shell .chart-axis span,
+.dashboard-shell .chart-y-axis span { color: var(--fig-faint); }
+
+.dashboard-shell :is(.chart-point-tooltip, .workspace-trend-tooltip) {
+  color: var(--fig-ink);
+  background: var(--fig-raised);
+  border: 1px solid var(--fig-line);
+  border-radius: var(--fig-radius);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .45);
+}
+
+/* tables and rows */
+
+.dashboard-shell :is(.dashboard-data-table, .live-record-list, .preview-table) :is(th, td, article) {
+  color: var(--fig-copy);
+  border-color: var(--fig-line-soft);
+}
+
+.dashboard-shell .dashboard-data-table th { color: var(--fig-faint); background: transparent; }
+.dashboard-shell .dashboard-data-table tbody tr:hover { background: var(--fig-raised); }
+.dashboard-shell .live-record-list article { border-bottom-color: var(--fig-line-soft); }
+.dashboard-shell .live-record-list p { color: var(--fig-muted); }
+.dashboard-shell .feed-empty { color: var(--fig-muted); }
+
+/* pills */
+
+.dashboard-shell .status-pill--blue { color: var(--fig-blue-text); background: var(--fig-blue-soft); }
+.dashboard-shell .status-pill--purple { color: var(--fig-violet-text); background: var(--fig-violet-soft); }
+.dashboard-shell .status-pill--amber { color: var(--fig-amber-text); background: var(--fig-amber-soft); }
+.dashboard-shell .status-pill--red { color: var(--fig-red-text); background: var(--fig-red-soft); }
+.dashboard-shell .pq-status--blue { color: var(--fig-blue-text); background: var(--fig-blue-soft); }
+.dashboard-shell .pq-status--purple { color: var(--fig-violet-text); background: var(--fig-violet-soft); }
+.dashboard-shell .pq-status--green { color: var(--fig-green-text); background: var(--fig-green-soft); }
+.dashboard-shell .pq-status--red { color: var(--fig-red-text); background: var(--fig-red-soft); }
+.dashboard-shell .pq-status--grey { color: var(--fig-copy); background: var(--fig-line-soft); }
+
+/* tabs */
+
+.dashboard-shell .panel-tabs > button,
+.dashboard-shell .cms-status-tabs button { color: var(--fig-muted); background: transparent; border-radius: var(--fig-radius); }
+.dashboard-shell .panel-tabs > button.active,
+.dashboard-shell .cms-status-tabs button[aria-pressed="true"] { color: var(--fig-ink); background: var(--fig-line-soft); }
+
+/* buttons */
+
+.dashboard-shell .button {
+  color: #090a09;
+  background: var(--fig-green);
+  border: 1px solid var(--fig-green);
+  border-radius: var(--fig-radius);
+  box-shadow: none;
+  font-weight: 600;
+}
+
+.dashboard-shell .button:hover { background: #2bd67e; }
+
+.dashboard-shell :is(.secondary-button, .settings-row-action, .data-actions button, .detail-subtle-button, .panel-action) {
+  color: var(--fig-ink);
+  background: transparent;
+  border: 1px solid var(--fig-line);
+  border-radius: var(--fig-radius);
+  box-shadow: none;
+}
+
+.dashboard-shell :is(.secondary-button, .settings-row-action, .data-actions button, .detail-subtle-button, .panel-action):hover { background: var(--fig-line-soft); }
+
+/* forms */
+
+.dashboard-shell :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+  color: var(--fig-ink);
+  background: var(--fig-rail);
+  border-color: var(--fig-line);
+  border-radius: var(--fig-radius);
+}
+
+.dashboard-shell :is(input, textarea)::placeholder { color: var(--fig-faint); }
+.dashboard-shell .form-message { color: var(--fig-red-text); background: var(--fig-red-soft); border-color: #4a2219; }
+
+/* dialogs render inside the shell's tree */
+
+.dashboard-shell :is(dialog, .dashboard-detail-dialog, .preview-info-dialog) {
+  color: var(--fig-ink);
+  background: var(--fig-panel);
+  border: 1px solid var(--fig-line);
+  border-radius: var(--fig-radius);
+}
+
+.dashboard-shell :is(.detail-dialog-heading, .detail-dialog-footer) { background: var(--fig-panel); border-color: var(--fig-line); }
+
+@media (max-width: 900px) {
+  .dashboard-shell .fig-rail { width: 248px; }
+  .dashboard-shell .fig-topbar { padding: 0 16px 0 63px; }
+  .dashboard-shell .dashboard-menu { color: var(--fig-ink); background: var(--fig-panel); border: 1px solid var(--fig-line); border-radius: var(--fig-radius); }
+}
+
+@media (max-width: 640px) {
+  .dashboard-shell .fig-crumbs a,
+  .dashboard-shell .fig-crumbs span { display: none; }
+  .dashboard-shell .fig-topbar .dashboard-search { width: auto; flex: 1; }
+}
+
+/* --- settings: connections and analytics property ----------------------- */
+
+.dashboard-shell .settings-surface h3,
+.dashboard-shell .settings-integration-group h4 { color: var(--fig-ink); }
+.dashboard-shell .settings-integration-group > p,
+.dashboard-shell .settings-surface-heading p { color: var(--fig-copy); }
+.dashboard-shell .settings-integration-list { border-color: var(--fig-line); border-radius: var(--fig-radius); }
+.dashboard-shell .settings-integration-list article { border-top-color: var(--fig-line-soft); }
+.dashboard-shell .settings-integration-list strong { color: var(--fig-ink); }
+.dashboard-shell .settings-integration-list small,
+.dashboard-shell .settings-service-permission { color: var(--fig-muted); }
+
+.dashboard-shell .settings-service-icon,
+.dashboard-shell .settings-integrations-panel .settings-service-icon {
+  background: var(--fig-rail);
+  border: 1px solid var(--fig-line);
+  border-radius: var(--fig-radius);
+}
+
+.dashboard-shell .settings-status { border-radius: var(--fig-radius); }
+.dashboard-shell .settings-status--neutral,
+.dashboard-shell .settings-integrations-panel .settings-status--neutral { color: var(--fig-copy); background: var(--fig-line-soft); }
+.dashboard-shell .settings-status--green { color: var(--fig-green-text); background: var(--fig-green-soft); }
+.dashboard-shell .settings-status--amber { color: var(--fig-amber-text); background: var(--fig-amber-soft); }
+.dashboard-shell .settings-status--blue { color: var(--fig-blue-text); background: var(--fig-blue-soft); }
+.dashboard-shell .settings-status--purple { color: var(--fig-violet-text); background: var(--fig-violet-soft); }
+
+.dashboard-shell :is(.settings-team-note, .settings-integration-note, .settings-notification-note, .settings-security-tip) { background: var(--fig-rail); }
+.dashboard-shell :is(.settings-team-note, .settings-integration-note, .settings-notification-note, .settings-security-tip) > svg { color: var(--fig-green); }
+.dashboard-shell :is(.settings-team-note, .settings-integration-note, .settings-notification-note) strong { color: var(--fig-ink); }
+.dashboard-shell :is(.settings-team-note, .settings-integration-note, .settings-notification-note) p { color: var(--fig-copy); }
+
+.dashboard-shell .settings-link-button {
+  color: var(--fig-ink);
+  background: transparent;
+  border: 1px solid var(--fig-line);
+  border-radius: var(--fig-radius);
+}
+
+.dashboard-shell .settings-link-button:hover { background: var(--fig-line-soft); }
+
+@media (max-width: 900px) {
+  /* the menu button sits over the top-left corner of the open rail */
+  .dashboard-shell .fig-rail { padding-top: 64px; }
+}
+
+/* GitHub's mark is near-black (#181717); on the dark tiles it turns light, as in the rail. */
+.dashboard-shell .settings-service-icon svg path[fill="#181717"] { fill: var(--fig-ink); }

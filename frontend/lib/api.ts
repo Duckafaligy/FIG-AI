@@ -219,6 +219,13 @@ export type ApiChart = {
   max: number;
 };
 
+export type ApiProjectChrome = {
+  project: { id: string; hostname: string; name: string; score: Nullable<number> } | null;
+  connections?: { platform: string; ok: boolean }[];
+  badges?: { seo: Nullable<number>; geo: Nullable<number>; publish: number; library: number; notifications: number };
+  usage?: { used: number; cap: number } | null;
+};
+
 export type ApiAnalyticsPage = {
   project: { id: string; hostname: string; name: string } | null;
   connected: boolean;
@@ -478,6 +485,8 @@ export const api = {
     ),
   geo: (project = "") =>
     apiServer<ApiGeoPage>(`/api/geo${project ? `?project=${encodeURIComponent(project)}` : ""}`),
+  projectChrome: (project: string) =>
+    apiServer<ApiProjectChrome>(`/api/project-chrome?project=${encodeURIComponent(project)}`),
   analytics: (project: string) =>
     apiServer<ApiAnalyticsPage>(`/api/analytics?project=${encodeURIComponent(project)}`),
   notifications: () => apiServer<ApiNotificationsPage>("/api/notifications"),

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque } from "next/font/google";
+import { Bricolage_Grotesque, Inter, JetBrains_Mono } from "next/font/google";
 import { JsonLd } from "@/components/json-ld";
 import { PageMotion } from "@/components/page-motion";
 import { CursorAura } from "@/components/cursor-aura";
@@ -20,9 +20,12 @@ import "./theme-dark-pages.css";
 import "./home-neon.css";
 import "./pricing-auth-neon.css";
 import "./neon-dark.css";
+import "./dashboard-dark.css";
 import { ThemeProvider } from "@/components/theme-provider";
 
 const bricolage = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-bricolage", display: "swap" });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains", display: "swap" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -44,7 +47,7 @@ const siteData = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={bricolage.variable} suppressHydrationWarning>
+    <html lang="en" className={`${bricolage.variable} ${inter.variable} ${mono.variable}`} suppressHydrationWarning>
       <body>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <JsonLd data={siteData} />

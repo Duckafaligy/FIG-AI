@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   Bell,
   BadgeCheck,
   BarChart3,
+  Bot,
+  LayoutGrid,
+  ChevronLeft,
   CalendarClock,
-  Zap,
   CalendarDays,
   ChevronDown,
   ChevronRight,
@@ -37,7 +38,8 @@ import {
 import { createContext, useContext, useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import type { DashboardPage, DashboardRow } from "@/lib/dashboard-pages";
 import { chartHitArea, chartRanges, chartSamples, type ChartRange } from "@/lib/chart-range";
-import { actions } from "@/lib/api";
+import { actions, type ApiProjectChrome } from "@/lib/api";
+import { siGithub, siGoogleanalytics, siGooglesearchconsole, siShopify, siWebflow, siWix, siWordpress } from "simple-icons/icons";
 import { ContentTemplatePreview } from "./content-template-preview";
 
 const DashboardSearchContext = createContext("");
@@ -46,19 +48,37 @@ export function useDashboardSearch() { return useContext(DashboardSearchContext)
 // Suffixes onto /projects/{id} -- every one of these pages lives under that
 // project's own path now (2026-09-23), not a fixed /app/* prefix scoped by
 // an invisible ?project= query param.
-const nav = [
-  { suffix: "/library", label: "Library", icon: FileText },
-  { suffix: "", label: "Overview", icon: Home },
-  { suffix: "/seo", label: "SEO", icon: Search },
-  { suffix: "/geo", label: "GEO", icon: Globe2 },
+type BadgeKey = keyof NonNullable<ApiProjectChrome["badges"]>;
+const nav: { suffix: string; label: string; icon: typeof Home; badge?: BadgeKey; alert?: boolean }[] = [
+  { suffix: "/library", label: "Library", icon: FileText, badge: "library" },
+  { suffix: "", label: "Overview", icon: LayoutGrid },
+  { suffix: "/seo", label: "SEO", icon: Search, badge: "seo" },
+  { suffix: "/geo", label: "GEO", icon: Bot, badge: "geo" },
   { suffix: "/analytics", label: "Analytics", icon: BarChart3 },
-  { suffix: "/publish", label: "Publish", icon: Upload },
-  { suffix: "/notifications", label: "Notifications", icon: Bell },
+  { suffix: "/publish", label: "Publish", icon: Upload, badge: "publish", alert: true },
+  { suffix: "/notifications", label: "Notifications", icon: Bell, badge: "notifications", alert: true },
   { suffix: "/history", label: "History", icon: History },
   { suffix: "/settings", label: "Settings", icon: Settings }
 ];
 
-export function DashboardShell({ children, workspaceName = "Workspace" }: { children: React.ReactNode; workspaceName?: string }) {
+const PLATFORM_ICONS = {
+  wordpress: siWordpress, shopify: siShopify, webflow: siWebflow, wix: siWix, github: siGithub,
+  google_analytics: siGoogleanalytics, google_search_console: siGooglesearchconsole,
+} as const;
+const PLATFORM_NAMES: Record<string, string> = {
+  wordpress: "WordPress", shopify: "Shopify", webflow: "Webflow", wix: "Wix", github: "GitHub",
+  google_analytics: "Google Analytics", google_search_console: "Search Console",
+};
+
+/** Brand marks stay in brand colour; GitHub and Wix are monochrome marks, so they turn light on the dark rail. */
+function PlatformMark({ platform, size = 12 }: { platform: string; size?: number }) {
+  const icon = PLATFORM_ICONS[platform as keyof typeof PLATFORM_ICONS];
+  if (!icon) return null;
+  const fill = platform === "github" || platform === "wix" ? "#F3F5EF" : `#${icon.hex}`;
+  return <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true"><path d={icon.path} fill={fill} /></svg>;
+}
+
+export function DashboardShell({ children, workspaceName = "Workspace", chrome = null }: { children: React.ReactNode; workspaceName?: string; chrome?: ApiProjectChrome | null }) {
   const pathname = usePathname();
   const { hostname: projectId } = useParams<{ hostname: string }>();
   const router = useRouter();
@@ -73,6 +93,10 @@ export function DashboardShell({ children, workspaceName = "Workspace" }: { chil
     setOpen(false);
     window.setTimeout(() => menuRef.current?.focus(), 0);
   };
+
+  const project = chrome?.project ?? null;
+  const current = nav.find((item) => projectId && pathname === `/projects/${encodeURIComponent(projectId)}${item.suffix}`);
+  const pageLabel = current?.label ?? (pathname.startsWith("/projects/settings") ? "Settings" : "Overview");
 
   const signOut = async () => {
     setSigningOut(true);
@@ -117,28 +141,44 @@ export function DashboardShell({ children, workspaceName = "Workspace" }: { chil
     <DashboardSearchContext.Provider value={search}><div className="dashboard-shell">
       <button ref={menuRef} className="dashboard-menu" onClick={() => setOpen((isOpen) => !isOpen)} aria-label={open ? "Close dashboard navigation" : "Open dashboard navigation"} aria-expanded={open} aria-controls={navigationId}>{open ? <X /> : <Menu />}</button>
       {open && <button className="dashboard-nav-backdrop" type="button" aria-label="Close dashboard navigation" onClick={closeNavigation} />}
-      <aside id={navigationId} className={`dashboard-sidebar ${open ? "is-open" : ""}`}>
-        <Link className="dashboard-brand" href="/projects" aria-label="Your projects"><span><Zap size={14} fill="currentColor" /></span><strong>FIG</strong></Link>
-        <nav aria-label="Dashboard navigation">
+      <aside id={navigationId} className={`dashboard-sidebar fig-rail ${open ? "is-open" : ""}`}>
+        <Link className="fig-rail-brand" href="/projects" aria-label="Your projects">FIG</Link>
+        <Link className="fig-rail-back" href="/projects" onClick={() => setOpen(false)}><ChevronLeft size={14} aria-hidden="true" />All projects</Link>
+        {project && <div className="fig-rail-project">
+          <div className="fig-rail-project-top"><strong>{project.name}</strong>{project.score !== null && <span className="fig-mono">{project.score}</span>}</div>
+          <span className="fig-mono fig-rail-host">{project.hostname}</span>
+          {Boolean(chrome?.connections?.length) && <div className="fig-rail-logos">{chrome!.connections!.map((c) =>
+            <span key={c.platform} className={c.ok ? "" : "is-broken"} title={`${PLATFORM_NAMES[c.platform] ?? c.platform}${c.ok ? "" : " needs reconnecting"}`}><PlatformMark platform={c.platform} /></span>)}</div>}
+        </div>}
+        {projectId && <span className="fig-rail-label">Project</span>}
+        <nav aria-label="Project navigation">
           {nav.map((item) => {
-            // No current project (viewing account-wide /projects/settings,
-            // which has no [id] segment at all) -- fall back to the
-            // all-projects screen rather than link to a broken /undefined/ URL.
+            // No current project (the account-wide /projects/settings has no
+            // [hostname] segment), so fall back to the all-projects screen.
             const href = projectId ? `/projects/${encodeURIComponent(projectId)}${item.suffix}` : "/projects";
             const exact = Boolean(projectId) && pathname === href;
             const Icon = item.icon;
-            return <Link className={exact ? "active" : ""} aria-current={exact ? "page" : undefined} href={href} key={item.suffix} onClick={() => setOpen(false)}><Icon size={18} /><span>{item.label}</span></Link>;
+            const count = item.badge ? chrome?.badges?.[item.badge] : null;
+            return <Link className={exact ? "active" : ""} aria-current={exact ? "page" : undefined} href={href} key={item.suffix} onClick={() => setOpen(false)}>
+              <Icon size={16} aria-hidden="true" /><span>{item.label}</span>
+              {typeof count === "number" && count > 0 && <em className={item.alert ? "is-alert" : ""} aria-label={`${count} ${item.label.toLowerCase()}`}>{count}</em>}
+            </Link>;
           })}
         </nav>
-        <div className="sidebar-bottom">
-          <Link href="/projects" onClick={() => setOpen(false)}><ArrowLeft size={18} />Back to dashboard</Link>
-        </div>
+        {chrome?.usage && <div className="fig-rail-usage">
+          <div><strong>Scans this period</strong><span className="fig-mono">{chrome.usage.used}/{chrome.usage.cap}</span></div>
+          <i><b style={{ width: `${Math.min(100, (chrome.usage.used / Math.max(1, chrome.usage.cap)) * 100)}%` }} /></i>
+          <p>Resets with your billing period.</p>
+        </div>}
       </aside>
       <div className="dashboard-main">
-        <header className="dashboard-topbar">
-          <div className="dashboard-search"><Search size={17} /><input aria-label="Search current dashboard" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search workspace records…" />{search ? <button aria-label="Clear dashboard search" onClick={() => setSearch("")}><X size={13} /></button> : <kbd>Search</kbd>}</div>
+        <header className="dashboard-topbar fig-topbar">
+          <nav className="fig-crumbs" aria-label="Breadcrumb">
+            <Link href={projectId ? `/projects/${encodeURIComponent(projectId)}` : "/projects"}>{project?.name ?? workspaceName}</Link>
+            <span aria-hidden="true">/</span><strong>{pageLabel}</strong>
+          </nav>
+          <div className="dashboard-search"><Search size={15} /><input aria-label="Search current dashboard" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search this page" />{search ? <button aria-label="Clear dashboard search" onClick={() => setSearch("")}><X size={13} /></button> : null}</div>
           <div className="dashboard-top-actions">
-            <div className="workspace-switch" aria-label="Current project"><span className="workspace-mark">{workspaceName.slice(0, 2).toUpperCase()}</span>{workspaceName}</div>
             <Link className="icon-button" href={projectId ? `/projects/${encodeURIComponent(projectId)}/notifications` : "/projects"} aria-label="Notifications"><Bell size={18} /></Link>
             <div style={{ position: "relative" }}>
               <button
@@ -183,7 +223,6 @@ export function DashboardShell({ children, workspaceName = "Workspace" }: { chil
                 </>
               )}
             </div>
-            <ChevronDown size={14} aria-hidden="true" />
           </div>
         </header>
         <main className="dashboard-content">{children}</main>
