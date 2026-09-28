@@ -68,6 +68,14 @@ class ProjectOverviewTests(unittest.TestCase):
              patch("app.ga.is_connected", return_value=False):
             return self.client.get("/api/project-overview?project=northgate.studio").json()
 
+    def test_the_all_projects_row_reads_the_latest_scan(self):
+        card = self.client.get("/api/projects").json()["cards"][0]
+        self.assertEqual(card["scan"]["layers"], {"craft": 86, "structure": 81, "search": 84, "answers": 76})
+        self.assertEqual(card["scan"]["findings"], 4)    # distinct checks, not rows
+        self.assertEqual(card["scan"]["high"], 1)
+        self.assertEqual(card["status"], "attention")    # a high finding outranks a clean score
+        self.assertEqual(card["platforms"], ["github"])
+
     def test_findings_are_grouped_ranked_and_marked_by_what_github_can_apply(self):
         body = self.get()
         checks = [r["check"] for r in body["findings"]]

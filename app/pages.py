@@ -198,6 +198,24 @@ def notification_count(session: Session, account: Account,
 # --- 1. all projects dashboard -------------------------------------------
 
 
+def _card_reading(session: Session, site: Site, scan: Scan | None) -> dict:
+    """What one row on the all-projects list shows: the latest scan by layer,
+    distinct findings and how many are high, and the connected platforms.
+    The status label follows fixed rules on those counts."""
+    connected = [i.platform for i in session.scalars(select(Integration).where(
+        Integration.site_id == site.id, Integration.platform.in_(CMS_PLATFORMS))) if i.is_connected()]
+    if scan is None:
+        return {"scan": None, "platforms": connected, "status": "none"}
+    by_check = dict(session.execute(select(Finding.check, func.min(Finding.severity))
+                                    .where(Finding.scan_id == scan.id).group_by(Finding.check)).all())
+    high = sum(1 for sev in by_check.values() if sev == "high")
+    status = "attention" if high else "clean" if (scan.score or 0) >= 80 else "fixing"
+    return {"scan": {"layers": {layer: getattr(scan, f"score_{layer}") for layer in LAYERS},
+                     "findings": len(by_check), "high": high,
+                     "pages": scan.pages_crawled, "ago": _ago(scan.finished_at)},
+            "platforms": connected, "status": status}
+
+
 def projects(session: Session, account: Account) -> dict:
     ctx = _chrome(session, account, "projects")
     sites = ctx["_sites"]
@@ -218,6 +236,7 @@ def projects(session: Session, account: Account) -> dict:
             "state": "Active" if s.monitor else "Paused",
             "published": published,
             "impact": sc.score if sc else None,
+            **_card_reading(session, s, sc),
         })
 
     total_published = session.scalar(
@@ -243,6 +262,8 @@ def projects(session: Session, account: Account) -> dict:
     ctx.update({
         "demo": fill,
         "cards": cards,
+        "limit": ({"plan": account.plan_limits()["label"], "max": account.project_limit()}
+                  if account.plan_limits() else None),
         "kpis": {
             "projects": len(sites),
             "published": int(total_published or 0),

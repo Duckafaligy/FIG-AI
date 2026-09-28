@@ -480,3 +480,11 @@
 @media (min-width: 901px) {
   .dashboard-shell .dashboard-content { padding: 28px 32px 56px; }
 }
+
+/* --- project menu (rename / remove) on the all-projects list ------------- */
+.dashboard-shell .project-actions { margin-left: 0; }
+.dashboard-shell .project-actions summary { width: 34px; height: 34px; color: var(--fig-muted); background: #1d2119; border: 0; border-radius: 0; }
+.dashboard-shell .project-actions summary:hover { color: var(--fig-ink); background: var(--fig-line); }
+.dashboard-shell .project-actions-popover { background: var(--fig-panel); border: 1px solid var(--fig-line); border-radius: 0; box-shadow: 0 12px 28px #00000080; }
+.dashboard-shell .project-actions-popover button { color: var(--fig-copy); background: transparent; font-size: 13px; }
+.dashboard-shell .project-actions-popover button:hover { color: var(--fig-ink); background: var(--fig-line-soft); }

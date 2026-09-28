@@ -345,7 +345,11 @@ export type ApiProjectsPage = ApiChrome & {
     state: string;
     published: number;
     impact: Nullable<number>;
+    scan: Nullable<{ layers: Record<"craft" | "structure" | "search" | "answers", Nullable<number>>; findings: number; high: number; pages: number; ago: string }>;
+    platforms: string[];
+    status: "attention" | "fixing" | "clean" | "none";
   }[];
+  limit: Nullable<{ plan: string; max: number }>;
   kpis: {
     projects: number;
     published: number;

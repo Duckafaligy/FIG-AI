@@ -61,6 +61,13 @@ const nav: { suffix: string; label: string; icon: typeof Home; badge?: BadgeKey;
   { suffix: "/settings", label: "Settings", icon: Settings }
 ];
 
+// Outside a project (the all-projects list, account settings) the rail offers
+// only the workspace pages that exist.
+const workspaceNav = [
+  { href: "/projects", label: "Projects", icon: Globe2 },
+  { href: "/projects/settings", label: "Settings", icon: Settings },
+];
+
 const PLATFORM_ICONS = {
   wordpress: siWordpress, shopify: siShopify, webflow: siWebflow, wix: siWix, github: siGithub,
   google_analytics: siGoogleanalytics, google_search_console: siGooglesearchconsole,
@@ -71,7 +78,7 @@ const PLATFORM_NAMES: Record<string, string> = {
 };
 
 /** Brand marks stay in brand colour; GitHub and Wix are monochrome marks, so they turn light on the dark rail. */
-function PlatformMark({ platform, size = 12 }: { platform: string; size?: number }) {
+export function PlatformMark({ platform, size = 12 }: { platform: string; size?: number }) {
   const icon = PLATFORM_ICONS[platform as keyof typeof PLATFORM_ICONS];
   if (!icon) return null;
   const fill = platform === "github" || platform === "wix" ? "#F3F5EF" : `#${icon.hex}`;
@@ -96,7 +103,7 @@ export function DashboardShell({ children, workspaceName = "Workspace", chrome =
 
   const project = chrome?.project ?? null;
   const current = nav.find((item) => projectId && pathname === `/projects/${encodeURIComponent(projectId)}${item.suffix}`);
-  const pageLabel = current?.label ?? (pathname.startsWith("/projects/settings") ? "Settings" : "Overview");
+  const pageLabel = current?.label ?? (pathname.startsWith("/projects/settings") ? "Settings" : pathname === "/projects" ? "Projects" : "Overview");
 
   const signOut = async () => {
     setSigningOut(true);
@@ -143,20 +150,27 @@ export function DashboardShell({ children, workspaceName = "Workspace", chrome =
       {open && <button className="dashboard-nav-backdrop" type="button" aria-label="Close dashboard navigation" onClick={closeNavigation} />}
       <aside id={navigationId} className={`dashboard-sidebar fig-rail ${open ? "is-open" : ""}`}>
         <Link className="fig-rail-brand" href="/projects" aria-label="Your projects">FIG</Link>
-        <Link className="fig-rail-back" href="/projects" onClick={() => setOpen(false)}><ChevronLeft size={14} aria-hidden="true" />All projects</Link>
+        {projectId && <Link className="fig-rail-back" href="/projects" onClick={() => setOpen(false)}><ChevronLeft size={14} aria-hidden="true" />All projects</Link>}
         {project && <div className="fig-rail-project">
           <div className="fig-rail-project-top"><strong>{project.name}</strong>{project.score !== null && <span className="fig-mono">{project.score}</span>}</div>
           <span className="fig-mono fig-rail-host">{project.hostname}</span>
           {Boolean(chrome?.connections?.length) && <div className="fig-rail-logos">{chrome!.connections!.map((c) =>
             <span key={c.platform} className={c.ok ? "" : "is-broken"} title={`${PLATFORM_NAMES[c.platform] ?? c.platform}${c.ok ? "" : " needs reconnecting"}`}><PlatformMark platform={c.platform} /></span>)}</div>}
         </div>}
-        {projectId && <span className="fig-rail-label">Project</span>}
-        <nav aria-label="Project navigation">
+        <span className="fig-rail-label">{projectId ? "Project" : "Workspace"}</span>
+        {!projectId && <nav aria-label="Workspace navigation">
+          {workspaceNav.map((item) => {
+            const exact = pathname === item.href;
+            const Icon = item.icon;
+            return <Link className={exact ? "active" : ""} aria-current={exact ? "page" : undefined} href={item.href} key={item.href} onClick={() => setOpen(false)}>
+              <Icon size={16} aria-hidden="true" /><span>{item.label}</span>
+            </Link>;
+          })}
+        </nav>}
+        {projectId && <nav aria-label="Project navigation">
           {nav.map((item) => {
-            // No current project (the account-wide /projects/settings has no
-            // [hostname] segment), so fall back to the all-projects screen.
-            const href = projectId ? `/projects/${encodeURIComponent(projectId)}${item.suffix}` : "/projects";
-            const exact = Boolean(projectId) && pathname === href;
+            const href = `/projects/${encodeURIComponent(projectId)}${item.suffix}`;
+            const exact = pathname === href;
             const Icon = item.icon;
             const count = item.badge ? chrome?.badges?.[item.badge] : null;
             return <Link className={exact ? "active" : ""} aria-current={exact ? "page" : undefined} href={href} key={item.suffix} onClick={() => setOpen(false)}>
@@ -164,7 +178,7 @@ export function DashboardShell({ children, workspaceName = "Workspace", chrome =
               {typeof count === "number" && count > 0 && <em className={item.alert ? "is-alert" : ""} aria-label={`${count} ${item.label.toLowerCase()}`}>{count}</em>}
             </Link>;
           })}
-        </nav>
+        </nav>}
         {chrome?.usage && <div className="fig-rail-usage">
           <div><strong>Scans this period</strong><span className="fig-mono">{chrome.usage.used}/{chrome.usage.cap}</span></div>
           <i><b style={{ width: `${Math.min(100, (chrome.usage.used / Math.max(1, chrome.usage.cap)) * 100)}%` }} /></i>
