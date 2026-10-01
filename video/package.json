@@ -1,0 +1,25 @@
+{
+  "name": "fig-promo",
+  "private": true,
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts FigVertical out/fig-vertical.mp4 && remotion render src/index.ts FigWide out/fig-wide.mp4",
+    "render:reel": "remotion render src/index.ts FigReelWide out/fig-reel-wide.mp4 && remotion render src/index.ts FigReelVertical out/fig-reel-vertical.mp4",
+    "sound": "python sound/make_sound.py",
+    "render:hook": "python sound/make_hook.py && remotion render src/index.ts FigHookVertical final/fig-hook-vertical.mp4 && remotion render src/index.ts FigHookWide final/fig-hook-wide.mp4",
+    "render:journey": "python sound/make_journey.py && remotion render src/index.ts FigJourneyWide out/fig-journey-wide.mp4 && remotion render src/index.ts FigJourneyVertical out/fig-journey-vertical.mp4",
+    "render:sound": "python sound/make_sound.py && remotion render src/index.ts FigReelSoundWide out/fig-reel-sound-wide.mp4 && remotion render src/index.ts FigReelSoundVertical out/fig-reel-sound-vertical.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.529",
+    "@remotion/google-fonts": "4.0.529",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "remotion": "4.0.529",
+    "simple-icons": "16.33.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "typescript": "^7.0.2"
+  }
+}
